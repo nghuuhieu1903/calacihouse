@@ -1,0 +1,65 @@
+[
+  {
+    "id": "elec_flat_3500",
+    "name": "Điện Cố Định (3,500đ / kWh)",
+    "type": "flat",
+    "rate": 3500,
+    "category": "elec"
+  },
+  {
+    "id": "elec_flat_4000",
+    "name": "Điện Cố Định (4,000đ / kWh)",
+    "type": "flat",
+    "rate": 4000,
+    "category": "elec"
+  },
+  {
+    "id": "elec_evn_tiered",
+    "name": "Điện Bậc Thang EVN Sinh Hoạt",
+    "type": "tiered",
+    "category": "elec",
+    "tiers": [
+      {
+        "max": 50,
+        "rate": 1893
+      },
+      {
+        "max": 100,
+        "rate": 1956
+      },
+      {
+        "max": 200,
+        "rate": 2271
+      },
+      {
+        "max": 300,
+        "rate": 2860
+      },
+      {
+        "max": "inf",
+        "rate": 3197
+      }
+    ]
+  },
+  {
+    "id": "water_flat_18000",
+    "name": "Nước Theo Khối (18,000đ / m³)",
+    "type": "flat",
+    "rate": 18000,
+    "category": "water"
+  },
+  {
+    "id": "water_headcount_100k",
+    "name": "Nước Khoán Đầu Người (100k / người)",
+    "type": "headcount",
+    "rate": 100000,
+    "category": "water"
+  },
+  {
+    "id": "formula_1785921804",
+    "name": "Tính tiền điện",
+    "type": "flat",
+    "rate": 3700.0,
+    "category": "elec"
+  }
+]

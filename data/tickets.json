@@ -1,0 +1,26 @@
+[
+  {
+    "id": "TK-1001",
+    "roomId": "R101",
+    "roomName": "Phòng 101",
+    "tenant": "Nguyễn Văn An",
+    "category": "Điện",
+    "priority": "Khẩn cấp",
+    "description": "Công tơ điện phòng 101 bị phát tiếng kêu rè rè khi bật máy lạnh, nhờ chủ nhà kiểm tra giúp.",
+    "timestamp": "2026-08-04 14:30",
+    "status": "Mới tiếp nhận",
+    "response": ""
+  },
+  {
+    "id": "TK-1002",
+    "roomId": "R202",
+    "roomName": "Phòng 202",
+    "tenant": "Phạm Minh Tuấn",
+    "category": "Nước",
+    "priority": "Bình thường",
+    "description": "Vòi nước bồn rửa mặt bị rò rỉ nhẹ.",
+    "timestamp": "2026-08-03 09:15",
+    "status": "Đang sửa chữa",
+    "response": "Đã hẹn thợ nước sang kiểm tra vào lúc 15h chiều nay."
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "usr_admin",
+    "username": "admin",
+    "password": "123",
+    "fullName": "Quản Lý Hệ Thống (Admin)",
+    "role": "admin",
+    "roomId": "",
+    "status": "approved",
+    "createdAt": "2026-08-01 09:00"
+  },
+  {
+    "id": "usr_101",
+    "username": "nguyenvanan",
+    "password": "123",
+    "fullName": "Nguyễn Văn An",
+    "role": "tenant",
+    "roomId": "R101",
+    "status": "approved",
+    "createdAt": "2026-08-01 10:00"
+  },
+  {
+    "id": "usr_102",
+    "username": "tranthibich",
+    "password": "123",
+    "fullName": "Trần Thị Bích",
+    "role": "tenant",
+    "roomId": "R102",
+    "status": "approved",
+    "createdAt": "2026-08-01 11:00"
+  },
+  {
+    "id": "usr_pending1",
+    "username": "lethihoa",
+    "password": "123",
+    "fullName": "Lê Thị Hoa (Chờ duyệt)",
+    "role": "tenant",
+    "roomId": "",
+    "status": "pending",
+    "createdAt": "2026-08-05 08:30"
+  }
+]

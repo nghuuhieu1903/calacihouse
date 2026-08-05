@@ -1,0 +1,49 @@
+[
+  {
+    "id": "srv_elec",
+    "houseId": "all",
+    "houseIds": ["all"],
+    "name": "⚡ Tiền Điện",
+    "calcType": "formula",
+    "formulaId": "elec_flat_3500",
+    "price": 3500,
+    "unit": "Theo chỉ số (kWh)"
+  },
+  {
+    "id": "srv_water",
+    "houseId": "all",
+    "houseIds": ["all"],
+    "name": "💧 Tiền Nước",
+    "calcType": "formula",
+    "formulaId": "water_flat_18000",
+    "price": 18000,
+    "unit": "Theo chỉ số (m³)"
+  },
+  {
+    "id": "srv_parking",
+    "houseId": "all",
+    "houseIds": ["all"],
+    "name": "Phí Gửi Xe Máy",
+    "calcType": "fixed",
+    "price": 50000,
+    "unit": "Cố định / phòng"
+  },
+  {
+    "id": "srv_trash",
+    "houseId": "all",
+    "houseIds": ["all"],
+    "name": "gom rác",
+    "calcType": "fixed",
+    "price": 50000,
+    "unit": "Cố định / phòng"
+  },
+  {
+    "id": "srv_internet",
+    "houseId": "all",
+    "houseIds": ["all"],
+    "name": "Internet",
+    "calcType": "fixed",
+    "price": 50000,
+    "unit": "Cố định / phòng"
+  }
+]
