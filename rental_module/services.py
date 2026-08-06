@@ -126,7 +126,7 @@ class RentalService:
         return readings[month]
 
     @staticmethod
-    def get_full_state(month='2026-08'):
+    def get_full_state(month='2026-08', current_user=None):
         houses = Storage.get_houses()
         users = Storage.get_users()
         rooms = Storage.get_rooms()
@@ -136,9 +136,27 @@ class RentalService:
         invoices = Storage.get_invoices()
         tickets = Storage.get_tickets()
         permissions = Storage.get_permissions()
+        room_documents = Storage.get_room_documents()
 
         RentalService.sync_readings_with_services(month)
         readings = Storage.get_readings()
+
+        # Investors only see the house(s) they are assigned to.
+        if current_user and current_user.get('role') == 'investor':
+            house_id = current_user.get('houseId') or ''
+            if house_id and house_id != 'all':
+                houses = [h for h in houses if h['id'] == house_id]
+                room_ids = {r['id'] for r in rooms if r.get('houseId') == house_id}
+                rooms = [r for r in rooms if r['id'] in room_ids]
+                services = [s for s in services if RentalService.service_matches_house(s, house_id)]
+                invoices = [i for i in invoices if i.get('houseId') == house_id]
+                tickets = [tk for tk in tickets if tk.get('roomId') in room_ids]
+                readings = {
+                    m: {rid: rd for rid, rd in month_readings.items() if rid in room_ids}
+                    for m, month_readings in readings.items()
+                }
+                room_documents = {rid: docs for rid, docs in room_documents.items() if rid in room_ids}
+            users = []  # investor dashboard has no need for the account directory
 
         safe_users = [{k: v for k, v in u.items() if k != 'password'} for u in users]
 
@@ -152,6 +170,7 @@ class RentalService:
             'invoices': invoices,
             'tickets': tickets,
             'permissions': permissions,
+            'roomDocuments': room_documents,
             'currentMonth': month
         }
 
@@ -287,28 +306,6 @@ class RentalService:
         return safe_user, None
 
     @staticmethod
-    def register_user(username, password, full_name):
-        users = Storage.get_users()
-        if any(u['username'].lower() == username.lower() for u in users):
-            return None, 'Tên đăng nhập đã tồn tại!'
-
-        new_user = {
-            'id': f"usr_{uuid.uuid4().hex[:8]}",
-            'username': username,
-            'password': password,
-            'fullName': full_name,
-            'role': 'tenant',
-            'roomId': '',
-            'status': 'pending',
-            'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M')
-        }
-        users.append(new_user)
-        Storage.save_users(users)
-        
-        safe_user = {k: v for k, v in new_user.items() if k != 'password'}
-        return safe_user, None
-
-    @staticmethod
     def approve_user(user_id, room_id):
         users = Storage.get_users()
         user = next((u for u in users if u['id'] == user_id), None)
@@ -321,7 +318,7 @@ class RentalService:
         return False
 
     @staticmethod
-    def create_user_by_admin(username, password, full_name, role, room_id):
+    def create_user_by_admin(username, password, full_name, role, room_id, house_id=''):
         users = Storage.get_users()
         if any(u['username'].lower() == username.lower() for u in users):
             return None, 'Tên tài khoản đã tồn tại!'
@@ -333,6 +330,7 @@ class RentalService:
             'fullName': full_name,
             'role': role,
             'roomId': room_id if role == 'tenant' else '',
+            'houseId': house_id if role == 'investor' else '',
             'status': 'approved',
             'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
@@ -341,7 +339,7 @@ class RentalService:
         return new_user, None
 
     @staticmethod
-    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None):
+    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id=''):
         users = Storage.get_users()
         user = next((u for u in users if u['id'] == user_id), None)
         if user:
@@ -350,16 +348,18 @@ class RentalService:
                 user['role'] = 'admin'
                 user['status'] = 'approved'
                 user['roomId'] = ''
+                user['houseId'] = ''
             else:
                 user['fullName'] = full_name
                 user['role'] = role
                 user['roomId'] = room_id if role == 'tenant' else ''
+                user['houseId'] = house_id if role == 'investor' else ''
                 user['status'] = status
-            
+
             # Only update password if a new one was explicitly provided
             if new_password:
                 user['password'] = new_password
-            
+
             Storage.save_users(users)
             return user, None
         return None, 'User not found'
@@ -389,7 +389,11 @@ class RentalService:
                 'parkingFee': prk_tot
             }
 
-        if field in ['elecFormula', 'waterFormula']:
+        text_fields = [
+            'elecFormula', 'waterFormula',
+            'elecOldPhoto', 'elecNewPhoto', 'waterOldPhoto', 'waterNewPhoto'
+        ]
+        if field in text_fields:
             readings[month][room_id][field] = value
         else:
             try:
@@ -442,11 +446,15 @@ class RentalService:
                 'elecUsage': elec_usage,
                 'elecFormula': rd.get('elecFormula'),
                 'elecCost': elec_cost,
+                'elecOldPhoto': rd.get('elecOldPhoto', ''),
+                'elecNewPhoto': rd.get('elecNewPhoto', ''),
                 'waterOld': rd.get('waterOld', 0),
                 'waterNew': rd.get('waterNew', 0),
                 'waterUsage': water_usage,
                 'waterFormula': rd.get('waterFormula'),
                 'waterCost': water_cost,
+                'waterOldPhoto': rd.get('waterOldPhoto', ''),
+                'waterNewPhoto': rd.get('waterNewPhoto', ''),
                 'serviceFee': service_fee,
                 'parkingFee': parking_fee,
                 'serviceItems': item_list,
@@ -516,4 +524,36 @@ class RentalService:
         tickets = Storage.get_tickets()
         tickets = [t for t in tickets if t.get('id') != ticket_id]
         Storage.save_tickets(tickets)
+        return True
+
+    # -- Room Documents (contract & related images) --------------------------
+
+    @staticmethod
+    def save_room_document(room_id, doc_id, label, data_url):
+        if not room_id or not data_url:
+            return None
+        documents = Storage.get_room_documents()
+        room_docs = documents.get(room_id, [])
+        d_id = doc_id or f"doc_{uuid.uuid4().hex[:8]}"
+        d_obj = {
+            'id': d_id,
+            'label': label or 'Tài liệu',
+            'dataUrl': data_url,
+            'uploadedAt': datetime.now().strftime('%Y-%m-%d %H:%M')
+        }
+        idx = next((i for i, d in enumerate(room_docs) if d['id'] == d_id), -1)
+        if idx >= 0:
+            room_docs[idx] = d_obj
+        else:
+            room_docs.append(d_obj)
+        documents[room_id] = room_docs
+        Storage.save_room_documents(documents)
+        return d_obj
+
+    @staticmethod
+    def delete_room_document(room_id, doc_id):
+        documents = Storage.get_room_documents()
+        room_docs = documents.get(room_id, [])
+        documents[room_id] = [d for d in room_docs if d['id'] != doc_id]
+        Storage.save_room_documents(documents)
         return True

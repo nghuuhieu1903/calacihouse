@@ -28,6 +28,7 @@ DEFAULT_USERS = [
         'fullName': 'Quản Lý Hệ Thống (Admin)',
         'role': 'admin',
         'roomId': '',
+        'houseId': '',
         'status': 'approved',
         'createdAt': '2026-08-01 09:00'
     },
@@ -38,6 +39,7 @@ DEFAULT_USERS = [
         'fullName': 'Nguyễn Văn An',
         'role': 'tenant',
         'roomId': 'R101',
+        'houseId': '',
         'status': 'approved',
         'createdAt': '2026-08-01 10:00'
     },
@@ -48,8 +50,20 @@ DEFAULT_USERS = [
         'fullName': 'Trần Thị Bích',
         'role': 'tenant',
         'roomId': 'R102',
+        'houseId': '',
         'status': 'approved',
         'createdAt': '2026-08-01 11:00'
+    },
+    {
+        'id': 'usr_investor_a',
+        'username': 'chudautu_a',
+        'password': '123',
+        'fullName': 'Nhà Đầu Tư - Tòa A',
+        'role': 'investor',
+        'roomId': '',
+        'houseId': 'house_a',
+        'status': 'approved',
+        'createdAt': '2026-08-01 09:30'
     }
 ]
 
@@ -142,6 +156,7 @@ def _user(row):
         'fullName': row['full_name'],
         'role': row['role'],
         'roomId': row['room_id'] or '',
+        'houseId': row['house_id'] or '',
         'status': row['status'],
         'createdAt': row['created_at'] or ''
     }
@@ -271,8 +286,8 @@ class Storage:
         for u in users:
             conn.execute(
                 "INSERT OR REPLACE INTO users "
-                "(id, username, password, full_name, role, room_id, status, created_at) "
-                "VALUES (?,?,?,?,?,?,?,?)",
+                "(id, username, password, full_name, role, room_id, house_id, status, created_at) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
                 (
                     u['id'],
                     u['username'],
@@ -280,6 +295,7 @@ class Storage:
                     u.get('fullName', ''),
                     u.get('role', 'tenant'),
                     u.get('roomId', ''),
+                    u.get('houseId', ''),
                     u.get('status', 'pending'),
                     u.get('createdAt', '')
                 )
@@ -465,3 +481,13 @@ class Storage:
     @staticmethod
     def save_permissions(permissions):
         Storage._kv_set('permissions', permissions)
+
+    # -- Room Documents (contract & related images, keyed by roomId) --------
+
+    @staticmethod
+    def get_room_documents():
+        return Storage._kv_get('room_documents', {})
+
+    @staticmethod
+    def save_room_documents(documents):
+        Storage._kv_set('room_documents', documents)

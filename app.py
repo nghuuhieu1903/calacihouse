@@ -17,8 +17,9 @@ init_db()
 app.register_blueprint(rental_bp, url_prefix='/')
 
 if __name__ == '__main__':
+    port = int(os.getenv('PORT', 8000))
     print("==========================================================")
     print("Rental House Management Flask Application Running!")
-    print("Open in Browser: http://127.0.0.1:5000")
+    print(f"Open in Browser: http://127.0.0.1:{port}")
     print("==========================================================")
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True)

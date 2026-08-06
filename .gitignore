@@ -9,3 +9,9 @@ venv/
 ENV/
 .DS_Store
 *.log
+
+# Runtime data (SQLite DB + legacy JSON) — contains demo tenant data, not source code
+data/
+
+# Local Claude Code tool config
+.claude/

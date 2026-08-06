@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RentalPro - Traveloka Style Management System</title>
+  <title>CalaciHouse - Traveloka Style Management System</title>
   
   <!-- Fonts & Lucide Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -91,19 +91,25 @@
   <!-- AUTH / LOGIN OVERLAY SCREEN -->
   <div id="auth-screen" class="auth-screen">
     <div class="auth-card">
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 0.5rem;">
+        <div style="display: flex; background: var(--bg-base); padding: 3px; border-radius: var(--radius-full);">
+          <button type="button" class="btn btn-sm" id="auth-btn-lang-vi" onclick="setLanguage('vi')" style="padding: 4px 12px; border-radius: var(--radius-full); font-size: 0.8rem; font-weight: 800;">
+            🇻🇳 VI
+          </button>
+          <button type="button" class="btn btn-sm" id="auth-btn-lang-en" onclick="setLanguage('en')" style="padding: 4px 12px; border-radius: var(--radius-full); font-size: 0.8rem; font-weight: 800;">
+            🇺🇸 EN
+          </button>
+        </div>
+      </div>
+
       <div style="text-align: center; margin-bottom: 1.75rem;">
         <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: var(--tvk-blue-light); border-radius: 50%; color: var(--tvk-blue); margin-bottom: 1rem;">
           <i data-lucide="plane-takeoff" style="width: 36px; height: 36px;"></i>
         </div>
-        <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">RentalPro</h2>
-        <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;">
+        <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">CalaciHouse</h2>
+        <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;" data-i18n="auth_subtitle">
           Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động
         </p>
-      </div>
-
-      <div class="auth-tabs">
-        <button class="auth-tab active" id="tab-login" onclick="setAuthTab('login')">Đăng Nhập</button>
-        <button class="auth-tab" id="tab-register" onclick="setAuthTab('register')">Đăng Ký Khách</button>
       </div>
 
       <form id="form-login" onsubmit="handleLogin(event)" autocomplete="off">
@@ -120,49 +126,36 @@
         </button>
       </form>
 
-      <form id="form-register" onsubmit="handleRegister(event)" style="display: none;">
-        <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="fullname">Họ và Tên</label>
-          <input type="text" id="reg-fullname" class="form-control" placeholder="Nguyễn Văn A" required>
-        </div>
-        <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="username">Tên đăng nhập mới</label>
-          <input type="text" id="reg-username" class="form-control" placeholder="ten_dang_nhap" required>
-        </div>
-        <div style="margin-bottom: 1.5rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="password">Mật khẩu</label>
-          <input type="password" id="reg-password" class="form-control" placeholder="••••••••" required>
-        </div>
-        <button type="submit" class="btn btn-blue" style="width: 100%; justify-content: center; padding: 0.85rem; font-size: 1rem;">
-          <i data-lucide="user-plus"></i> <span data-i18n="register_btn">Gửi Đăng Ký Chờ Duyệt</span>
-        </button>
-      </form>
-
       <div style="margin-top: 1.5rem; padding: 1rem; background: var(--tvk-blue-light); border-radius: var(--radius-md); font-size: 0.8rem; border: 1px solid #bce2fd;">
-        <div style="font-weight: 800; color: var(--tvk-blue-dark); margin-bottom: 0.35rem;">🔑 Tài Khoản Dùng Thử:</div>
-        <div>👑 <strong>Admin</strong>: <code>admin</code> / <code>123</code></div>
-        <div>👤 <strong>Khách (P.101)</strong>: <code>nguyenvanan</code> / <code>123</code></div>
+        <div style="font-weight: 800; color: var(--tvk-blue-dark); margin-bottom: 0.35rem;" data-i18n="auth_trial_accounts">🔑 Tài Khoản Dùng Thử:</div>
+        <div>👑 <strong data-i18n="auth_admin_label">Admin</strong>: <code>admin</code> / <code>123</code></div>
+        <div>👤 <strong data-i18n="auth_tenant_label">Khách (P.101)</strong>: <code>nguyenvanan</code> / <code>123</code></div>
       </div>
     </div>
   </div>
 
   <!-- MAIN TRAVELOKA NAVBAR WITH HOUSE SELECTOR -->
   <header class="tvk-navbar" id="tvk-navbar" style="display: none;">
-    <a href="#" class="tvk-brand">
-      <i data-lucide="building-2" style="width: 28px; height: 28px;"></i>
-      RentalPro
-      <span class="tvk-brand-badge">Multi-House</span>
-    </a>
+    <div style="display: flex; align-items: center; gap: 0.75rem;">
+      <button class="btn-menu-toggle" id="btn-menu-toggle" onclick="toggleSidebar()" title="Menu" aria-label="Menu">
+        <i data-lucide="menu"></i>
+      </button>
+      <a href="#" class="tvk-brand">
+        <i data-lucide="building-2" style="width: 28px; height: 28px;"></i>
+        CalaciHouse
+        <span class="tvk-brand-badge">Multi-House</span>
+      </a>
+    </div>
 
     <div style="display: flex; align-items: center; gap: 1rem;">
       <!-- MULTI-HOUSE SELECTOR -->
       <div style="display: flex; align-items: center; gap: 0.5rem;" id="nav-house-box">
-        <label style="font-size: 0.85rem; font-weight: 700; color: white;">🏢 Chọn Tòa Nhà:</label>
+        <label style="font-size: 0.85rem; font-weight: 700; color: white;" data-i18n="lbl_select_house">🏢 Chọn Tòa Nhà:</label>
         <select id="select-house" class="form-control" style="width: 185px; padding: 0.4rem 0.6rem; font-weight: 800;" onchange="handleHouseChange()">
           <!-- Houses populated dynamically -->
         </select>
-        <button class="btn btn-orange btn-sm" onclick="openAddHouseModal()" title="Thêm Tòa Nhà Mới">
-          <i data-lucide="plus"></i> Tòa Nhà
+        <button class="btn btn-orange btn-sm" onclick="openAddHouseModal()" title="Thêm Tòa Nhà Mới" data-i18n-title="title_add_new_house">
+          <i data-lucide="plus"></i> <span data-i18n="btn_house_short">Tòa Nhà</span>
         </button>
       </div>
 
@@ -185,11 +178,11 @@
         </button>
       </div>
 
-      <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" title="Đổi giao diện Sáng/Tối" style="color: white; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.15);">
+      <button class="btn btn-secondary btn-sm" onclick="toggleTheme()" title="Đổi giao diện Sáng/Tối" data-i18n-title="title_toggle_theme" style="color: white; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.15);">
         <i data-lucide="sun-medium" id="theme-icon"></i>
       </button>
 
-      <button class="btn btn-orange btn-sm" onclick="handleLogout()" title="Đăng Xuất">
+      <button class="btn btn-orange btn-sm" onclick="handleLogout()" title="Đăng Xuất" data-i18n-title="title_logout">
         <i data-lucide="log-out"></i>
       </button>
     </div>
@@ -197,7 +190,8 @@
 
   <!-- MAIN APP CONTAINER -->
   <div class="app-container" id="app-container" style="display: none;">
-    <aside class="sidebar">
+    <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+    <aside class="sidebar" id="sidebar">
       <div class="nav-section admin-nav">
         <div class="nav-label" data-i18n="menu_admin">Quản Lý Admin</div>
         <a class="nav-item active" data-view="admin-dashboard">
@@ -218,7 +212,7 @@
         </a>
         <a class="nav-item" data-view="admin-rooms">
           <i data-lucide="door-open"></i>
-          <span>Quản Lý Phòng</span>
+          <span data-i18n="nav_rooms">Quản Lý Phòng</span>
         </a>
         <a class="nav-item" data-view="admin-tickets">
           <i data-lucide="life-buoy"></i>
@@ -232,7 +226,15 @@
         </a>
         <a class="nav-item" data-view="admin-permissions">
           <i data-lucide="shield-check"></i>
-          <span>Phân Quyền Hệ Thống</span>
+          <span data-i18n="nav_permissions">Phân Quyền Hệ Thống</span>
+        </a>
+      </div>
+
+      <div class="nav-section investor-nav" style="display: none;">
+        <div class="nav-label" data-i18n="menu_investor">Cổng Chủ Đầu Tư</div>
+        <a class="nav-item" data-view="investor-dashboard">
+          <i data-lucide="pie-chart"></i>
+          <span data-i18n="nav_investor_dashboard">Tổng Quan Đầu Tư</span>
         </a>
       </div>
 
@@ -241,6 +243,10 @@
         <a class="nav-item" data-view="tenant-invoices">
           <i data-lucide="receipt"></i>
           <span data-i18n="nav_my_invoices">Hóa Đơn Của Tôi</span>
+        </a>
+        <a class="nav-item" data-view="tenant-contract">
+          <i data-lucide="file-image"></i>
+          <span data-i18n="nav_my_contract">Hợp Đồng Của Tôi</span>
         </a>
         <a class="nav-item" data-view="tenant-reports">
           <i data-lucide="message-square-plus"></i>
@@ -275,12 +281,12 @@
             
             <div class="tvk-card">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3><i data-lucide="sliders" style="color: var(--tvk-blue); vertical-align: middle;"></i> Bảng Cấu Hình Dịch Vụ & Điện Nước (<span id="current-house-name-label" style="color: var(--tvk-blue);">Tất Cả Tòa Nhà</span>)</h3>
+                <h3><i data-lucide="sliders" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="services_config_title">Bảng Cấu Hình Dịch Vụ & Điện Nước</span> (<span id="current-house-name-label" style="color: var(--tvk-blue);">Tất Cả Tòa Nhà</span>)</h3>
                 <button class="btn btn-orange btn-sm" onclick="openAddServiceModal()">
-                  <i data-lucide="plus"></i> Thêm Dịch Vụ Mới
+                  <i data-lucide="plus"></i> <span data-i18n="btn_add_service">Thêm Dịch Vụ Mới</span>
                 </button>
               </div>
-              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;" data-i18n="services_config_desc">
                 Match 100% với Bảng Tính Điện Nước: Khi cấu hình Cố Định ➔ Bảng tính chỉ hiển thị số tiền. Khi cấu hình Công Thức ➔ Bảng tính tự động hiện ô nhập chỉ số Cũ/Mới. Bạn có thể chọn và sửa biểu tượng Icon cho từng dịch vụ bên dưới.
               </p>
 
@@ -288,10 +294,10 @@
                 <table class="excel-table">
                   <thead>
                     <tr>
-                      <th>Biểu Tượng & Tên Dịch Vụ</th>
-                      <th>Hình Thức & Đơn Giá</th>
-                      <th>Quy Tắc Match Bảng Tính</th>
-                      <th style="text-align: right;">Thao Tác</th>
+                      <th data-i18n="th_icon_service_name">Biểu Tượng & Tên Dịch Vụ</th>
+                      <th data-i18n="th_type_price">Hình Thức & Đơn Giá</th>
+                      <th data-i18n="th_spreadsheet_rule">Quy Tắc Match Bảng Tính</th>
+                      <th style="text-align: right;" data-i18n="col_actions">Thao Tác</th>
                     </tr>
                   </thead>
                   <tbody id="services-table-body"></tbody>
@@ -301,12 +307,12 @@
 
             <div class="tvk-card">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3><i data-lucide="calculator" style="color: var(--tvk-emerald); vertical-align: middle;"></i> Thư Viện Công Thức</h3>
+                <h3><i data-lucide="calculator" style="color: var(--tvk-emerald); vertical-align: middle;"></i> <span data-i18n="formulas_library_title">Thư Viện Công Thức</span></h3>
                 <button class="btn btn-blue btn-sm" onclick="openFormulaConfigModal()">
-                  <i data-lucide="plus"></i> Tạo Công Thức
+                  <i data-lucide="plus"></i> <span data-i18n="btn_create_formula">Tạo Công Thức</span>
                 </button>
               </div>
-              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;" data-i18n="formulas_library_desc">
                 Tạo sẵn công thức tính theo kWh/m³ để gán cho các dịch vụ tính theo chỉ số.
               </p>
 
@@ -317,11 +323,11 @@
 
           <div class="tvk-card" style="background: linear-gradient(135deg, var(--tvk-blue-light) 0%, #ffffff 100%); border: 1px solid #bce2fd; margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
             <div>
-              <h4 style="font-weight: 800; color: var(--tvk-blue-dark); font-size: 1.1rem;">Đã hoàn tất cấu hình Dịch vụ & Điện nước?</h4>
-              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">Chuyển sang Bảng Tính Điện Nước để nhập chỉ số cũ/mới tháng này.</p>
+              <h4 style="font-weight: 800; color: var(--tvk-blue-dark); font-size: 1.1rem;" data-i18n="services_done_title">Đã hoàn tất cấu hình Dịch vụ & Điện nước?</h4>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;" data-i18n="services_done_desc">Chuyển sang Bảng Tính Điện Nước để nhập chỉ số cũ/mới tháng này.</p>
             </div>
             <button class="btn btn-orange" onclick="switchView('admin-spreadsheet')">
-              <i data-lucide="arrow-right"></i> Mở Bảng Tính Điện Nước
+              <i data-lucide="arrow-right"></i> <span data-i18n="btn_open_spreadsheet">Mở Bảng Tính Điện Nước</span>
             </button>
           </div>
         </div>
@@ -374,7 +380,7 @@
               <h3 style="margin-bottom: 1.25rem;"><i data-lucide="sparkles" style="color: var(--tvk-orange); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="quick_actions">Phím Tắt Thao Tác Nhanh</span></h3>
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
                 <button class="btn btn-blue" onclick="switchView('admin-services')" style="justify-content: center;">
-                  <i data-lucide="sliders"></i> Cấu Hình Dịch Vụ & Điện Nước
+                  <i data-lucide="sliders"></i> <span data-i18n="nav_services">Cấu Hình Dịch Vụ & Điện Nước</span>
                 </button>
                 <button class="btn btn-blue" onclick="switchView('admin-spreadsheet')" style="justify-content: center;">
                   <i data-lucide="edit-3"></i> <span data-i18n="act_enter_utility">Nhập Điện Nước</span>
@@ -392,6 +398,97 @@
           </div>
         </div>
 
+        <!-- INVESTOR DASHBOARD — READ-ONLY FINANCIAL OVERVIEW SCOPED TO THEIR HOUSE(S) -->
+        <div id="view-investor-dashboard" class="view-panel" style="display: none;">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;" data-i18n="inv_stat_revenue">Doanh thu tháng này</div>
+                <div class="stat-val" id="inv-stat-revenue">0 đ</div>
+              </div>
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--tvk-blue-light); color: var(--tvk-blue); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="dollar-sign"></i>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;" data-i18n="inv_stat_occupancy">Tỷ lệ lấp đầy</div>
+                <div class="stat-val" id="inv-stat-occupancy" style="color: var(--tvk-emerald);">0/0</div>
+              </div>
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: #e6f9f2; color: var(--tvk-emerald); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="home"></i>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;" data-i18n="inv_stat_collected">Đã thu tháng này</div>
+                <div class="stat-val" id="inv-stat-collected" style="color: var(--tvk-emerald);">0 đ</div>
+              </div>
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: #e6f9f2; color: var(--tvk-emerald); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="check-circle"></i>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;" data-i18n="inv_stat_outstanding">Công nợ chưa thu</div>
+                <div class="stat-val" id="inv-stat-outstanding" style="color: var(--tvk-orange);">0 đ</div>
+              </div>
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: #fff2ec; color: var(--tvk-orange); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="clock"></i>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;" data-i18n="inv_stat_tickets">Báo lỗi đang mở</div>
+                <div class="stat-val" id="inv-stat-tickets" style="color: var(--tvk-red);">0</div>
+              </div>
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: #ffecee; color: var(--tvk-red); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="alert-triangle"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="tvk-card">
+            <h3 style="margin-bottom: 1.25rem;"><i data-lucide="pie-chart" style="color: var(--tvk-blue); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="inv_breakdown_title">Cơ Cấu Doanh Thu Tháng</span></h3>
+            <div id="investor-revenue-breakdown"></div>
+          </div>
+
+          <div class="tvk-card" id="investor-house-breakdown-card" style="display:none;">
+            <h3 style="margin-bottom: 1.25rem;"><i data-lucide="building-2" style="color: var(--tvk-blue); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="inv_house_breakdown_title">Doanh Thu Theo Tòa Nhà</span></h3>
+            <div class="excel-table-wrapper">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="col_house">Tòa Nhà</th>
+                    <th data-i18n="stat_rooms">Số phòng đã thuê</th>
+                    <th data-i18n="col_total">Tổng Tiền</th>
+                  </tr>
+                </thead>
+                <tbody id="investor-house-breakdown-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="tvk-card">
+            <h3 style="margin-bottom: 1.25rem;"><i data-lucide="door-open" style="color: var(--tvk-blue); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="inv_rooms_title">Chi Tiết Doanh Thu Theo Phòng</span></h3>
+            <div class="excel-table-wrapper">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="col_room">Phòng</th>
+                    <th data-i18n="col_tenant">Khách Thuê</th>
+                    <th data-i18n="col_headcount">Số Người</th>
+                    <th data-i18n="col_rent">Tiền Nhà</th>
+                    <th data-i18n="col_total">Tổng Hóa Đơn</th>
+                    <th data-i18n="payment_status_label">Trạng Thái</th>
+                  </tr>
+                </thead>
+                <tbody id="investor-rooms-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- SPREADSHEET VIEW WITH DYNAMIC MATCHED SERVICE COLUMNS -->
         <div id="view-admin-spreadsheet" class="view-panel" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
@@ -401,7 +498,7 @@
             </div>
             <div style="display: flex; gap: 0.75rem;">
               <button class="btn btn-secondary" onclick="switchView('admin-services')">
-                <i data-lucide="sliders"></i> Cấu Hình Dịch Vụ & Điện Nước
+                <i data-lucide="sliders"></i> <span data-i18n="nav_services">Cấu Hình Dịch Vụ & Điện Nước</span>
               </button>
               <button class="btn btn-orange" onclick="generateAndSendAllInvoices()">
                 <i data-lucide="send"></i> <span data-i18n="btn_auto_invoice">Tự Động Gửi Hóa Đơn</span>
@@ -453,11 +550,11 @@
         <div id="view-admin-rooms" class="view-panel" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
             <div>
-              <h3>🚪 Quản Lý Phòng Trọ</h3>
-              <p style="font-size: 0.85rem; color: var(--text-secondary);">Thêm, sửa, xóa phòng trong các tòa nhà. Cấu hình giá thuê và công thức tính tiền.</p>
+              <h3 data-i18n="rooms_mgmt_title">🚪 Quản Lý Phòng Trọ</h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="rooms_mgmt_desc">Thêm, sửa, xóa phòng trong các tòa nhà. Cấu hình giá thuê và công thức tính tiền.</p>
             </div>
             <button class="btn btn-orange" onclick="openAddRoomModal()">
-              <i data-lucide="plus-circle"></i> Thêm Phòng Mới
+              <i data-lucide="plus-circle"></i> <span data-i18n="btn_add_room">Thêm Phòng Mới</span>
             </button>
           </div>
           <div id="rooms-management-container"></div>
@@ -473,16 +570,16 @@
               <table class="excel-table">
                 <thead>
                   <tr>
-                    <th>Mã Ticket</th>
-                    <th>Phòng</th>
-                    <th>Khách Thuê</th>
-                    <th>Phân Loại</th>
-                    <th>Mức Độ</th>
-                    <th>Nội Dung</th>
-                    <th>Ảnh</th>
-                    <th>Thời Gian</th>
-                    <th>Trạng Thái</th>
-                    <th>Thao Tác</th>
+                    <th data-i18n="col_ticket_id">Mã Ticket</th>
+                    <th data-i18n="col_room">Phòng</th>
+                    <th data-i18n="col_tenant">Khách Thuê</th>
+                    <th data-i18n="col_category">Phân Loại</th>
+                    <th data-i18n="col_priority">Mức Độ</th>
+                    <th data-i18n="col_desc">Nội Dung</th>
+                    <th data-i18n="col_images">Ảnh</th>
+                    <th data-i18n="col_time">Thời Gian</th>
+                    <th data-i18n="col_status">Trạng Thái</th>
+                    <th data-i18n="col_actions">Thao Tác</th>
                   </tr>
                 </thead>
                 <tbody id="admin-tickets-tbody"></tbody>
@@ -501,46 +598,46 @@
               <!-- Left: ticket info -->
               <div>
                 <div class="tvk-card" style="margin-bottom: 1rem;">
-                  <h4 style="margin-bottom: 1rem; color: var(--tvk-blue);">📋 Thông Tin Báo Lỗi</h4>
+                  <h4 style="margin-bottom: 1rem; color: var(--tvk-blue);" data-i18n="ticket_info_title">📋 Thông Tin Báo Lỗi</h4>
                   <div id="ticket-detail-info"></div>
                 </div>
                 <!-- Images -->
                 <div class="tvk-card">
-                  <h4 style="margin-bottom: 0.75rem; color: var(--tvk-blue);">📷 Ảnh Đính Kèm</h4>
+                  <h4 style="margin-bottom: 0.75rem; color: var(--tvk-blue);" data-i18n="attached_images_title">📷 Ảnh Đính Kèm</h4>
                   <div id="ticket-detail-images" style="display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 60px;"></div>
                 </div>
               </div>
               <!-- Right: comments thread + status update -->
               <div class="tvk-card" style="display: flex; flex-direction: column;">
-                <h4 style="margin-bottom: 1rem; color: var(--tvk-blue);">💬 Phản Hồi & Tiến Trình</h4>
+                <h4 style="margin-bottom: 1rem; color: var(--tvk-blue);" data-i18n="responses_progress_title">💬 Phản Hồi & Tiến Trình</h4>
                 <div id="ticket-comments-thread" style="flex: 1; overflow-y: auto; max-height: 320px; display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;"></div>
                 <!-- Admin reply form -->
                 <div id="admin-reply-form-box">
                   <div style="margin-bottom: 0.75rem;">
-                    <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Cập nhật trạng thái</label>
+                    <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_update_status">Cập nhật trạng thái</label>
                     <select id="detail-reply-status" class="form-control">
-                      <option value="Mới tiếp nhận">Mới tiếp nhận</option>
-                      <option value="Đang xử lý">Đang xử lý</option>
-                      <option value="Đang sửa chữa">Đang sửa chữa</option>
-                      <option value="Chờ phụ tùng">Chờ phụ tùng / vật tư</option>
-                      <option value="Đã hoàn thành">Đã hoàn thành</option>
+                      <option value="Mới tiếp nhận" data-i18n="status_ticket_new">Mới tiếp nhận</option>
+                      <option value="Đang xử lý" data-i18n="status_ticket_processing">Đang xử lý</option>
+                      <option value="Đang sửa chữa" data-i18n="status_ticket_fixing">Đang sửa chữa</option>
+                      <option value="Chờ phụ tùng" data-i18n="option_waiting_parts">Chờ phụ tùng / vật tư</option>
+                      <option value="Đã hoàn thành" data-i18n="status_ticket_done">Đã hoàn thành</option>
                     </select>
                   </div>
                   <div style="margin-bottom: 0.75rem;">
-                    <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Ghi chú / phương án xử lý</label>
-                    <textarea id="detail-reply-message" class="form-control" rows="3" placeholder="Nhập hướng dẫn, lịch hẹn hoặc phương án xử lý..."></textarea>
+                    <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_resolution_note">Ghi chú / phương án xử lý</label>
+                    <textarea id="detail-reply-message" class="form-control" rows="3" placeholder="Nhập hướng dẫn, lịch hẹn hoặc phương án xử lý..." data-i18n-placeholder="ph_resolution_note"></textarea>
                   </div>
                   <div style="margin-bottom: 0.75rem;">
-                    <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">📷 Đính kèm ảnh hoàn thành / nghiệm thu (tùy chọn)</label>
+                    <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_attach_completion_photos">📷 Đính kèm ảnh hoàn thành / nghiệm thu (tùy chọn)</label>
                     <div id="admin-image-upload-area" onclick="document.getElementById('admin-image-input').click()" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 0.75rem; text-align: center; cursor: pointer; background: var(--bg-base); color: var(--text-secondary); font-size: 0.8rem; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--tvk-blue)'" onmouseout="this.style.borderColor='var(--border-color)'">
                       <i data-lucide="image-plus" style="width:20px; height:20px; display:block; margin: 0 auto 0.25rem;"></i>
-                      Chọn ảnh hoàn thành (tối đa 5 ảnh)
+                      <span data-i18n="select_completion_photos">Chọn ảnh hoàn thành (tối đa 5 ảnh)</span>
                     </div>
                     <input type="file" id="admin-image-input" accept="image/*" multiple style="display:none;" onchange="handleAdminImageSelect(event)">
                     <div id="admin-image-previews" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem;"></div>
                   </div>
                   <button class="btn btn-orange" style="width:100%; justify-content:center;" onclick="submitAdminTicketComment()">
-                    <i data-lucide="send"></i> Gửi Phản Hồi
+                    <i data-lucide="send"></i> <span data-i18n="btn_send_reply">Gửi Phản Hồi</span>
                   </button>
                 </div>
               </div>
@@ -579,19 +676,19 @@
 
         <div id="view-admin-permissions" class="view-panel" style="display: none;">
           <div style="margin-bottom: 1.5rem;">
-            <h3>🛠️ Bảng Phân Quyền Hạn Hệ Thống</h3>
-            <p style="font-size: 0.85rem; color: var(--text-secondary);">Thiết lập quyền xem và chỉnh sửa dữ liệu cho từng nhóm tài khoản (Admin, Quản lý, Khách thuê)</p>
+            <h3 data-i18n="permissions_matrix_title">🛠️ Bảng Phân Quyền Hạn Hệ Thống</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="permissions_matrix_desc">Thiết lập quyền xem và chỉnh sửa dữ liệu cho từng nhóm tài khoản (Admin, Quản lý, Khách thuê)</p>
           </div>
-          
+
           <div class="tvk-card" style="padding: 1.25rem;">
             <div class="excel-table-wrapper">
               <table class="excel-table">
                 <thead>
                   <tr>
-                    <th style="width: 40%;">Quyền Hạn / Chức Năng</th>
-                    <th style="text-align: center; width: 20%;">🔑 Quản Trị Viên (Admin)</th>
-                    <th style="text-align: center; width: 20%;">💼 Quản Lý (Manager)</th>
-                    <th style="text-align: center; width: 20%;">🏠 Khách Thuê (Tenant)</th>
+                    <th style="width: 40%;" data-i18n="th_permission_function">Quyền Hạn / Chức Năng</th>
+                    <th style="text-align: center; width: 20%;" data-i18n="th_role_admin">🔑 Quản Trị Viên (Admin)</th>
+                    <th style="text-align: center; width: 20%;" data-i18n="th_role_manager">💼 Quản Lý (Manager)</th>
+                    <th style="text-align: center; width: 20%;" data-i18n="th_role_tenant">🏠 Khách Thuê (Tenant)</th>
                   </tr>
                 </thead>
                 <tbody id="permissions-matrix-tbody">
@@ -601,7 +698,7 @@
             </div>
             <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end;">
               <button class="btn btn-orange" onclick="savePermissionsMatrix()">
-                <i data-lucide="save"></i> Lưu Cấu Hình Phân Quyền
+                <i data-lucide="save"></i> <span data-i18n="btn_save_permissions">Lưu Cấu Hình Phân Quyền</span>
               </button>
             </div>
           </div>
@@ -615,60 +712,68 @@
           <div id="tenant-invoice-container"></div>
         </div>
 
+        <div id="view-tenant-contract" class="view-panel" style="display: none;">
+          <div style="margin-bottom: 1.5rem;">
+            <h3><i data-lucide="file-image" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="my_contract_title">Hợp Đồng & Tài Liệu Của Tôi</span></h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="my_contract_desc">Ảnh hợp đồng thuê nhà và các tài liệu liên quan do chủ nhà cung cấp</p>
+          </div>
+          <div id="tenant-contract-container"></div>
+        </div>
+
         <div id="view-tenant-reports" class="view-panel" style="display: none;">
           <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
             <div class="tvk-card">
               <h3 style="margin-bottom: 1rem;"><i data-lucide="edit" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="form_ticket_title">Gửi Báo Lỗi / Khiếu Nại</span></h3>
               <form id="tenant-report-form" onsubmit="handleTenantSubmitReport(event)">
                 <div style="margin-bottom: 1rem;">
-                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">Loại sự cố</label>
+                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_category">Loại sự cố</label>
                   <select id="report-category" class="form-control" required>
-                    <option value="Hóa đơn">Sai chỉ số / Khiếu nại Hóa đơn</option>
-                    <option value="Điện">Sự cố Hệ thống Điện</option>
-                    <option value="Nước">Sự cố Đường Nước / Rò rỉ</option>
-                    <option value="Nội thất">Hỏng Hóc Nội Thất / Thiết Bị</option>
-                    <option value="Khác">Phản ánh Khác</option>
+                    <option value="Hóa đơn" data-i18n="option_cat_invoice">Sai chỉ số / Khiếu nại Hóa đơn</option>
+                    <option value="Điện" data-i18n="option_cat_electricity">Sự cố Hệ thống Điện</option>
+                    <option value="Nước" data-i18n="option_cat_water">Sự cố Đường Nước / Rò rỉ</option>
+                    <option value="Nội thất" data-i18n="option_cat_furniture">Hỏng Hóc Nội Thất / Thiết Bị</option>
+                    <option value="Khác" data-i18n="option_cat_other">Phản ánh Khác</option>
                   </select>
                 </div>
                 <div style="margin-bottom: 1rem;">
-                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">Mức độ ưu tiên</label>
+                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_priority">Mức độ ưu tiên</label>
                   <select id="report-priority" class="form-control" required>
-                    <option value="Bình thường">Bình thường</option>
-                    <option value="Khẩn cấp">Khẩn cấp (Cần xử lý ngay)</option>
+                    <option value="Bình thường" data-i18n="priority_normal">Bình thường</option>
+                    <option value="Khẩn cấp" data-i18n="option_priority_urgent">Khẩn cấp (Cần xử lý ngay)</option>
                   </select>
                 </div>
                 <div style="margin-bottom: 1rem;">
-                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">Mô tả sự cố</label>
-                  <textarea id="report-description" class="form-control" rows="3" placeholder="Nhập chi tiết vấn đề bạn đang gặp phải..." required></textarea>
+                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_desc">Mô tả sự cố</label>
+                  <textarea id="report-description" class="form-control" rows="3" placeholder="Nhập chi tiết vấn đề bạn đang gặp phải..." data-i18n-placeholder="ph_issue_description" required></textarea>
                 </div>
                 <div style="margin-bottom: 1.25rem;">
-                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">📷 Đính kèm ảnh sự cố (tùy chọn)</label>
+                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_attach_issue_photos">📷 Đính kèm ảnh sự cố (tùy chọn)</label>
                   <div id="tenant-image-upload-area" onclick="document.getElementById('tenant-image-input').click()" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 1rem; text-align: center; cursor: pointer; background: var(--bg-base); color: var(--text-secondary); font-size: 0.85rem; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--tvk-blue)'" onmouseout="this.style.borderColor='var(--border-color)'">
                     <i data-lucide="image-plus" style="width:24px; height:24px; display:block; margin: 0 auto 0.4rem;"></i>
-                    Nhấn để chọn ảnh (JPG, PNG, tối đa 5 ảnh)
+                    <span data-i18n="select_issue_photos">Nhấn để chọn ảnh (JPG, PNG, tối đa 5 ảnh)</span>
                   </div>
                   <input type="file" id="tenant-image-input" accept="image/*" multiple style="display:none;" onchange="handleTenantImageSelect(event)">
                   <div id="tenant-image-previews" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;"></div>
                 </div>
                 <button type="submit" class="btn btn-orange" style="width: 100%; justify-content: center;">
-                  <i data-lucide="send"></i> Gửi Báo Lỗi Cho Admin
+                  <i data-lucide="send"></i> <span data-i18n="btn_send_report">Gửi Báo Lỗi Cho Admin</span>
                 </button>
               </form>
             </div>
 
             <div class="tvk-card">
-              <h3 style="margin-bottom: 1rem;"><i data-lucide="clock" style="color: var(--tvk-emerald); vertical-align: middle;"></i> Lịch Sử Báo Lỗi</h3>
+              <h3 style="margin-bottom: 1rem;"><i data-lucide="clock" style="color: var(--tvk-emerald); vertical-align: middle;"></i> <span data-i18n="my_tickets_history">Lịch Sử Báo Lỗi</span></h3>
               <div class="excel-table-wrapper">
                 <table class="excel-table">
                   <thead>
                     <tr>
-                      <th>Thời Gian</th>
-                      <th>Loại Sự Cố</th>
-                      <th>Mô Tả</th>
-                      <th>Mức Độ</th>
-                      <th>Trạng Thái</th>
-                      <th>Phản Hồi Admin</th>
-                      <th>Thao Tác</th>
+                      <th data-i18n="col_time">Thời Gian</th>
+                      <th data-i18n="col_category">Loại Sự Cố</th>
+                      <th data-i18n="col_desc">Mô Tả</th>
+                      <th data-i18n="col_priority">Mức Độ</th>
+                      <th data-i18n="col_status">Trạng Thái</th>
+                      <th data-i18n="col_admin_reply">Phản Hồi Admin</th>
+                      <th data-i18n="col_actions">Thao Tác</th>
                     </tr>
                   </thead>
                   <tbody id="tenant-tickets-tbody"></tbody>
@@ -687,26 +792,26 @@
   <div class="modal-backdrop" id="modal-add-house">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="building" style="color: var(--tvk-blue); vertical-align: middle;"></i> Thêm Tòa Nhà / Dãy Trọ Mới</h3>
+        <h3><i data-lucide="building" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="modal_add_house_title">Thêm Tòa Nhà / Dãy Trọ Mới</span></h3>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-add-house')"><i data-lucide="x"></i></button>
       </div>
       <form id="form-add-house" onsubmit="saveHouse(event)">
         <input type="hidden" id="house-id">
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên Tòa Nhà / Dãy Trọ</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_house_name">Tên Tòa Nhà / Dãy Trọ</label>
           <input type="text" id="house-name" class="form-control" placeholder="VD: Tòa Nhà C - Hà Đông" required>
         </div>
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Địa chỉ</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_address">Địa chỉ</label>
           <input type="text" id="house-address" class="form-control" placeholder="VD: 55 Quang Trung, Hà Đông, Hà Nội" required>
         </div>
         <div style="margin-bottom: 1.5rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Ghi chú mô tả</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_description_note">Ghi chú mô tả</label>
           <input type="text" id="house-desc" class="form-control" placeholder="VD: Tòa 6 tầng, 15 phòng trọ cao cấp">
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-house')">Hủy</button>
-          <button type="submit" class="btn btn-orange">Lưu Tòa Nhà</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-house')" data-i18n="btn_cancel">Hủy</button>
+          <button type="submit" class="btn btn-orange" data-i18n="btn_save_house">Lưu Tòa Nhà</button>
         </div>
       </form>
     </div>
@@ -716,7 +821,7 @@
   <div class="modal-backdrop" id="modal-service-config">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="sliders" style="color: var(--tvk-blue); vertical-align: middle;"></i> Cấu Hình Dịch Vụ & Biểu Tượng Icon</h3>
+        <h3><i data-lucide="sliders" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="modal_service_config_title">Cấu Hình Dịch Vụ & Biểu Tượng Icon</span></h3>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-service-config')"><i data-lucide="x"></i></button>
       </div>
       <form id="form-service-edit" onsubmit="saveService(event)">
@@ -726,7 +831,7 @@
 
         <!-- ICON PICKER GALLERY -->
         <div style="margin-bottom: 1.25rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_choose_icon">
             Chọn Biểu Tượng Icon Cho Dịch Vụ
           </label>
           <div class="icon-picker-grid" id="icon-picker-container">
@@ -736,7 +841,7 @@
 
         <!-- UNIFIED HIERARCHICAL SCOPE SELECTOR (HOUSES & EXPANDABLE ROOMS) -->
         <div style="margin-bottom: 1.25rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_apply_scope">
             Áp dụng cho Tòa Nhà & Phòng Chỉ Định (Tích chọn Tòa nhà hoặc mở rộng chọn Phòng riêng)
           </label>
           <div id="service-scope-container" style="display: flex; flex-direction: column; gap: 0.6rem; background: var(--bg-base); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); max-height: 240px; overflow-y: auto;">
@@ -745,46 +850,46 @@
         </div>
 
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên dịch vụ / Chi phí</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_service_name">Tên dịch vụ / Chi phí</label>
           <input type="text" id="service-name" class="form-control" placeholder="VD: Tiền Điện / Tiền Nước / Internet / gom rác..." required>
         </div>
 
         <!-- CALCULATION METHOD SELECTOR: FIXED VS FORMULA -->
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Phương thức tính tiền</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_calc_method">Phương thức tính tiền</label>
           <select id="service-calc-type" class="form-control" onchange="toggleServiceCalcFields()" required>
-            <option value="fixed">💰 Số Tiền Cố Định (Bảng tính chỉ hiện số tiền)</option>
-            <option value="formula">🧮 Tính Theo Chỉ Số (Bảng tính hiện ô điền Chỉ số Cũ/Mới)</option>
+            <option value="fixed" data-i18n="option_calc_fixed">💰 Số Tiền Cố Định (Bảng tính chỉ hiện số tiền)</option>
+            <option value="formula" data-i18n="option_calc_formula">🧮 Tính Theo Chỉ Số (Bảng tính hiện ô điền Chỉ số Cũ/Mới)</option>
           </select>
         </div>
 
         <!-- FIXED PRICE FIELDS -->
         <div id="box-service-fixed" style="margin-bottom: 1rem;">
           <div style="margin-bottom: 1rem;">
-            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Đơn giá / Tháng (VNĐ)</label>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_price_per_month">Đơn giá / Tháng (VNĐ)</label>
             <input type="number" id="service-price" class="form-control" placeholder="50000" value="50000">
           </div>
           <div>
-            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Hình thức áp dụng</label>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_application_type">Hình thức áp dụng</label>
             <select id="service-unit" class="form-control">
-              <option value="Cố định / phòng">Cố định / phòng</option>
-              <option value="Theo đầu người">Theo số người ở (VNĐ / người)</option>
-              <option value="Theo xe / tháng">Theo xe / tháng</option>
+              <option value="Cố định / phòng" data-i18n="option_unit_fixed_room">Cố định / phòng</option>
+              <option value="Theo đầu người" data-i18n="option_unit_per_person">Theo số người ở (VNĐ / người)</option>
+              <option value="Theo xe / tháng" data-i18n="option_unit_per_vehicle">Theo xe / tháng</option>
             </select>
           </div>
         </div>
 
         <!-- FORMULA SELECTION FIELDS -->
         <div id="box-service-formula" style="margin-bottom: 1.5rem; display: none;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Chọn công thức tính toán áp dụng</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_choose_formula">Chọn công thức tính toán áp dụng</label>
           <select id="service-formula-id" class="form-control">
             <!-- Populated dynamically in JS -->
           </select>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-service-config')">Hủy</button>
-          <button type="submit" class="btn btn-orange">Lưu Dịch Vụ</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-service-config')" data-i18n="btn_cancel">Hủy</button>
+          <button type="submit" class="btn btn-orange" data-i18n="btn_save_service">Lưu Dịch Vụ</button>
         </div>
       </form>
     </div>
@@ -812,13 +917,14 @@
         <div style="margin-bottom: 1rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="col_role">Vai trò</label>
           <select id="create-role" class="form-control" onchange="toggleRoomSelectInCreateModal()">
-            <option value="tenant">Khách Thuê (Tenant)</option>
-            <option value="admin">Quản Trị Viên (Admin)</option>
-            <option value="manager">Quản Lý (Manager)</option>
+            <option value="tenant" data-i18n="option_role_tenant">Khách Thuê (Tenant)</option>
+            <option value="admin" data-i18n="option_role_admin">Quản Trị Viên (Admin)</option>
+            <option value="manager" data-i18n="option_role_manager">Quản Lý (Manager)</option>
+            <option value="investor" data-i18n="option_role_investor">Chủ Đầu Tư (Investor)</option>
           </select>
         </div>
         <div style="margin-bottom: 1rem;" id="box-create-assign-house">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Chọn tòa nhà</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_choose_house">Chọn tòa nhà</label>
           <select id="create-house-id" class="form-control" onchange="handleCreateHouseChange()"></select>
         </div>
         <div style="margin-bottom: 1.5rem;" id="box-assign-room">
@@ -835,54 +941,55 @@
   <div class="modal-backdrop" id="modal-edit-user">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="user-cog" style="color: var(--tvk-blue); vertical-align: middle;"></i> Chỉnh Sửa & Phân Quyền Thành Viên</h3>
+        <h3><i data-lucide="user-cog" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="modal_edit_user_title">Chỉnh Sửa & Phân Quyền Thành Viên</span></h3>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-edit-user')"><i data-lucide="x"></i></button>
       </div>
       <form id="form-edit-user" onsubmit="handleAdminSaveUser(event)">
         <input type="hidden" id="edit-user-id">
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên đăng nhập</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="username">Tên đăng nhập</label>
           <input type="text" id="edit-username" class="form-control" readonly style="background: var(--bg-base); cursor: not-allowed;">
         </div>
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Họ và tên</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="fullname">Họ và tên</label>
           <input type="text" id="edit-fullname" class="form-control" required placeholder="Nguyễn Văn A">
         </div>
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Vai trò / Quyền hạn</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_role_permission">Vai trò / Quyền hạn</label>
           <select id="edit-role" class="form-control" onchange="toggleRoomSelectInEditModal()">
-            <option value="tenant">Khách Thuê (Tenant)</option>
-            <option value="admin">Quản Trị Viên (Admin)</option>
-            <option value="manager">Quản Lý (Manager)</option>
+            <option value="tenant" data-i18n="option_role_tenant">Khách Thuê (Tenant)</option>
+            <option value="admin" data-i18n="option_role_admin">Quản Trị Viên (Admin)</option>
+            <option value="manager" data-i18n="option_role_manager">Quản Lý (Manager)</option>
+            <option value="investor" data-i18n="option_role_investor">Chủ Đầu Tư (Investor)</option>
           </select>
         </div>
         <div style="margin-bottom: 1rem;" id="box-edit-assign-house">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Chọn tòa nhà</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_choose_house">Chọn tòa nhà</label>
           <select id="edit-house-id" class="form-control" onchange="handleEditHouseChange()"></select>
         </div>
         <div style="margin-bottom: 1rem;" id="box-edit-assign-room">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Phòng lưu trú</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_residing_room">Phòng lưu trú</label>
           <select id="edit-room-id" class="form-control"></select>
         </div>
         <div style="margin-bottom: 1.5rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Trạng thái tài khoản</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_account_status">Trạng thái tài khoản</label>
           <select id="edit-status" class="form-control">
-            <option value="approved">Đã duyệt (Hoạt động)</option>
-            <option value="pending">Chờ duyệt (Chưa kích hoạt)</option>
-            <option value="blocked">Khóa tài khoản</option>
+            <option value="approved" data-i18n="option_status_approved">Đã duyệt (Hoạt động)</option>
+            <option value="pending" data-i18n="option_status_pending">Chờ duyệt (Chưa kích hoạt)</option>
+            <option value="blocked" data-i18n="option_status_blocked">Khóa tài khoản</option>
           </select>
         </div>
         <div style="margin-bottom: 1.5rem; background: var(--bg-base); border: 1px dashed var(--border-color); border-radius: var(--radius-md); padding: 1rem;">
           <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem;">
             <i data-lucide="key" style="width:16px;height:16px;color:var(--tvk-orange);"></i>
-            <label style="font-size: 0.85rem; font-weight: 700; margin:0;">Đặt lại mật khẩu mới</label>
+            <label style="font-size: 0.85rem; font-weight: 700; margin:0;" data-i18n="lbl_reset_password">Đặt lại mật khẩu mới</label>
           </div>
-          <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.6rem;">Để trống nếu không muốn thay đổi mật khẩu. Chỉ điền khi khách quên mật khẩu cần cấp lại.</p>
-          <input type="password" id="edit-new-password" class="form-control" placeholder="Nhập mật khẩu mới (để trống = giữ nguyên)">
+          <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.6rem;" data-i18n="reset_password_hint">Để trống nếu không muốn thay đổi mật khẩu. Chỉ điền khi khách quên mật khẩu cần cấp lại.</p>
+          <input type="password" id="edit-new-password" class="form-control" placeholder="Nhập mật khẩu mới (để trống = giữ nguyên)" data-i18n-placeholder="ph_new_password">
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-user')">Hủy</button>
-          <button type="submit" class="btn btn-orange">Lưu Thay Đổi</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-user')" data-i18n="btn_cancel">Hủy</button>
+          <button type="submit" class="btn btn-orange" data-i18n="btn_save_changes">Lưu Thay Đổi</button>
         </div>
       </form>
     </div>
@@ -891,10 +998,20 @@
   <div class="modal-backdrop" id="modal-invoice-detail">
     <div class="modal-card" style="max-width: 850px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="receipt" style="color: var(--tvk-blue); vertical-align: middle;"></i> Chi Tiết Hóa Đơn</h3>
+        <h3><i data-lucide="receipt" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="modal_invoice_detail_title">Chi Tiết Hóa Đơn</span></h3>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-invoice-detail')"><i data-lucide="x"></i></button>
       </div>
       <div id="modal-invoice-content"></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="modal-meter-photo">
+    <div class="modal-card" style="max-width: 640px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="camera" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="modal_meter_photo_title">Ảnh Công Tơ</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-meter-photo')"><i data-lucide="x"></i></button>
+      </div>
+      <div id="modal-meter-photo-content"></div>
     </div>
   </div>
 
@@ -902,29 +1019,29 @@
   <div class="modal-backdrop" id="modal-tenant-ticket-detail">
     <div class="modal-card" style="max-width: 780px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
-        <h3 style="display:flex; align-items:center; gap:0.5rem;"><i data-lucide="message-square" style="color: var(--tvk-blue);"></i> Chi Tiết Báo Lỗi & Trao Đổi</h3>
+        <h3 style="display:flex; align-items:center; gap:0.5rem;"><i data-lucide="message-square" style="color: var(--tvk-blue);"></i> <span data-i18n="modal_ticket_detail_title">Chi Tiết Báo Lỗi & Trao Đổi</span></h3>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-tenant-ticket-detail')"><i data-lucide="x"></i></button>
       </div>
       <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 1.5rem;">
         <!-- Left: Ticket details & Images -->
         <div>
           <div class="tvk-card" style="background: var(--bg-base); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; border: 1px solid var(--border-color);">
-            <h4 style="margin-bottom: 0.75rem; color: var(--tvk-blue); font-size: 0.9rem;">📋 Thông Tin Báo Lỗi</h4>
+            <h4 style="margin-bottom: 0.75rem; color: var(--tvk-blue); font-size: 0.9rem;" data-i18n="ticket_info_title">📋 Thông Tin Báo Lỗi</h4>
             <div id="tenant-ticket-info" style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.85rem;"></div>
           </div>
           <div class="tvk-card" style="background: var(--bg-base); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-            <h4 style="margin-bottom: 0.5rem; color: var(--tvk-blue); font-size: 0.9rem;">📷 Ảnh Đính Kèm</h4>
+            <h4 style="margin-bottom: 0.5rem; color: var(--tvk-blue); font-size: 0.9rem;" data-i18n="attached_images_title">📷 Ảnh Đính Kèm</h4>
             <div id="tenant-ticket-images" style="display: flex; flex-wrap: wrap; gap: 0.4rem; min-height: 40px;"></div>
           </div>
         </div>
         <!-- Right: Conversation -->
         <div style="display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-md); background: var(--bg-surface);">
-          <h4 style="margin-bottom: 0.75rem; color: var(--tvk-blue); font-size: 0.9rem;">💬 Ý Kiến Phản Hồi</h4>
+          <h4 style="margin-bottom: 0.75rem; color: var(--tvk-blue); font-size: 0.9rem;" data-i18n="feedback_title">💬 Ý Kiến Phản Hồi</h4>
           <div id="tenant-comments-thread" style="flex: 1; overflow-y: auto; max-height: 250px; display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; padding-right: 0.25rem;"></div>
           <div style="border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
             <div style="display: flex; gap: 0.5rem;">
-              <input type="text" id="tenant-reply-text" class="form-control" placeholder="Nhập ý kiến của bạn..." style="font-size:0.85rem;">
-              <button class="btn btn-orange" onclick="submitTenantTicketComment()" style="padding: 0 1rem; font-size: 0.85rem;">Gửi</button>
+              <input type="text" id="tenant-reply-text" class="form-control" placeholder="Nhập ý kiến của bạn..." data-i18n-placeholder="ph_your_comment" style="font-size:0.85rem;">
+              <button class="btn btn-orange" onclick="submitTenantTicketComment()" style="padding: 0 1rem; font-size: 0.85rem;" data-i18n="btn_send">Gửi</button>
             </div>
           </div>
         </div>
@@ -935,30 +1052,30 @@
   <div class="modal-backdrop" id="modal-formula-config">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="calculator" style="color: var(--tvk-emerald); vertical-align: middle;"></i> Công Thức Tính</h3>
+        <h3><i data-lucide="calculator" style="color: var(--tvk-emerald); vertical-align: middle;"></i> <span data-i18n="modal_formula_config_title">Công Thức Tính</span></h3>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-formula-config')"><i data-lucide="x"></i></button>
       </div>
       <form id="form-formula-edit" onsubmit="saveFormula(event)">
         <input type="hidden" id="formula-id">
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên công thức</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_formula_name">Tên công thức</label>
           <input type="text" id="formula-name" class="form-control" placeholder="VD: Nước khoán / Điện sinh hoạt..." required>
         </div>
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Loại công thức tính toán</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_formula_type">Loại công thức tính toán</label>
           <select id="formula-type" class="form-control">
-            <option value="headcount">👤 Giá tiền x Số người ở (Tính khoán theo đầu người)</option>
-            <option value="flat">⚡/💧 Cố định theo chỉ số sử dụng (đ / kWh hoặc m³)</option>
-            <option value="tiered">📊 Bậc thang EVN / Nhà nước</option>
+            <option value="headcount" data-i18n="option_formula_headcount">👤 Giá tiền x Số người ở (Tính khoán theo đầu người)</option>
+            <option value="flat" data-i18n="option_formula_flat">⚡/💧 Cố định theo chỉ số sử dụng (đ / kWh hoặc m³)</option>
+            <option value="tiered" data-i18n="option_formula_tiered">📊 Bậc thang EVN / Nhà nước</option>
           </select>
         </div>
         <div style="margin-bottom: 1.5rem;" id="formula-rate-box">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Đơn giá (VNĐ / đv hoặc VNĐ / người)</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_formula_rate">Đơn giá (VNĐ / đv hoặc VNĐ / người)</label>
           <input type="number" id="formula-rate" class="form-control" placeholder="100000" value="100000">
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-formula-config')">Đóng</button>
-          <button type="submit" class="btn btn-orange">Lưu Công Thức</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-formula-config')" data-i18n="btn_close">Đóng</button>
+          <button type="submit" class="btn btn-orange" data-i18n="btn_save_formula">Lưu Công Thức</button>
         </div>
       </form>
     </div>
@@ -968,59 +1085,90 @@
   <div class="modal-backdrop" id="modal-room-config">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="home" style="color: var(--tvk-blue); vertical-align: middle;"></i> Cấu Hình Thông Tin & Giá Tiền Phòng Riêng</h3>
+        <h3><i data-lucide="home" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="modal_room_config_title">Cấu Hình Thông Tin & Giá Tiền Phòng Riêng</span></h3>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-room-config')"><i data-lucide="x"></i></button>
       </div>
       <form id="form-room-edit" onsubmit="saveRoomConfig(event)">
         <input type="hidden" id="room-id">
 
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Thuộc Tòa Nhà</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_belongs_to_house">Thuộc Tòa Nhà</label>
           <select id="room-house-id" class="form-control" required></select>
         </div>
 
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên Phòng</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_name">Tên Phòng</label>
           <input type="text" id="room-name" class="form-control" placeholder="VD: Phòng 101 (Tòa A)" required>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
           <div>
-            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên Khách Thuê</label>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_tenant_name">Tên Khách Thuê</label>
             <input type="text" id="room-tenant" class="form-control" placeholder="Nguyễn Văn A">
           </div>
           <div>
-            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Số Điện Thoại</label>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_phone_number">Số Điện Thoại</label>
             <input type="text" id="room-phone" class="form-control" placeholder="0901234567">
           </div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
           <div>
-            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Số Người Ở (Để tính tiền khoán x số người)</label>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_headcount_full">Số Người Ở (Để tính tiền khoán x số người)</label>
             <input type="number" id="room-headcount" class="form-control" min="1" value="1" required>
           </div>
           <div>
-            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Giá Tiền Thuê Phòng (VNĐ/tháng)</label>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_rent_price">Giá Tiền Thuê Phòng (VNĐ/tháng)</label>
             <input type="number" id="room-base-rent" class="form-control" placeholder="3500000" required>
           </div>
         </div>
 
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Công Thức / Cách Tính Tiền Nước Cho Phòng Này</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_water_formula">Công Thức / Cách Tính Tiền Nước Cho Phòng Này</label>
           <select id="room-water-formula" class="form-control"></select>
         </div>
 
         <div style="margin-bottom: 1.5rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Công Thức Tiền Điện Áp Dụng Cho Phòng Này</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_elec_formula">Công Thức Tiền Điện Áp Dụng Cho Phòng Này</label>
           <select id="room-elec-formula" class="form-control"></select>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-room-config')">Hủy</button>
-          <button type="submit" class="btn btn-orange">Lưu Cấu Hình Phòng</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-room-config')" data-i18n="btn_cancel">Hủy</button>
+          <button type="submit" class="btn btn-orange" data-i18n="btn_save_room_config">Lưu Cấu Hình Phòng</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal Room Documents (Contract & Related Images) -->
+  <div class="modal-backdrop" id="modal-room-documents">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3 id="room-documents-modal-title"><i data-lucide="image" style="color: var(--tvk-blue); vertical-align: middle;"></i> Ảnh Hợp Đồng</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-room-documents')"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="tvk-card" style="background: var(--bg-base); margin-bottom: 1.25rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_add_new_photo">Thêm Ảnh Mới</label>
+        <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <div id="room-document-upload-area" onclick="document.getElementById('room-document-input').click()" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 0.85rem; text-align: center; cursor: pointer; background: var(--bg-surface); color: var(--text-secondary); font-size: 0.8rem; flex: 1;">
+            <i data-lucide="upload" style="width:20px; height:20px; display:block; margin: 0 auto 0.3rem;"></i>
+            <span data-i18n="select_contract_photo">Chọn ảnh hợp đồng / tài liệu</span>
+          </div>
+          <div id="room-document-pending-preview"></div>
+        </div>
+        <input type="file" id="room-document-input" accept="image/*" style="display:none;" onchange="handleRoomDocumentSelect(event)">
+        <input type="text" id="room-document-label" class="form-control" placeholder="Nhãn (VD: Hợp đồng thuê nhà, CCCD khách...)" style="margin-top: 0.75rem;">
+        <button type="button" class="btn btn-orange btn-sm" style="margin-top: 0.75rem; width: 100%; justify-content: center;" onclick="uploadRoomDocument()">
+          <i data-lucide="plus"></i> <span data-i18n="btn_add_to_list">Thêm Vào Danh Sách</span>
+        </button>
+      </div>
+
+      <div>
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_saved_photos_list">Danh Sách Ảnh Đã Lưu (Khách thuê xem được)</label>
+        <div id="room-documents-list"></div>
+      </div>
     </div>
   </div>
 

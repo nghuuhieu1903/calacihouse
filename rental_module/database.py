@@ -33,6 +33,7 @@ def init_db():
             full_name   TEXT DEFAULT '',
             role        TEXT DEFAULT 'tenant',
             room_id     TEXT DEFAULT '',
+            house_id    TEXT DEFAULT '',
             status      TEXT DEFAULT 'pending',
             created_at  TEXT DEFAULT ''
         );
@@ -89,6 +90,12 @@ def init_db():
             value TEXT
         );
     """)
+
+    # Migrate older DBs created before the investor role was added
+    user_cols = [r['name'] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
+    if 'house_id' not in user_cols:
+        conn.execute("ALTER TABLE users ADD COLUMN house_id TEXT DEFAULT ''")
+
     conn.commit()
     conn.close()
     print("[DB] SQLite ready:", DB_PATH)

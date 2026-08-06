@@ -4,19 +4,37 @@
 
 const I18N = {
   vi: {
+    auth_subtitle: 'Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động',
+    auth_trial_accounts: '🔑 Tài Khoản Dùng Thử:',
+    auth_admin_label: 'Admin',
+    auth_tenant_label: 'Khách (P.101)',
     username: 'Tên đăng nhập',
     password: 'Mật khẩu',
     fullname: 'Họ và Tên',
     login_btn: 'Đăng Nhập Ngay',
-    register_btn: 'Gửi Đăng Ký Chờ Duyệt',
     menu_admin: 'Quản Lý Admin',
     menu_tenant: 'Cổng Khách Thuê',
+    menu_investor: 'Cổng Chủ Đầu Tư',
     nav_dashboard: 'Tổng Quan',
     nav_services: 'Cấu Hình Dịch Vụ & Điện Nước',
     nav_spreadsheet: 'Bảng Tính Điện Nước & Phụ Phí',
     nav_invoices: 'Quản Lý Hóa Đơn',
     nav_tickets: 'Xử Lý Báo Lỗi',
     nav_users: 'Quản Lý Tài Khoản',
+    nav_investor_dashboard: 'Tổng Quan Đầu Tư',
+    view_investor_dashboard_subtitle: 'Số liệu thống kê & doanh thu tổng hợp của tòa nhà bạn đầu tư',
+    role_investor_label: 'Chủ đầu tư',
+    option_role_investor: 'Chủ Đầu Tư (Investor)',
+    inv_stat_revenue: 'Doanh thu tháng này',
+    inv_stat_occupancy: 'Tỷ lệ lấp đầy',
+    inv_stat_collected: 'Đã thu tháng này',
+    inv_stat_outstanding: 'Công nợ chưa thu',
+    inv_stat_tickets: 'Báo lỗi đang mở',
+    inv_breakdown_title: 'Cơ Cấu Doanh Thu Tháng',
+    inv_house_breakdown_title: 'Doanh Thu Theo Tòa Nhà',
+    inv_rooms_title: 'Chi Tiết Doanh Thu Theo Phòng',
+    col_house: 'Tòa Nhà',
+    col_headcount: 'Số Người',
     nav_my_invoices: 'Hóa Đơn Của Tôi',
     nav_send_ticket: 'Gửi Báo Lỗi / Khiếu Nại',
     billing_period: 'Kỳ hóa đơn:',
@@ -80,22 +98,343 @@ const I18N = {
     status_pending: 'Chờ Duyệt',
     status_blocked: 'Đã Khóa',
     btn_approve: 'Duyệt',
-    btn_delete: 'Xóa'
+    btn_delete: 'Xóa',
+    view_admin_dashboard_subtitle: 'Thống kê hoạt động và hóa đơn tháng hiện tại',
+    view_admin_services_subtitle: 'Cấu hình từng loại dịch vụ và quy tắc tính tiền',
+    view_admin_invoices_subtitle: 'Xem danh sách và kiểm tra trạng thái thanh toán',
+    view_admin_rooms_title: 'Quản Lý Phòng Trọ',
+    view_admin_rooms_subtitle: 'Thêm, sửa, xóa phòng và cấu hình giá thuê',
+    view_admin_permissions_title: 'Cấu Hình Phân Quyền Hạn',
+    view_admin_permissions_subtitle: 'Tùy chỉnh quyền hạn của Admin, Quản lý và Khách thuê',
+    view_tenant_contract_title: 'Hợp Đồng Của Tôi',
+    view_tenant_contract_subtitle: 'Ảnh hợp đồng và tài liệu liên quan do chủ nhà cung cấp',
+    view_tenant_reports_subtitle: 'Gửi báo lỗi sự cố và theo dõi phản hồi',
+    toast_login_missing_fields: 'Vui lòng nhập tên đăng nhập và mật khẩu!',
+    toast_login_greeting: 'Xin chào, ',
+    toast_login_wrong_credentials: 'Sai tên đăng nhập hoặc mật khẩu!',
+    toast_login_wrong_credentials_default: 'Sai tên đăng nhập hoặc mật khẩu! Mật khẩu mặc định: 123',
+    toast_account_pending_approval: 'Tài khoản của bạn đang chờ Admin duyệt!',
+    toast_logout_success: 'Đã đăng xuất tài khoản!',
+    role_admin_label: 'Quản trị viên',
+    role_manager_label: 'Quản lý',
+    role_tenant_label: 'Khách thuê',
+    all_houses_label: 'Tất Cả Tòa Nhà',
+    all_rooms_label: 'Tất Cả Phòng',
+    multiple_houses_label: 'Nhiều Tòa',
+    rooms_unit_label: 'phòng',
+    services_empty_state: 'Chưa có dịch vụ nào. Nhấn "Thêm Dịch Vụ Mới" để tạo.',
+    calc_type_formula: 'THEO CÔNG THỨC',
+    calc_type_fixed: 'CỐ ĐỊNH',
+    evn_tiered_default_label: 'Bậc thang EVN',
+    rule_creates_reading_columns: 'TẠO CỘT NHẬP CHỈ SỐ CŨ/MỚI',
+    rule_creates_amount_column: 'TẠO CỘT HIỂN THỊ SỐ TIỀN RÊNG',
+    title_edit_service_icon: 'Sửa Dịch Vụ & Icon',
+    btn_edit: 'Sửa',
+    formula_rate_label: 'Đơn giá: ',
+    formula_headcount_label: 'Khoán: ',
+    formula_per_person_label: 'người',
+    formula_evn_tiered_label: 'Bậc thang EVN 5 mức',
+    category_elec: 'Điện',
+    category_water: 'Nước',
+    icon_label_zap: 'Điện',
+    icon_label_droplet: 'Nước',
+    icon_label_wifi: 'Internet',
+    'icon_label_trash-2': 'Rác',
+    icon_label_bike: 'Xe máy',
+    'icon_label_shield-check': 'Bảo vệ',
+    icon_label_sparkles: 'Vệ sinh',
+    icon_label_key: 'Thẻ từ',
+    icon_label_snowflake: 'Điều hòa',
+    icon_label_package: 'Khác',
+    toast_house_added_prefix: 'Đã thêm Tòa Nhà ',
+    toast_house_added_suffix: ' thành công!',
+    scope_all_houses_rooms: 'Tất Cả Tòa Nhà & Phòng (Áp dụng toàn bộ hệ thống)',
+    toast_service_saved_prefix: 'Đã lưu dịch vụ ',
+    toast_service_saved_suffix: '! Bảng tính & Hóa đơn đã cập nhật.',
+    confirm_delete_service: 'Bạn có chắc chắn muốn xóa dịch vụ này?',
+    toast_service_deleted: 'Đã xóa dịch vụ! Bảng tính & Hóa đơn đã cập nhật.',
+    confirm_delete_formula: 'Bạn có chắc chắn muốn xóa công thức này?',
+    toast_formula_deleted: 'Đã xóa công thức!',
+    toast_formula_saved: 'Đã lưu công thức thành công!',
+    formula_desc_fixed: 'Cố định',
+    formula_desc_evn_tiered_prefix: 'Bậc thang EVN tiêu thụ ',
+    dashboard_no_invoices_prefix: 'Chưa phát hành hóa đơn cho tháng ',
+    dashboard_no_invoices_hint: 'Nhấn "Tự Động Gửi Hóa Đơn" để tạo ngay.',
+    dashboard_issued_label: 'Phát hành:',
+    dashboard_collected_label: 'Đã thu:',
+    dashboard_outstanding_label: 'Còn nợ:',
+    col_old_reading: 'Cũ',
+    col_new_reading: 'Mới',
+    col_usage_prefix: 'Số ',
+    spreadsheet_empty_state: 'Chưa có phòng trọ nào phù hợp với bộ lọc.',
+    empty_tenant_label: '(Trống)',
+    not_applicable_label: '(Không áp dụng)',
+    title_edit_room_price: 'Chỉnh sửa thông tin & giá tiền riêng phòng này',
+    btn_edit_price: 'Sửa Giá',
+    title_view_invoice: 'Xem hóa đơn',
+    invoices_empty_state: 'Chưa có hóa đơn tháng này. Nhấn "Cập Nhật Hóa Đơn" để sinh tự động.',
+    btn_mark_collected: 'Đã Thu',
+    toast_invoices_issued_prefix: 'Đã phát hành hóa đơn cho tháng ',
+    toast_invoice_marked_paid_prefix: 'Đã xác nhận thu tiền ',
+    unassigned_label: 'Chưa gán',
+    unassigned_none_placeholder: 'Chưa gán / Không có',
+    vacant_label: 'Trống',
+    select_room_placeholder: 'Chọn phòng',
+    new_label: 'Mới',
+    confirm_delete_user: 'Bạn có chắc chắn muốn xóa tài khoản này?',
+    toast_user_approved: 'Đã duyệt tài khoản thành công!',
+    toast_user_deleted: 'Đã xóa tài khoản!',
+    toast_user_created: 'Tạo tài khoản mới thành công!',
+    toast_user_updated: 'Đã cập nhật tài khoản và phân quyền thành công!',
+    toast_user_updated_with_password: 'Đã cập nhật tài khoản và đặt lại mật khẩu thành công!',
+    contract_empty_title: 'Chưa Có Ảnh Hợp Đồng',
+    contract_empty_desc: 'Chủ nhà chưa tải lên ảnh hợp đồng hoặc tài liệu nào cho phòng của bạn.',
+    invoice_empty_title_prefix: 'Chưa Có Hóa Đơn Cho Tháng ',
+    invoice_empty_desc: 'Chủ nhà đang tổng hợp chỉ số điện nước và phí dịch vụ. Vui lòng quay lại sau!',
+    default_house_addr_label: 'Hệ Thống Quản Lý Trọ',
+    btn_print_invoice: 'In / Tải Hóa Đơn PDF',
+    invoice_paper_title: 'HÓA ĐƠN TIỀN NHÀ',
+    invoice_id_label: 'Mã HĐ:',
+    invoice_period_label: 'Kỳ:',
+    tenant_info_label: 'Thông tin Khách thuê',
+    room_label: 'Phòng:',
+    payment_status_label: 'Trạng thái thanh toán',
+    col_cost_item: 'Mục Chi Phí',
+    col_formula_explanation: 'Diễn Giải Công Thức & Quy Tắc',
+    col_amount_vnd: 'Thành Tiền (VNĐ)',
+    line_room_rent: 'Tiền Thuê Phòng',
+    line_room_rent_short: 'Tiền nhà',
+    line_fixed_by_contract: 'Cố định theo hợp đồng',
+    line_electricity: 'Tiền Điện',
+    line_electricity_short: 'Tiền điện',
+    line_water: 'Tiền Nước',
+    line_water_short: 'Tiền nước',
+    reading_label: 'Chỉ số:',
+    btn_meter_photo_view: 'Xem ảnh công tơ',
+    btn_meter_photo_upload: 'Tải ảnh công tơ',
+    btn_meter_photo_replace: 'Thay ảnh khác',
+    meter_old_label: 'Số cũ',
+    meter_new_label: 'Số mới',
+    meter_photo_empty: 'Chưa có ảnh công tơ cho hóa đơn này.',
+    modal_meter_photo_title: 'Ảnh Công Tơ',
+    grand_total_label: 'TỔNG CỘNG THANH TOÁN',
+    total_label_short: 'TỔNG CỘNG',
+    bank_account_label: 'STK:',
+    landlord_label: 'Chủ trọ',
+    invoice_detail_title_prefix: 'HÓA ĐƠN ',
+    tenant_colon_label: 'Khách thuê:',
+    rooms_empty_state: 'Chưa có phòng nào. Nhấn "Thêm Phòng Mới" để tạo.',
+    no_tenant_label: 'Chưa có khách',
+    status_occupied: 'Đang thuê',
+    rent_price_label: 'Giá thuê:',
+    per_month_label: 'tháng',
+    headcount_label: 'Số người:',
+    contract_photos_label: 'Ảnh Hợp Đồng',
+    toast_select_image_first: 'Vui lòng chọn một ảnh trước',
+    default_document_label: 'Tài liệu',
+    toast_document_added: 'Đã thêm ảnh hợp đồng!',
+    toast_upload_error: 'Lỗi khi tải ảnh lên',
+    toast_server_connection_error: 'Lỗi kết nối máy chủ',
+    confirm_delete_document: 'Xóa ảnh tài liệu này?',
+    toast_document_deleted: 'Đã xóa ảnh tài liệu',
+    room_documents_empty_state: 'Chưa có ảnh hợp đồng nào cho phòng này.',
+    col_ticket_id: 'Mã Ticket',
+    description_colon_label: 'Mô Tả:',
+    no_attached_images: 'Không có ảnh đính kèm',
+    title_click_to_enlarge: 'Click để xem ảnh lớn',
+    no_responses_yet: 'Chưa có phản hồi nào.',
+    default_tenant_label: 'Khách thuê',
+    status_colon_label: 'Trạng thái:',
+    title_view_larger_image: 'Xem ảnh lớn',
+    toast_max_completion_images: 'Tối đa 5 ảnh nghiệm thu',
+    toast_enter_reply_content: 'Vui lòng nhập nội dung phản hồi',
+    toast_ticket_reply_sent_prefix: 'Đã gửi phản hồi ticket ',
+    tickets_empty_state: 'Không có báo lỗi nào.',
+    images_unit_label: 'ảnh',
+    btn_view_details: 'Xem Chi Tiết',
+    confirm_delete_ticket: 'Bạn có chắc chắn muốn xóa báo lỗi này?',
+    toast_ticket_deleted: 'Đã xóa báo lỗi!',
+    toast_max_ticket_images: 'Tối đa 5 ảnh mỗi báo lỗi',
+    my_tickets_empty_state: 'Bạn chưa gửi báo lỗi nào.',
+    waiting_admin_reply: 'Chờ Admin phản hồi...',
+    btn_view_and_discuss: 'Xem & Trao Đổi',
+    default_guest_label: 'Khách',
+    toast_ticket_sent: 'Đã gửi báo lỗi thành công đến Admin!',
+    confirm_delete_room: 'Bạn chắc chắn muốn xóa phòng này?',
+    toast_room_deleted: 'Đã xóa phòng',
+    toast_room_saved_prefix: 'Đã lưu thông tin phòng ',
+    toast_room_saved_suffix: ' thành công!',
+    request_content_label: 'Nội dung yêu cầu:',
+    no_discussion_yet: 'Chưa có trao đổi nào.',
+    toast_enter_comment_content: 'Vui lòng nhập nội dung ý kiến',
+    toast_comment_sent: 'Đã gửi trao đổi thành công!',
+    toast_permissions_saved: 'Đã lưu cấu hình phân quyền hệ thống!',
+    toast_permissions_save_error: 'Lỗi lưu cấu hình phân quyền!',
+    status_paid: 'Đã thanh toán',
+    status_awaiting_payment: 'Chờ thanh toán',
+    status_sent_auto: 'Đã gửi tự động',
+    today_label: 'Hôm nay',
+    just_now_label: 'Vừa xong',
+    status_ticket_done: 'Đã hoàn thành',
+    status_ticket_processing: 'Đang xử lý',
+    status_ticket_open: 'Chưa xử lý',
+    status_ticket_new: 'Mới tiếp nhận',
+    status_ticket_fixing: 'Đang sửa chữa',
+    status_ticket_waiting_parts: 'Chờ phụ tùng',
+    category_invoice: 'Hóa đơn',
+    category_electricity: 'Điện',
+    category_water_issue: 'Nước',
+    category_furniture: 'Nội thất',
+    category_other: 'Khác',
+    priority_normal: 'Bình thường',
+    priority_urgent: 'Khẩn cấp',
+    lbl_select_house: '🏢 Chọn Tòa Nhà:',
+    title_add_new_house: 'Thêm Tòa Nhà Mới',
+    btn_house_short: 'Tòa Nhà',
+    title_toggle_theme: 'Đổi giao diện Sáng/Tối',
+    title_logout: 'Đăng Xuất',
+    nav_rooms: 'Quản Lý Phòng',
+    nav_permissions: 'Phân Quyền Hệ Thống',
+    nav_my_contract: 'Hợp Đồng Của Tôi',
+    services_config_title: 'Bảng Cấu Hình Dịch Vụ & Điện Nước',
+    btn_add_service: 'Thêm Dịch Vụ Mới',
+    services_config_desc: 'Match 100% với Bảng Tính Điện Nước: Khi cấu hình Cố Định ➔ Bảng tính chỉ hiển thị số tiền. Khi cấu hình Công Thức ➔ Bảng tính tự động hiện ô nhập chỉ số Cũ/Mới. Bạn có thể chọn và sửa biểu tượng Icon cho từng dịch vụ bên dưới.',
+    th_icon_service_name: 'Biểu Tượng & Tên Dịch Vụ',
+    th_type_price: 'Hình Thức & Đơn Giá',
+    th_spreadsheet_rule: 'Quy Tắc Match Bảng Tính',
+    formulas_library_title: 'Thư Viện Công Thức',
+    btn_create_formula: 'Tạo Công Thức',
+    formulas_library_desc: 'Tạo sẵn công thức tính theo kWh/m³ để gán cho các dịch vụ tính theo chỉ số.',
+    services_done_title: 'Đã hoàn tất cấu hình Dịch vụ & Điện nước?',
+    services_done_desc: 'Chuyển sang Bảng Tính Điện Nước để nhập chỉ số cũ/mới tháng này.',
+    btn_open_spreadsheet: 'Mở Bảng Tính Điện Nước',
+    rooms_mgmt_title: '🚪 Quản Lý Phòng Trọ',
+    rooms_mgmt_desc: 'Thêm, sửa, xóa phòng trong các tòa nhà. Cấu hình giá thuê và công thức tính tiền.',
+    btn_add_room: 'Thêm Phòng Mới',
+    col_images: 'Ảnh',
+    ticket_info_title: '📋 Thông Tin Báo Lỗi',
+    attached_images_title: '📷 Ảnh Đính Kèm',
+    responses_progress_title: '💬 Phản Hồi & Tiến Trình',
+    lbl_update_status: 'Cập nhật trạng thái',
+    option_waiting_parts: 'Chờ phụ tùng / vật tư',
+    lbl_resolution_note: 'Ghi chú / phương án xử lý',
+    ph_resolution_note: 'Nhập hướng dẫn, lịch hẹn hoặc phương án xử lý...',
+    lbl_attach_completion_photos: '📷 Đính kèm ảnh hoàn thành / nghiệm thu (tùy chọn)',
+    select_completion_photos: 'Chọn ảnh hoàn thành (tối đa 5 ảnh)',
+    btn_send_reply: 'Gửi Phản Hồi',
+    permissions_matrix_title: '🛠️ Bảng Phân Quyền Hạn Hệ Thống',
+    permissions_matrix_desc: 'Thiết lập quyền xem và chỉnh sửa dữ liệu cho từng nhóm tài khoản (Admin, Quản lý, Khách thuê)',
+    th_permission_function: 'Quyền Hạn / Chức Năng',
+    th_role_admin: '🔑 Quản Trị Viên (Admin)',
+    th_role_manager: '💼 Quản Lý (Manager)',
+    th_role_tenant: '🏠 Khách Thuê (Tenant)',
+    btn_save_permissions: 'Lưu Cấu Hình Phân Quyền',
+    my_contract_title: 'Hợp Đồng & Tài Liệu Của Tôi',
+    my_contract_desc: 'Ảnh hợp đồng thuê nhà và các tài liệu liên quan do chủ nhà cung cấp',
+    option_cat_invoice: 'Sai chỉ số / Khiếu nại Hóa đơn',
+    option_cat_electricity: 'Sự cố Hệ thống Điện',
+    option_cat_water: 'Sự cố Đường Nước / Rò rỉ',
+    option_cat_furniture: 'Hỏng Hóc Nội Thất / Thiết Bị',
+    option_cat_other: 'Phản ánh Khác',
+    option_priority_urgent: 'Khẩn cấp (Cần xử lý ngay)',
+    ph_issue_description: 'Nhập chi tiết vấn đề bạn đang gặp phải...',
+    lbl_attach_issue_photos: '📷 Đính kèm ảnh sự cố (tùy chọn)',
+    select_issue_photos: 'Nhấn để chọn ảnh (JPG, PNG, tối đa 5 ảnh)',
+    modal_add_house_title: 'Thêm Tòa Nhà / Dãy Trọ Mới',
+    lbl_house_name: 'Tên Tòa Nhà / Dãy Trọ',
+    lbl_address: 'Địa chỉ',
+    lbl_description_note: 'Ghi chú mô tả',
+    btn_save_house: 'Lưu Tòa Nhà',
+    modal_service_config_title: 'Cấu Hình Dịch Vụ & Biểu Tượng Icon',
+    lbl_choose_icon: 'Chọn Biểu Tượng Icon Cho Dịch Vụ',
+    lbl_apply_scope: 'Áp dụng cho Tòa Nhà & Phòng Chỉ Định (Tích chọn Tòa nhà hoặc mở rộng chọn Phòng riêng)',
+    lbl_service_name: 'Tên dịch vụ / Chi phí',
+    lbl_calc_method: 'Phương thức tính tiền',
+    option_calc_fixed: '💰 Số Tiền Cố Định (Bảng tính chỉ hiện số tiền)',
+    option_calc_formula: '🧮 Tính Theo Chỉ Số (Bảng tính hiện ô điền Chỉ số Cũ/Mới)',
+    lbl_price_per_month: 'Đơn giá / Tháng (VNĐ)',
+    lbl_application_type: 'Hình thức áp dụng',
+    option_unit_fixed_room: 'Cố định / phòng',
+    option_unit_per_person: 'Theo số người ở (VNĐ / người)',
+    option_unit_per_vehicle: 'Theo xe / tháng',
+    lbl_choose_formula: 'Chọn công thức tính toán áp dụng',
+    btn_save_service: 'Lưu Dịch Vụ',
+    option_role_tenant: 'Khách Thuê (Tenant)',
+    option_role_admin: 'Quản Trị Viên (Admin)',
+    option_role_manager: 'Quản Lý (Manager)',
+    lbl_choose_house: 'Chọn tòa nhà',
+    modal_edit_user_title: 'Chỉnh Sửa & Phân Quyền Thành Viên',
+    lbl_role_permission: 'Vai trò / Quyền hạn',
+    lbl_residing_room: 'Phòng lưu trú',
+    lbl_account_status: 'Trạng thái tài khoản',
+    option_status_approved: 'Đã duyệt (Hoạt động)',
+    option_status_pending: 'Chờ duyệt (Chưa kích hoạt)',
+    option_status_blocked: 'Khóa tài khoản',
+    lbl_reset_password: 'Đặt lại mật khẩu mới',
+    reset_password_hint: 'Để trống nếu không muốn thay đổi mật khẩu. Chỉ điền khi khách quên mật khẩu cần cấp lại.',
+    ph_new_password: 'Nhập mật khẩu mới (để trống = giữ nguyên)',
+    btn_save_changes: 'Lưu Thay Đổi',
+    modal_invoice_detail_title: 'Chi Tiết Hóa Đơn',
+    modal_ticket_detail_title: 'Chi Tiết Báo Lỗi & Trao Đổi',
+    feedback_title: '💬 Ý Kiến Phản Hồi',
+    ph_your_comment: 'Nhập ý kiến của bạn...',
+    btn_send: 'Gửi',
+    modal_formula_config_title: 'Công Thức Tính',
+    lbl_formula_name: 'Tên công thức',
+    lbl_formula_type: 'Loại công thức tính toán',
+    option_formula_headcount: '👤 Giá tiền x Số người ở (Tính khoán theo đầu người)',
+    option_formula_flat: '⚡/💧 Cố định theo chỉ số sử dụng (đ / kWh hoặc m³)',
+    option_formula_tiered: '📊 Bậc thang EVN / Nhà nước',
+    lbl_formula_rate: 'Đơn giá (VNĐ / đv hoặc VNĐ / người)',
+    btn_close: 'Đóng',
+    btn_save_formula: 'Lưu Công Thức',
+    modal_room_config_title: 'Cấu Hình Thông Tin & Giá Tiền Phòng Riêng',
+    lbl_belongs_to_house: 'Thuộc Tòa Nhà',
+    lbl_room_name: 'Tên Phòng',
+    lbl_tenant_name: 'Tên Khách Thuê',
+    lbl_phone_number: 'Số Điện Thoại',
+    lbl_headcount_full: 'Số Người Ở (Để tính tiền khoán x số người)',
+    lbl_room_rent_price: 'Giá Tiền Thuê Phòng (VNĐ/tháng)',
+    lbl_water_formula: 'Công Thức / Cách Tính Tiền Nước Cho Phòng Này',
+    lbl_elec_formula: 'Công Thức Tiền Điện Áp Dụng Cho Phòng Này',
+    btn_save_room_config: 'Lưu Cấu Hình Phòng',
+    lbl_add_new_photo: 'Thêm Ảnh Mới',
+    select_contract_photo: 'Chọn ảnh hợp đồng / tài liệu',
+    btn_add_to_list: 'Thêm Vào Danh Sách',
+    lbl_saved_photos_list: 'Danh Sách Ảnh Đã Lưu (Khách thuê xem được)'
   },
   en: {
+    auth_subtitle: 'Rental House Management & Automated Billing System',
+    auth_trial_accounts: '🔑 Demo Accounts:',
+    auth_admin_label: 'Admin',
+    auth_tenant_label: 'Tenant (Room 101)',
     username: 'Username',
     password: 'Password',
     fullname: 'Full Name',
     login_btn: 'Sign In Now',
-    register_btn: 'Submit Registration',
     menu_admin: 'Admin Management',
     menu_tenant: 'Tenant Portal',
+    menu_investor: 'Investor Portal',
     nav_dashboard: 'Dashboard',
     nav_services: 'Service & Utility Setup',
     nav_spreadsheet: 'Utility & Fees Sheet',
     nav_invoices: 'Invoice Manager',
     nav_tickets: 'Issue Tickets',
     nav_users: 'Account Manager',
+    nav_investor_dashboard: 'Investor Overview',
+    view_investor_dashboard_subtitle: 'Statistics and consolidated revenue for the building(s) you invested in',
+    role_investor_label: 'Investor',
+    option_role_investor: 'Investor',
+    inv_stat_revenue: 'Revenue this month',
+    inv_stat_occupancy: 'Occupancy rate',
+    inv_stat_collected: 'Collected this month',
+    inv_stat_outstanding: 'Outstanding balance',
+    inv_stat_tickets: 'Open issue tickets',
+    inv_breakdown_title: 'Monthly Revenue Breakdown',
+    inv_house_breakdown_title: 'Revenue By Building',
+    inv_rooms_title: 'Revenue Detail By Room',
+    col_house: 'Building',
+    col_headcount: 'Occupants',
     nav_my_invoices: 'My Invoices',
     nav_send_ticket: 'Report An Issue',
     billing_period: 'Billing Period:',
@@ -159,9 +498,347 @@ const I18N = {
     status_pending: 'Pending',
     status_blocked: 'Blocked',
     btn_approve: 'Approve',
-    btn_delete: 'Delete'
+    btn_delete: 'Delete',
+    view_admin_dashboard_subtitle: 'Activity and current month invoice statistics',
+    view_admin_services_subtitle: 'Configure each service type and its pricing rules',
+    view_admin_invoices_subtitle: 'View the list and check payment status',
+    view_admin_rooms_title: 'Room Management',
+    view_admin_rooms_subtitle: 'Add, edit, delete rooms and configure rent prices',
+    view_admin_permissions_title: 'Permissions Configuration',
+    view_admin_permissions_subtitle: 'Customize permissions for Admin, Manager and Tenant roles',
+    view_tenant_contract_title: 'My Contract',
+    view_tenant_contract_subtitle: 'Contract photos and related documents provided by the landlord',
+    view_tenant_reports_subtitle: 'Submit issue reports and track responses',
+    toast_login_missing_fields: 'Please enter your username and password!',
+    toast_login_greeting: 'Welcome, ',
+    toast_login_wrong_credentials: 'Incorrect username or password!',
+    toast_login_wrong_credentials_default: 'Incorrect username or password! Default password: 123',
+    toast_account_pending_approval: 'Your account is pending Admin approval!',
+    toast_logout_success: 'Logged out successfully!',
+    role_admin_label: 'Administrator',
+    role_manager_label: 'Manager',
+    role_tenant_label: 'Tenant',
+    all_houses_label: 'All Houses',
+    all_rooms_label: 'All Rooms',
+    multiple_houses_label: 'Multiple Houses',
+    rooms_unit_label: 'rooms',
+    services_empty_state: 'No services yet. Click "Add New Service" to create one.',
+    calc_type_formula: 'BY FORMULA',
+    calc_type_fixed: 'FIXED',
+    evn_tiered_default_label: 'EVN Tiered Rate',
+    rule_creates_reading_columns: 'CREATES OLD/NEW READING COLUMNS',
+    rule_creates_amount_column: 'CREATES SEPARATE AMOUNT COLUMN',
+    title_edit_service_icon: 'Edit Service & Icon',
+    btn_edit: 'Edit',
+    formula_rate_label: 'Rate: ',
+    formula_headcount_label: 'Flat fee: ',
+    formula_per_person_label: 'person',
+    formula_evn_tiered_label: '5-Tier EVN Rate',
+    category_elec: 'Electricity',
+    category_water: 'Water',
+    icon_label_zap: 'Electricity',
+    icon_label_droplet: 'Water',
+    icon_label_wifi: 'Internet',
+    'icon_label_trash-2': 'Trash',
+    icon_label_bike: 'Motorbike',
+    'icon_label_shield-check': 'Security',
+    icon_label_sparkles: 'Cleaning',
+    icon_label_key: 'Key Card',
+    icon_label_snowflake: 'Air Conditioning',
+    icon_label_package: 'Other',
+    toast_house_added_prefix: 'Added house ',
+    toast_house_added_suffix: ' successfully!',
+    scope_all_houses_rooms: 'All Houses & Rooms (applies system-wide)',
+    toast_service_saved_prefix: 'Saved service ',
+    toast_service_saved_suffix: '! Spreadsheet & invoices updated.',
+    confirm_delete_service: 'Are you sure you want to delete this service?',
+    toast_service_deleted: 'Service deleted! Spreadsheet & invoices updated.',
+    confirm_delete_formula: 'Are you sure you want to delete this formula?',
+    toast_formula_deleted: 'Formula deleted!',
+    toast_formula_saved: 'Formula saved successfully!',
+    formula_desc_fixed: 'Fixed',
+    formula_desc_evn_tiered_prefix: 'EVN tiered rate for ',
+    dashboard_no_invoices_prefix: 'No invoices issued yet for ',
+    dashboard_no_invoices_hint: 'Click "Auto Send Invoices" to generate them now.',
+    dashboard_issued_label: 'Issued:',
+    dashboard_collected_label: 'Collected:',
+    dashboard_outstanding_label: 'Outstanding:',
+    col_old_reading: 'Old',
+    col_new_reading: 'New',
+    col_usage_prefix: 'Usage ',
+    spreadsheet_empty_state: 'No rooms match the current filter.',
+    empty_tenant_label: '(Vacant)',
+    not_applicable_label: '(Not applicable)',
+    title_edit_room_price: 'Edit this room\'s details & individual pricing',
+    btn_edit_price: 'Edit Price',
+    title_view_invoice: 'View invoice',
+    invoices_empty_state: 'No invoices for this month yet. Click "Refresh Invoices" to generate automatically.',
+    btn_mark_collected: 'Collected',
+    toast_invoices_issued_prefix: 'Invoices issued for ',
+    toast_invoice_marked_paid_prefix: 'Payment confirmed for ',
+    unassigned_label: 'Unassigned',
+    unassigned_none_placeholder: 'Unassigned / None',
+    vacant_label: 'Vacant',
+    select_room_placeholder: 'Select room',
+    new_label: 'New',
+    confirm_delete_user: 'Are you sure you want to delete this account?',
+    toast_user_approved: 'Account approved successfully!',
+    toast_user_deleted: 'Account deleted!',
+    toast_user_created: 'New account created successfully!',
+    toast_user_updated: 'Account and permissions updated successfully!',
+    toast_user_updated_with_password: 'Account updated and password reset successfully!',
+    contract_empty_title: 'No Contract Photos Yet',
+    contract_empty_desc: 'The landlord has not uploaded any contract photos or documents for your room yet.',
+    invoice_empty_title_prefix: 'No Invoice Yet For ',
+    invoice_empty_desc: 'The landlord is still compiling utility readings and service fees. Please check back later!',
+    default_house_addr_label: 'Rental Management System',
+    btn_print_invoice: 'Print / Download Invoice PDF',
+    invoice_paper_title: 'RENT INVOICE',
+    invoice_id_label: 'Invoice ID:',
+    invoice_period_label: 'Period:',
+    tenant_info_label: 'Tenant Information',
+    room_label: 'Room:',
+    payment_status_label: 'Payment Status',
+    col_cost_item: 'Cost Item',
+    col_formula_explanation: 'Formula & Calculation Rule Explanation',
+    col_amount_vnd: 'Amount (VND)',
+    line_room_rent: 'Room Rent',
+    line_room_rent_short: 'Room rent',
+    line_fixed_by_contract: 'Fixed as per contract',
+    line_electricity: 'Electricity',
+    line_electricity_short: 'Electricity',
+    line_water: 'Water',
+    line_water_short: 'Water',
+    reading_label: 'Reading:',
+    btn_meter_photo_view: 'View meter photos',
+    btn_meter_photo_upload: 'Upload meter photo',
+    btn_meter_photo_replace: 'Replace photo',
+    meter_old_label: 'Old reading',
+    meter_new_label: 'New reading',
+    meter_photo_empty: 'No meter photos uploaded for this invoice yet.',
+    modal_meter_photo_title: 'Meter Photos',
+    grand_total_label: 'TOTAL AMOUNT DUE',
+    total_label_short: 'TOTAL',
+    bank_account_label: 'Account No:',
+    landlord_label: 'Landlord',
+    invoice_detail_title_prefix: 'INVOICE ',
+    tenant_colon_label: 'Tenant:',
+    rooms_empty_state: 'No rooms yet. Click "Add New Room" to create one.',
+    no_tenant_label: 'No tenant',
+    status_occupied: 'Occupied',
+    rent_price_label: 'Rent price:',
+    per_month_label: 'month',
+    headcount_label: 'Headcount:',
+    contract_photos_label: 'Contract Photos',
+    toast_select_image_first: 'Please select an image first',
+    default_document_label: 'Document',
+    toast_document_added: 'Contract photo added!',
+    toast_upload_error: 'Error uploading image',
+    toast_server_connection_error: 'Server connection error',
+    confirm_delete_document: 'Delete this document photo?',
+    toast_document_deleted: 'Document photo deleted',
+    room_documents_empty_state: 'No contract photos yet for this room.',
+    col_ticket_id: 'Ticket ID',
+    description_colon_label: 'Description:',
+    no_attached_images: 'No attached images',
+    title_click_to_enlarge: 'Click to view full size',
+    no_responses_yet: 'No responses yet.',
+    default_tenant_label: 'Tenant',
+    status_colon_label: 'Status:',
+    title_view_larger_image: 'View larger image',
+    toast_max_completion_images: 'Maximum 5 completion photos',
+    toast_enter_reply_content: 'Please enter a reply message',
+    toast_ticket_reply_sent_prefix: 'Reply sent for ticket ',
+    tickets_empty_state: 'No issue reports yet.',
+    images_unit_label: 'images',
+    btn_view_details: 'View Details',
+    confirm_delete_ticket: 'Are you sure you want to delete this report?',
+    toast_ticket_deleted: 'Report deleted!',
+    toast_max_ticket_images: 'Maximum 5 images per report',
+    my_tickets_empty_state: 'You have not submitted any reports yet.',
+    waiting_admin_reply: 'Waiting for Admin reply...',
+    btn_view_and_discuss: 'View & Discuss',
+    default_guest_label: 'Guest',
+    toast_ticket_sent: 'Report sent to Admin successfully!',
+    confirm_delete_room: 'Are you sure you want to delete this room?',
+    toast_room_deleted: 'Room deleted',
+    toast_room_saved_prefix: 'Room information saved for ',
+    toast_room_saved_suffix: ' successfully!',
+    request_content_label: 'Request details:',
+    no_discussion_yet: 'No discussion yet.',
+    toast_enter_comment_content: 'Please enter your comment',
+    toast_comment_sent: 'Comment sent successfully!',
+    toast_permissions_saved: 'System permissions configuration saved!',
+    toast_permissions_save_error: 'Error saving permissions configuration!',
+    status_paid: 'Paid',
+    status_awaiting_payment: 'Awaiting Payment',
+    status_sent_auto: 'Sent Automatically',
+    today_label: 'Today',
+    just_now_label: 'Just now',
+    status_ticket_done: 'Completed',
+    status_ticket_processing: 'In Progress',
+    status_ticket_open: 'Not Started',
+    status_ticket_new: 'Newly Received',
+    status_ticket_fixing: 'Being Repaired',
+    status_ticket_waiting_parts: 'Awaiting Parts',
+    category_invoice: 'Invoice',
+    category_electricity: 'Electricity',
+    category_water_issue: 'Water',
+    category_furniture: 'Furniture',
+    category_other: 'Other',
+    priority_normal: 'Normal',
+    priority_urgent: 'Urgent',
+    lbl_select_house: '🏢 Select House:',
+    title_add_new_house: 'Add New House',
+    btn_house_short: 'House',
+    title_toggle_theme: 'Toggle Light/Dark Mode',
+    title_logout: 'Log Out',
+    nav_rooms: 'Room Management',
+    nav_permissions: 'System Permissions',
+    nav_my_contract: 'My Contract',
+    services_config_title: 'Service & Utility Configuration Table',
+    btn_add_service: 'Add New Service',
+    services_config_desc: '100% matched to the Utility Spreadsheet: Fixed config ➔ spreadsheet shows only the amount. Formula config ➔ spreadsheet automatically shows Old/New reading input cells. You can choose and edit the icon for each service below.',
+    th_icon_service_name: 'Icon & Service Name',
+    th_type_price: 'Type & Unit Price',
+    th_spreadsheet_rule: 'Spreadsheet Matching Rule',
+    formulas_library_title: 'Formula Library',
+    btn_create_formula: 'Create Formula',
+    formulas_library_desc: 'Pre-create kWh/m³ formulas to assign to reading-based services.',
+    services_done_title: 'Finished configuring Services & Utilities?',
+    services_done_desc: 'Switch to the Utility Spreadsheet to enter this month\'s old/new readings.',
+    btn_open_spreadsheet: 'Open Utility Spreadsheet',
+    rooms_mgmt_title: '🚪 Room Management',
+    rooms_mgmt_desc: 'Add, edit, and delete rooms across houses. Configure rent prices and calculation formulas.',
+    btn_add_room: 'Add New Room',
+    col_images: 'Images',
+    ticket_info_title: '📋 Report Information',
+    attached_images_title: '📷 Attached Images',
+    responses_progress_title: '💬 Responses & Progress',
+    lbl_update_status: 'Update status',
+    option_waiting_parts: 'Awaiting parts / materials',
+    lbl_resolution_note: 'Note / resolution plan',
+    ph_resolution_note: 'Enter instructions, appointment, or resolution plan...',
+    lbl_attach_completion_photos: '📷 Attach completion / inspection photos (optional)',
+    select_completion_photos: 'Select completion photos (up to 5)',
+    btn_send_reply: 'Send Reply',
+    permissions_matrix_title: '🛠️ System Permissions Matrix',
+    permissions_matrix_desc: 'Set view and edit permissions for each account group (Admin, Manager, Tenant)',
+    th_permission_function: 'Permission / Function',
+    th_role_admin: '🔑 Administrator (Admin)',
+    th_role_manager: '💼 Manager',
+    th_role_tenant: '🏠 Tenant',
+    btn_save_permissions: 'Save Permissions Configuration',
+    my_contract_title: 'My Contract & Documents',
+    my_contract_desc: 'Rental contract photos and related documents provided by the landlord',
+    option_cat_invoice: 'Incorrect reading / Invoice complaint',
+    option_cat_electricity: 'Electrical system issue',
+    option_cat_water: 'Water line issue / leak',
+    option_cat_furniture: 'Furniture / equipment damage',
+    option_cat_other: 'Other feedback',
+    option_priority_urgent: 'Urgent (Needs immediate attention)',
+    ph_issue_description: 'Enter details of the issue you are experiencing...',
+    lbl_attach_issue_photos: '📷 Attach issue photos (optional)',
+    select_issue_photos: 'Click to select images (JPG, PNG, up to 5)',
+    modal_add_house_title: 'Add New House / Property',
+    lbl_house_name: 'House / Property Name',
+    lbl_address: 'Address',
+    lbl_description_note: 'Description note',
+    btn_save_house: 'Save House',
+    modal_service_config_title: 'Service & Icon Configuration',
+    lbl_choose_icon: 'Choose an Icon for the Service',
+    lbl_apply_scope: 'Apply to Specific Houses & Rooms (select a house or expand to select individual rooms)',
+    lbl_service_name: 'Service / Fee Name',
+    lbl_calc_method: 'Calculation Method',
+    option_calc_fixed: '💰 Fixed Amount (spreadsheet shows only the amount)',
+    option_calc_formula: '🧮 By Reading (spreadsheet shows Old/New reading input cells)',
+    lbl_price_per_month: 'Price / Month (VND)',
+    lbl_application_type: 'Application Type',
+    option_unit_fixed_room: 'Fixed / room',
+    option_unit_per_person: 'Per occupant (VND / person)',
+    option_unit_per_vehicle: 'Per vehicle / month',
+    lbl_choose_formula: 'Choose the calculation formula to apply',
+    btn_save_service: 'Save Service',
+    option_role_tenant: 'Tenant',
+    option_role_admin: 'Administrator (Admin)',
+    option_role_manager: 'Manager',
+    lbl_choose_house: 'Choose house',
+    modal_edit_user_title: 'Edit User & Permissions',
+    lbl_role_permission: 'Role / Permission',
+    lbl_residing_room: 'Assigned room',
+    lbl_account_status: 'Account status',
+    option_status_approved: 'Approved (Active)',
+    option_status_pending: 'Pending (Not activated)',
+    option_status_blocked: 'Blocked',
+    lbl_reset_password: 'Reset password',
+    reset_password_hint: 'Leave blank to keep the current password. Only fill in when the tenant forgot their password and needs a reset.',
+    ph_new_password: 'Enter new password (leave blank to keep current)',
+    btn_save_changes: 'Save Changes',
+    modal_invoice_detail_title: 'Invoice Details',
+    modal_ticket_detail_title: 'Report Details & Discussion',
+    feedback_title: '💬 Feedback',
+    ph_your_comment: 'Enter your comment...',
+    btn_send: 'Send',
+    modal_formula_config_title: 'Calculation Formula',
+    lbl_formula_name: 'Formula name',
+    lbl_formula_type: 'Formula type',
+    option_formula_headcount: '👤 Rate x Number of occupants (flat fee per person)',
+    option_formula_flat: '⚡/💧 Fixed rate per usage reading (VND / kWh or m³)',
+    option_formula_tiered: '📊 EVN / Government tiered rate',
+    lbl_formula_rate: 'Rate (VND / unit or VND / person)',
+    btn_close: 'Close',
+    btn_save_formula: 'Save Formula',
+    modal_room_config_title: 'Room Information & Custom Pricing Configuration',
+    lbl_belongs_to_house: 'Belongs to House',
+    lbl_room_name: 'Room Name',
+    lbl_tenant_name: 'Tenant Name',
+    lbl_phone_number: 'Phone Number',
+    lbl_headcount_full: 'Number of Occupants (used for per-person flat fees)',
+    lbl_room_rent_price: 'Room Rent Price (VND/month)',
+    lbl_water_formula: 'Water Calculation Formula For This Room',
+    lbl_elec_formula: 'Electricity Formula Applied To This Room',
+    btn_save_room_config: 'Save Room Configuration',
+    lbl_add_new_photo: 'Add New Photo',
+    select_contract_photo: 'Select contract / document photo',
+    btn_add_to_list: 'Add To List',
+    lbl_saved_photos_list: 'Saved Photos List (visible to tenant)'
   }
 };
+
+function t(key) {
+  return (I18N[state.lang] && I18N[state.lang][key]) || (I18N.vi && I18N.vi[key]) || key;
+}
+
+// Maps internal (Vietnamese) status/enum strings used for data comparisons
+// to a translated display label, without touching the stored values themselves.
+const STATUS_LABEL_MAP = {
+  'Đã thanh toán': 'status_paid',
+  'Chờ thanh toán': 'status_awaiting_payment',
+  'Đã gửi tự động': 'status_sent_auto',
+  'Hôm nay': 'today_label',
+  'Vừa xong': 'just_now_label',
+  'Đã hoàn thành': 'status_ticket_done',
+  'Đang xử lý': 'status_ticket_processing',
+  'Chưa xử lý': 'status_ticket_open',
+  'Đã duyệt': 'status_approved',
+  'Chờ duyệt': 'status_pending',
+  'Đã khóa': 'status_blocked',
+  'Mới tiếp nhận': 'status_ticket_new',
+  'Đang sửa chữa': 'status_ticket_fixing',
+  'Chờ phụ tùng': 'status_ticket_waiting_parts',
+  'Hóa đơn': 'category_invoice',
+  'Điện': 'category_electricity',
+  'Nước': 'category_water_issue',
+  'Nội thất': 'category_furniture',
+  'Khác': 'category_other',
+  'Bình thường': 'priority_normal',
+  'Khẩn cấp': 'priority_urgent'
+};
+
+function statusLabel(viText) {
+  const key = STATUS_LABEL_MAP[viText];
+  return key ? t(key) : viText;
+}
 
 const ICON_LIBRARY = [
   { icon: 'zap', symbol: '⚡', label: 'Điện' },
@@ -217,7 +894,8 @@ let state = {
   ],
   readings: {},
   invoices: [],
-  tickets: []
+  tickets: [],
+  roomDocuments: {}
 };
 
 const API_BASE = '/api';
@@ -226,32 +904,13 @@ const API_BASE = '/api';
    AUTHENTICATION LOGIC
    ========================================================================== */
 
-function setAuthTab(tab) {
-  const tabLogin = document.getElementById('tab-login');
-  const tabReg = document.getElementById('tab-register');
-  const formLogin = document.getElementById('form-login');
-  const formReg = document.getElementById('form-register');
-
-  if (tab === 'login') {
-    tabLogin.classList.add('active');
-    tabReg.classList.remove('active');
-    formLogin.style.display = 'block';
-    formReg.style.display = 'none';
-  } else {
-    tabReg.classList.add('active');
-    tabLogin.classList.remove('active');
-    formReg.style.display = 'block';
-    formLogin.style.display = 'none';
-  }
-}
-
 async function handleLogin(event) {
   event.preventDefault();
   const username = document.getElementById('login-username').value.trim();
   const password = document.getElementById('login-password').value.trim();
 
   if (!username || !password) {
-    showToast('Vui lòng nhập tên đăng nhập và mật khẩu!', 'error');
+    showToast(t('toast_login_missing_fields'), 'error');
     return;
   }
 
@@ -266,7 +925,7 @@ async function handleLogin(event) {
       const data = await res.json();
       if (data.success) {
         state.currentUser = data.user;
-        showToast(`Xin chào, ${data.user.fullName}!`, 'success');
+        showToast(`${t('toast_login_greeting')}${data.user.fullName}!`, 'success');
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('tvk-navbar').style.display = 'flex';
         document.getElementById('app-container').style.display = 'flex';
@@ -274,7 +933,7 @@ async function handleLogin(event) {
         await fetchState();
         return;
       } else {
-        showToast(data.error || 'Sai tên đăng nhập hoặc mật khẩu!', 'error');
+        showToast(data.error || t('toast_login_wrong_credentials'), 'error');
         return;
       }
     }
@@ -288,54 +947,19 @@ async function handleLogin(event) {
 
   if (foundUser) {
     if (foundUser.status === 'pending') {
-      showToast('Tài khoản của bạn đang chờ Admin duyệt!', 'error');
+      showToast(t('toast_account_pending_approval'), 'error');
       return;
     }
     state.currentUser = foundUser;
-    showToast(`Xin chào, ${foundUser.fullName}!`, 'success');
+    showToast(`${t('toast_login_greeting')}${foundUser.fullName}!`, 'success');
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('tvk-navbar').style.display = 'flex';
     document.getElementById('app-container').style.display = 'flex';
     setupUserRoleUI();
     renderCurrentView();
   } else {
-    showToast('Sai tên đăng nhập hoặc mật khẩu! Mật khẩu mặc định: 123', 'error');
+    showToast(t('toast_login_wrong_credentials_default'), 'error');
   }
-}
-
-async function handleRegister(event) {
-  event.preventDefault();
-  const fullName = document.getElementById('reg-fullname').value.trim();
-  const username = document.getElementById('reg-username').value.trim();
-  const password = document.getElementById('reg-password').value.trim();
-
-  try {
-    const res = await fetch(`${API_BASE}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, fullName })
-    });
-
-    const data = await res.json();
-    if (res.ok && data.success) {
-      showToast(data.message, 'success');
-      setAuthTab('login');
-      document.getElementById('login-username').value = '';
-      document.getElementById('login-password').value = '';
-      return;
-    }
-  } catch (err) {
-    console.warn('API error, saving registration offline:', err);
-  }
-
-  state.users.push({
-    id: `usr_${Date.now()}`,
-    username, password, fullName, role: 'tenant', roomId: '', status: 'pending', createdAt: 'Hôm nay'
-  });
-  showToast('Đăng ký thành công! Vui lòng chờ Admin duyệt tài khoản.', 'success');
-  setAuthTab('login');
-  document.getElementById('login-username').value = '';
-  document.getElementById('login-password').value = '';
 }
 
 function handleLogout() {
@@ -345,7 +969,7 @@ function handleLogout() {
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('tvk-navbar').style.display = 'none';
   document.getElementById('app-container').style.display = 'none';
-  showToast('Đã đăng xuất tài khoản!', 'info');
+  showToast(t('toast_logout_success'), 'info');
 }
 
 function hasPermission(role, permissionKey) {
@@ -367,6 +991,7 @@ function setupUserRoleUI() {
 
   const adminNav = document.querySelector('.admin-nav');
   const tenantNav = document.querySelector('.tenant-nav');
+  const investorNav = document.querySelector('.investor-nav');
   const houseBox = document.getElementById('nav-house-box');
   const avatarText = document.getElementById('user-avatar-text');
   const nameEl = document.getElementById('user-display-name');
@@ -374,13 +999,16 @@ function setupUserRoleUI() {
 
   if (user.role === 'admin') {
     avatarText.innerText = 'AD';
-    roleEl.innerText = 'Quản trị viên';
+    roleEl.innerText = t('role_admin_label');
   } else if (user.role === 'manager') {
     avatarText.innerText = 'QL';
-    roleEl.innerText = 'Quản lý';
+    roleEl.innerText = t('role_manager_label');
+  } else if (user.role === 'investor') {
+    avatarText.innerText = 'CD';
+    roleEl.innerText = t('role_investor_label');
   } else {
     avatarText.innerText = user.username.substring(0, 2).toUpperCase();
-    roleEl.innerText = user.roomId ? `Phòng ${user.roomId.replace('R', '')}` : 'Khách thuê';
+    roleEl.innerText = user.roomId ? `${t('col_room')} ${user.roomId.replace('R', '')}` : t('role_tenant_label');
   }
 
   nameEl.innerText = user.fullName;
@@ -388,8 +1016,9 @@ function setupUserRoleUI() {
   if (user.role === 'admin' || user.role === 'manager') {
     adminNav.style.display = 'flex';
     tenantNav.style.display = 'none';
+    if (investorNav) investorNav.style.display = 'none';
     if (houseBox) houseBox.style.display = 'flex';
-    
+
     // Hide/show sidebar elements based on permissions
     // admin-spreadsheet requires manage_services – managers are NOT allowed by default
     const tabs = {
@@ -420,9 +1049,16 @@ function setupUserRoleUI() {
     } else {
       switchView('admin-dashboard');
     }
+  } else if (user.role === 'investor') {
+    adminNav.style.display = 'none';
+    tenantNav.style.display = 'none';
+    if (investorNav) investorNav.style.display = 'flex';
+    if (houseBox) houseBox.style.display = 'flex';
+    switchView('investor-dashboard');
   } else {
     adminNav.style.display = 'none';
     tenantNav.style.display = 'flex';
+    if (investorNav) investorNav.style.display = 'none';
     if (houseBox) houseBox.style.display = 'none';
     switchView('tenant-invoices');
   }
@@ -471,13 +1107,36 @@ function handleRoomChange() {
 
 function setLanguage(lang) {
   state.lang = lang;
-  document.getElementById('btn-lang-vi').style.background = lang === 'vi' ? 'rgba(255, 255, 255, 0.4)' : 'transparent';
-  document.getElementById('btn-lang-en').style.background = lang === 'en' ? 'rgba(255, 255, 255, 0.4)' : 'transparent';
+  const navVi = document.getElementById('btn-lang-vi');
+  const navEn = document.getElementById('btn-lang-en');
+  if (navVi) navVi.style.background = lang === 'vi' ? 'rgba(255, 255, 255, 0.4)' : 'transparent';
+  if (navEn) navEn.style.background = lang === 'en' ? 'rgba(255, 255, 255, 0.4)' : 'transparent';
+
+  const authVi = document.getElementById('auth-btn-lang-vi');
+  const authEn = document.getElementById('auth-btn-lang-en');
+  if (authVi) authVi.style.background = lang === 'vi' ? 'var(--tvk-blue)' : 'transparent';
+  if (authVi) authVi.style.color = lang === 'vi' ? '#ffffff' : 'var(--text-primary)';
+  if (authEn) authEn.style.background = lang === 'en' ? 'var(--tvk-blue)' : 'transparent';
+  if (authEn) authEn.style.color = lang === 'en' ? '#ffffff' : 'var(--text-primary)';
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (I18N[lang] && I18N[lang][key]) {
       el.innerText = I18N[lang][key];
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    if (I18N[lang] && I18N[lang][key]) {
+      el.setAttribute('title', I18N[lang][key]);
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (I18N[lang] && I18N[lang][key]) {
+      el.setAttribute('placeholder', I18N[lang][key]);
     }
   });
 
@@ -500,6 +1159,7 @@ async function fetchState() {
       state.invoices = data.invoices || state.invoices;
       state.tickets = data.tickets || state.tickets;
       state.permissions = data.permissions || state.permissions;
+      state.roomDocuments = data.roomDocuments || state.roomDocuments;
       renderHouseSelector();
       renderCurrentView();
     }
@@ -535,12 +1195,12 @@ function switchView(viewId) {
   switch (viewId) {
     case 'admin-dashboard':
       titleEl.innerText = dict.nav_dashboard;
-      subtitleEl.innerText = 'Thống kê hoạt động và hóa đơn tháng hiện tại';
+      subtitleEl.innerText = dict.view_admin_dashboard_subtitle;
       renderAdminDashboard();
       break;
     case 'admin-services':
       titleEl.innerText = dict.nav_services;
-      subtitleEl.innerText = 'Cấu hình từng loại dịch vụ và quy tắc tính tiền';
+      subtitleEl.innerText = dict.view_admin_services_subtitle;
       renderServicesConfig();
       break;
     case 'admin-spreadsheet':
@@ -550,12 +1210,12 @@ function switchView(viewId) {
       break;
     case 'admin-invoices':
       titleEl.innerText = dict.invoices_title;
-      subtitleEl.innerText = 'Xem danh sách và kiểm tra trạng thái thanh toán';
+      subtitleEl.innerText = dict.view_admin_invoices_subtitle;
       renderAdminInvoices();
       break;
     case 'admin-rooms':
-      titleEl.innerText = 'Quản Lý Phòng Trọ';
-      subtitleEl.innerText = 'Thêm, sửa, xóa phòng và cấu hình giá thuê';
+      titleEl.innerText = dict.view_admin_rooms_title;
+      subtitleEl.innerText = dict.view_admin_rooms_subtitle;
       renderRoomsManagement();
       break;
     case 'admin-tickets':
@@ -570,18 +1230,28 @@ function switchView(viewId) {
       renderAdminUsers();
       break;
     case 'admin-permissions':
-      titleEl.innerText = 'Cấu Hình Phân Quyền Hạn';
-      subtitleEl.innerText = 'Tùy chỉnh quyền hạn của Admin, Quản lý và Khách thuê';
+      titleEl.innerText = dict.view_admin_permissions_title;
+      subtitleEl.innerText = dict.view_admin_permissions_subtitle;
       renderAdminPermissions();
+      break;
+    case 'investor-dashboard':
+      titleEl.innerText = dict.nav_investor_dashboard;
+      subtitleEl.innerText = dict.view_investor_dashboard_subtitle;
+      renderInvestorDashboard();
       break;
     case 'tenant-invoices':
       titleEl.innerText = dict.my_invoice_title;
       subtitleEl.innerText = dict.my_invoice_subtitle;
       renderTenantInvoiceView();
       break;
+    case 'tenant-contract':
+      titleEl.innerText = dict.view_tenant_contract_title;
+      subtitleEl.innerText = dict.view_tenant_contract_subtitle;
+      renderTenantContractView();
+      break;
     case 'tenant-reports':
       titleEl.innerText = dict.form_ticket_title;
-      subtitleEl.innerText = 'Gửi báo lỗi sự cố và theo dõi phản hồi';
+      subtitleEl.innerText = dict.view_tenant_reports_subtitle;
       renderTenantReportsView();
       break;
   }
@@ -666,7 +1336,7 @@ function calculateRoomServiceTotal(room) {
     } else {
       serviceTotal += cost;
       serviceCount++;
-      items.push({ id: s.id, name, symbol, price: s.price, unit: unit === 'Theo đầu người' ? `${room.headcount} người x ${formatMoney(s.price)}đ` : unit, total: cost, isParking: false });
+      items.push({ id: s.id, name, symbol, price: s.price, unit: unit === 'Theo đầu người' ? `${room.headcount} ${t('formula_per_person_label')} x ${formatMoney(s.price)}đ` : unit, total: cost, isParking: false });
     }
   });
 
@@ -677,7 +1347,7 @@ function renderServicesConfig() {
   const houseLabel = document.getElementById('current-house-name-label');
   const currentHouse = state.houses.find(h => h.id === state.currentHouseId);
   if (houseLabel) {
-    houseLabel.innerText = currentHouse ? currentHouse.name : 'Tất Cả Tòa Nhà';
+    houseLabel.innerText = currentHouse ? currentHouse.name : t('all_houses_label');
   }
 
   const sBody = document.getElementById('services-table-body');
@@ -686,15 +1356,15 @@ function renderServicesConfig() {
   const activeServices = getFilteredServices();
 
   if (activeServices.length === 0) {
-    sBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">Chưa có dịch vụ nào. Nhấn "Thêm Dịch Vụ Mới" để tạo.</td></tr>`;
+    sBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('services_empty_state')}</td></tr>`;
   } else {
     activeServices.forEach(s => {
       let houseBadge = '';
       if (!s.houseId || s.houseId === 'all' || (Array.isArray(s.houseIds) && s.houseIds.includes('all'))) {
-        houseBadge = `<span class="badge badge-paid" style="font-size:0.65rem;">🌐 Tất Cả Tòa Nhà</span>`;
+        houseBadge = `<span class="badge badge-paid" style="font-size:0.65rem;">🌐 ${t('all_houses_label')}</span>`;
       } else if (Array.isArray(s.houseIds)) {
         const names = state.houses.filter(h => s.houseIds.includes(h.id)).map(h => h.name).join(', ');
-        houseBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">📍 ${names || 'Nhiều Tòa'}</span>`;
+        houseBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">📍 ${names || t('multiple_houses_label')}</span>`;
       } else {
         const house = state.houses.find(h => h.id === s.houseId);
         houseBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">📍 ${house ? house.name : s.houseId}</span>`;
@@ -702,10 +1372,10 @@ function renderServicesConfig() {
 
       let roomBadge = '';
       if (!s.roomIds || (Array.isArray(s.roomIds) && s.roomIds.includes('all'))) {
-        roomBadge = `<span class="badge badge-paid" style="font-size:0.65rem;">🚪 Tất Cả Phòng</span>`;
+        roomBadge = `<span class="badge badge-paid" style="font-size:0.65rem;">🚪 ${t('all_rooms_label')}</span>`;
       } else if (Array.isArray(s.roomIds)) {
         const roomNames = state.rooms.filter(r => s.roomIds.includes(r.id)).map(r => r.name.replace('Phòng ', 'P.')).join(', ');
-        roomBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">🔑 ${roomNames || s.roomIds.length + ' phòng'}</span>`;
+        roomBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">🔑 ${roomNames || s.roomIds.length + ' ' + t('rooms_unit_label')}</span>`;
       }
 
       let calcTypeHtml = '';
@@ -714,16 +1384,16 @@ function renderServicesConfig() {
       if (s.calcType === 'formula') {
         const f = state.formulas.find(x => x.id === s.formulaId);
         calcTypeHtml = `
-          <span class="badge badge-pending">🧮 THEO CÔNG THỨC</span><br>
-          <strong style="color:var(--tvk-blue); font-size:0.85rem;">${f ? f.name : (s.formulaId || 'Bậc thang EVN')}</strong>
+          <span class="badge badge-pending">🧮 ${t('calc_type_formula')}</span><br>
+          <strong style="color:var(--tvk-blue); font-size:0.85rem;">${f ? f.name : (s.formulaId || t('evn_tiered_default_label'))}</strong>
         `;
-        ruleHtml = `<span class="badge badge-resolved" style="background:#e6f4fe; color:#0178d2;">TẠO CỘT NHẬP CHỈ SỐ CŨ/MỚI</span>`;
+        ruleHtml = `<span class="badge badge-resolved" style="background:#e6f4fe; color:#0178d2;">${t('rule_creates_reading_columns')}</span>`;
       } else {
         calcTypeHtml = `
-          <span class="badge badge-paid">💰 CỐ ĐỊNH</span><br>
+          <span class="badge badge-paid">💰 ${t('calc_type_fixed')}</span><br>
           <strong style="color:var(--tvk-blue); font-size:0.95rem;">${formatMoney(s.price)} đ</strong>
         `;
-        ruleHtml = `<span class="badge badge-paid">TẠO CỘT HIỂN THỊ SỐ TIỀN RÊNG</span>`;
+        ruleHtml = `<span class="badge badge-paid">${t('rule_creates_amount_column')}</span>`;
       }
 
       const iconSymbol = s.symbol || '📦';
@@ -743,8 +1413,8 @@ function renderServicesConfig() {
         <td>${calcTypeHtml}</td>
         <td>${ruleHtml}</td>
         <td style="text-align: right;">
-          <button class="btn btn-secondary btn-sm" onclick="editService('${s.id}')" title="Sửa Dịch Vụ & Icon"><i data-lucide="edit"></i> Sửa</button>
-          <button class="btn btn-secondary btn-sm" onclick="deleteServiceApi('${s.id}')" style="color: var(--tvk-red);" title="Xóa"><i data-lucide="trash-2"></i></button>
+          <button class="btn btn-secondary btn-sm" onclick="editService('${s.id}')" title="${t('title_edit_service_icon')}"><i data-lucide="edit"></i> ${t('btn_edit')}</button>
+          <button class="btn btn-secondary btn-sm" onclick="deleteServiceApi('${s.id}')" style="color: var(--tvk-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>
         </td>
       `;
       sBody.appendChild(tr);
@@ -760,12 +1430,12 @@ function renderServicesConfig() {
       <div>
         <div style="font-weight: 800; color: var(--tvk-blue);">${f.name}</div>
         <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
-          ${f.type === 'flat' ? `Đơn giá: ${formatMoney(f.rate)} đ` : (f.type === 'headcount' ? `Khoán: ${formatMoney(f.rate)} đ / người` : 'Bậc thang EVN 5 mức')}
+          ${f.type === 'flat' ? `${t('formula_rate_label')}${formatMoney(f.rate)} đ` : (f.type === 'headcount' ? `${t('formula_headcount_label')}${formatMoney(f.rate)} đ / ${t('formula_per_person_label')}` : t('formula_evn_tiered_label'))}
         </div>
       </div>
       <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <span class="badge ${f.category === 'elec' ? 'badge-resolved' : 'badge-paid'}">${f.category === 'elec' ? 'Điện' : 'Nước'}</span>
-        <button class="btn btn-secondary btn-sm" onclick="deleteFormulaApi('${f.id}')" style="color: var(--tvk-red);" title="Xóa"><i data-lucide="trash-2"></i></button>
+        <span class="badge ${f.category === 'elec' ? 'badge-resolved' : 'badge-paid'}">${f.category === 'elec' ? t('category_elec') : t('category_water')}</span>
+        <button class="btn btn-secondary btn-sm" onclick="deleteFormulaApi('${f.id}')" style="color: var(--tvk-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>
       </div>
     `;
     fGrid.appendChild(card);
@@ -784,7 +1454,7 @@ function renderIconPicker(selectedIcon = 'package') {
     html += `
       <div class="icon-picker-option ${isSelected ? 'selected' : ''}" onclick="selectServiceIcon('${item.icon}', '${item.symbol}')">
         <span style="font-size:1.3rem;">${item.symbol}</span>
-        <span style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px;">${item.label}</span>
+        <span style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px;">${t('icon_label_' + item.icon)}</span>
       </div>
     `;
   });
@@ -829,7 +1499,7 @@ async function saveHouse(event) {
     console.warn('Saved house locally:', err);
   }
 
-  showToast(`Đã thêm Tòa Nhà "${name}" thành công!`, 'success');
+  showToast(`${t('toast_house_added_prefix')}"${name}"${t('toast_house_added_suffix')}`, 'success');
   closeModal('modal-add-house');
   renderHouseSelector();
   renderCurrentView();
@@ -847,7 +1517,7 @@ function renderServiceScopeTree(selectedHouseIds = ['all'], selectedRoomIds = ['
     <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.25rem;">
       <label class="checkbox-item" style="margin: 0; padding: 0;">
         <input type="checkbox" id="chk-scope-all" value="all" ${isAllMasterChecked ? 'checked' : ''} onchange="toggleAllScopeMaster(this)">
-        <span style="font-weight: 800; color: var(--tvk-blue);">🌐 Tất Cả Tòa Nhà & Phòng (Áp dụng toàn bộ hệ thống)</span>
+        <span style="font-weight: 800; color: var(--tvk-blue);">🌐 ${t('scope_all_houses_rooms')}</span>
       </label>
     </div>
   `;
@@ -867,7 +1537,7 @@ function renderServiceScopeTree(selectedHouseIds = ['all'], selectedRoomIds = ['
           </label>
           
           <button type="button" class="btn btn-secondary btn-sm" onclick="toggleHouseRoomSublist('${h.id}')" style="padding: 3px 10px; font-size: 0.75rem; border-radius: var(--radius-sm);">
-            <span id="badge-count-${h.id}">${isHouseAllChecked ? houseRooms.length : checkedRoomCount}/${houseRooms.length} phòng</span>
+            <span id="badge-count-${h.id}">${isHouseAllChecked ? houseRooms.length : checkedRoomCount}/${houseRooms.length} ${t('rooms_unit_label')}</span>
             <i data-lucide="chevron-down" id="chevron-${h.id}" style="width:14px; height:14px; margin-left:4px;"></i>
           </button>
         </div>
@@ -899,7 +1569,7 @@ function toggleAllScopeMaster(masterChk) {
   state.houses.forEach(h => {
     const houseRooms = state.rooms.filter(r => (r.houseId === h.id || r.house_id === h.id));
     const badge = document.getElementById(`badge-count-${h.id}`);
-    if (badge) badge.innerText = isChecked ? `${houseRooms.length}/${houseRooms.length} phòng` : `0/${houseRooms.length} phòng`;
+    if (badge) badge.innerText = isChecked ? `${houseRooms.length}/${houseRooms.length} ${t('rooms_unit_label')}` : `0/${houseRooms.length} ${t('rooms_unit_label')}`;
   });
 }
 
@@ -909,7 +1579,7 @@ function toggleHouseNodeCheckbox(houseId, houseChk) {
 
   const houseRooms = state.rooms.filter(r => (r.houseId === houseId || r.house_id === houseId));
   const badge = document.getElementById(`badge-count-${houseId}`);
-  if (badge) badge.innerText = isChecked ? `${houseRooms.length}/${houseRooms.length} phòng` : `0/${houseRooms.length} phòng`;
+  if (badge) badge.innerText = isChecked ? `${houseRooms.length}/${houseRooms.length} ${t('rooms_unit_label')}` : `0/${houseRooms.length} ${t('rooms_unit_label')}`;
 
   updateMasterScopeCheckbox();
 }
@@ -924,7 +1594,7 @@ function updateRoomNodeCheckbox(houseId) {
   }
 
   const badge = document.getElementById(`badge-count-${houseId}`);
-  if (badge) badge.innerText = `${checkedRooms}/${roomNodes.length} phòng`;
+  if (badge) badge.innerText = `${checkedRooms}/${roomNodes.length} ${t('rooms_unit_label')}`;
 
   updateMasterScopeCheckbox();
 }
@@ -1082,14 +1752,14 @@ async function saveService(event) {
     console.warn('Service saved locally:', err);
   }
 
-  showToast(`Đã lưu dịch vụ "${name}" (${symbol})! Bảng tính & Hóa đơn đã cập nhật.`, 'success');
+  showToast(`${t('toast_service_saved_prefix')}"${name}" (${symbol})${t('toast_service_saved_suffix')}`, 'success');
   closeModal('modal-service-config');
   renderServicesConfig();
   if (state.currentView === 'admin-spreadsheet') renderSpreadsheet();
 }
 
 async function deleteServiceApi(srvId) {
-  if (!confirm('Bạn có chắc chắn muốn xóa dịch vụ này?')) return;
+  if (!confirm(t('confirm_delete_service'))) return;
   state.services = state.services.filter(s => s.id !== srvId);
 
   if (state.readings[state.currentMonth]) {
@@ -1111,13 +1781,13 @@ async function deleteServiceApi(srvId) {
     console.warn('Deleted service locally:', err);
   }
 
-  showToast('Đã xóa dịch vụ! Bảng tính & Hóa đơn đã cập nhật.', 'success');
+  showToast(t('toast_service_deleted'), 'success');
   renderServicesConfig();
   if (state.currentView === 'admin-spreadsheet') renderSpreadsheet();
 }
 
 async function deleteFormulaApi(formulaId) {
-  if (!confirm('Bạn có chắc chắn muốn xóa công thức này?')) return;
+  if (!confirm(t('confirm_delete_formula'))) return;
   state.formulas = state.formulas.filter(f => f.id !== formulaId);
 
   try {
@@ -1130,7 +1800,7 @@ async function deleteFormulaApi(formulaId) {
     console.warn('Deleted formula locally:', err);
   }
 
-  showToast('Đã xóa công thức!', 'success');
+  showToast(t('toast_formula_deleted'), 'success');
   renderServicesConfig();
 }
 
@@ -1169,10 +1839,10 @@ function calculateUtilityAmount(usage, formulaId, headcount = 1) {
 
 function getFormulaDescription(formulaId, usage, headcount) {
   const formula = state.formulas.find(f => f.id === formulaId);
-  if (!formula) return 'Cố định';
+  if (!formula) return t('formula_desc_fixed');
   if (formula.type === 'flat') return `${formula.name} (${formatMoney(formula.rate)}/đv)`;
-  if (formula.type === 'headcount') return `${formula.name} (${headcount} người x ${formatMoney(formula.rate)})`;
-  if (formula.type === 'tiered') return `${formula.name} (Bậc thang EVN tiêu thụ ${usage} kWh)`;
+  if (formula.type === 'headcount') return `${formula.name} (${headcount} ${t('formula_per_person_label')} x ${formatMoney(formula.rate)})`;
+  if (formula.type === 'tiered') return `${formula.name} (${t('formula_desc_evn_tiered_prefix')}${usage} kWh)`;
   return formula.name;
 }
 
@@ -1205,7 +1875,7 @@ function renderAdminDashboard() {
   const openTickets = state.tickets.filter(t => t.status !== 'Đã hoàn thành').length;
 
   document.getElementById('stat-total-revenue').innerText = formatMoney(totalRevenue) + ' đ';
-  document.getElementById('stat-occupied-rooms').innerText = `${activeRooms.length} phòng`;
+  document.getElementById('stat-occupied-rooms').innerText = `${activeRooms.length} ${t('rooms_unit_label')}`;
   document.getElementById('stat-pending-invoices').innerText = pendingInvoices;
   document.getElementById('stat-open-tickets').innerText = openTickets;
 
@@ -1213,23 +1883,141 @@ function renderAdminDashboard() {
   if (monthInvoices.length === 0) {
     summaryBox.innerHTML = `
       <div style="padding: 1rem; text-align: center; background: var(--bg-base); border-radius: var(--radius-md); color: var(--text-secondary);">
-        Chưa phát hành hóa đơn cho tháng ${formatMonthLabel(state.currentMonth)}.<br>
-        Nhấn "Tự Động Gửi Hóa Đơn" để tạo ngay.
+        ${t('dashboard_no_invoices_prefix')}${formatMonthLabel(state.currentMonth)}.<br>
+        ${t('dashboard_no_invoices_hint')}
       </div>
     `;
   } else {
     const paidCount = monthInvoices.filter(i => i.status === 'Đã thanh toán').length;
     summaryBox.innerHTML = `
       <div style="display: flex; justify-content: space-between;">
-        <span>Phát hành:</span><strong>${monthInvoices.length} phòng</strong>
+        <span>${t('dashboard_issued_label')}</span><strong>${monthInvoices.length} ${t('rooms_unit_label')}</strong>
       </div>
       <div style="display: flex; justify-content: space-between;">
-        <span>Đã thu:</span><span class="badge badge-paid">${paidCount} phòng</span>
+        <span>${t('dashboard_collected_label')}</span><span class="badge badge-paid">${paidCount} ${t('rooms_unit_label')}</span>
       </div>
       <div style="display: flex; justify-content: space-between;">
-        <span>Còn nợ:</span><span class="badge badge-pending">${monthInvoices.length - paidCount} phòng</span>
+        <span>${t('dashboard_outstanding_label')}</span><span class="badge badge-pending">${monthInvoices.length - paidCount} ${t('rooms_unit_label')}</span>
       </div>
     `;
+  }
+}
+
+function renderInvestorDashboard() {
+  const activeRooms = getFilteredRooms();
+  const monthReadings = state.readings[state.currentMonth] || {};
+
+  let totalRent = 0, totalElec = 0, totalWater = 0, totalService = 0;
+  let occupiedCount = 0;
+
+  activeRooms.forEach(r => {
+    if (r.tenant) occupiedCount++;
+    totalRent += r.baseRent;
+
+    const rd = monthReadings[r.id] || {};
+    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId));
+    houseServices.forEach(s => {
+      if (s.calcType === 'formula') {
+        const isElec = s.name.includes('Điện');
+        const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
+        const fId = isElec ? (rd.elecFormula || r.elecFormula) : (rd.waterFormula || r.waterFormula);
+        const cost = calculateUtilityAmount(usage, fId, r.headcount);
+        if (isElec) totalElec += cost; else totalWater += cost;
+      } else {
+        totalService += calculateServiceCostForRoom(s, r);
+      }
+    });
+  });
+
+  const totalRevenue = totalRent + totalElec + totalWater + totalService;
+
+  const monthInvoices = state.invoices.filter(inv => inv.month === state.currentMonth && (state.currentHouseId === 'all' || inv.houseId === state.currentHouseId));
+  const paidInvoices = monthInvoices.filter(i => i.status === 'Đã thanh toán');
+  const pendingInvoices = monthInvoices.filter(i => i.status !== 'Đã thanh toán');
+  const collectedAmount = paidInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
+  const outstandingAmount = pendingInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
+
+  const openTickets = state.tickets.filter(tk => tk.status !== 'Đã hoàn thành').length;
+  const occupancyRate = activeRooms.length ? Math.round((occupiedCount / activeRooms.length) * 100) : 0;
+
+  const setText = (id, val) => { const el = document.getElementById(id); if (el) el.innerText = val; };
+  setText('inv-stat-revenue', formatMoney(totalRevenue) + ' đ');
+  setText('inv-stat-occupancy', `${occupiedCount}/${activeRooms.length} (${occupancyRate}%)`);
+  setText('inv-stat-collected', formatMoney(collectedAmount) + ' đ');
+  setText('inv-stat-outstanding', formatMoney(outstandingAmount) + ' đ');
+  setText('inv-stat-tickets', openTickets);
+
+  const breakdownEl = document.getElementById('investor-revenue-breakdown');
+  if (breakdownEl) {
+    const parts = [
+      { label: t('line_room_rent_short'), value: totalRent, color: 'var(--tvk-blue)' },
+      { label: t('line_electricity_short'), value: totalElec, color: 'var(--tvk-amber)' },
+      { label: t('line_water_short'), value: totalWater, color: '#38bdf8' },
+      { label: t('nav_services'), value: totalService, color: 'var(--tvk-emerald)' }
+    ];
+    const sum = parts.reduce((s, p) => s + p.value, 0) || 1;
+    breakdownEl.innerHTML = `
+      <div style="display:flex; height:14px; border-radius:var(--radius-full); overflow:hidden; margin-bottom:1rem;">
+        ${parts.map(p => `<div style="width:${(p.value / sum * 100).toFixed(2)}%; background:${p.color};" title="${p.label}: ${formatMoney(p.value)}đ"></div>`).join('')}
+      </div>
+      <div style="display:flex; flex-wrap:wrap; gap:0.85rem;">
+        ${parts.map(p => `
+          <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.82rem;">
+            <span style="width:10px; height:10px; border-radius:50%; background:${p.color}; display:inline-block; flex-shrink:0;"></span>
+            ${p.label}: <strong>${formatMoney(p.value)} đ</strong>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  const tbody = document.getElementById('investor-rooms-table-body');
+  if (tbody) {
+    if (activeRooms.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('spreadsheet_empty_state')}</td></tr>`;
+    } else {
+      tbody.innerHTML = activeRooms.map(r => {
+        const inv = monthInvoices.find(i => i.roomId === r.id);
+        const total = inv ? inv.totalAmount : r.baseRent;
+        const statusBadge = inv
+          ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
+          : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`;
+        const house = state.houses.find(h => h.id === r.houseId);
+        return `
+          <tr>
+            <td><strong>${r.name}</strong>${house ? `<br><small style="color:var(--text-muted);">${house.name}</small>` : ''}</td>
+            <td>${r.tenant || `<em>${t('empty_tenant_label')}</em>`}</td>
+            <td>${r.headcount}</td>
+            <td>${formatMoney(r.baseRent)} đ</td>
+            <td style="font-weight:800; color:var(--tvk-orange);">${formatMoney(total)} đ</td>
+            <td>${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  }
+
+  const houseBreakdownCard = document.getElementById('investor-house-breakdown-card');
+  const houseBreakdownBody = document.getElementById('investor-house-breakdown-body');
+  if (houseBreakdownCard && houseBreakdownBody) {
+    if (state.houses.length > 1) {
+      houseBreakdownCard.style.display = 'block';
+      houseBreakdownBody.innerHTML = state.houses.map(h => {
+        const houseInvoices = state.invoices.filter(i => i.month === state.currentMonth && i.houseId === h.id);
+        const houseTotal = houseInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+        const houseRooms = state.rooms.filter(r => r.houseId === h.id);
+        const houseOccupied = houseRooms.filter(r => r.tenant).length;
+        return `
+          <tr>
+            <td><strong>${h.name}</strong></td>
+            <td>${houseOccupied}/${houseRooms.length}</td>
+            <td style="font-weight:800; color:var(--tvk-orange);">${formatMoney(houseTotal)} đ</td>
+          </tr>
+        `;
+      }).join('');
+    } else {
+      houseBreakdownCard.style.display = 'none';
+    }
   }
 }
 
@@ -1237,7 +2025,7 @@ function renderSpreadsheet() {
   const label = document.getElementById('spreadsheet-house-label');
   const currentHouse = state.houses.find(h => h.id === state.currentHouseId);
   if (label) {
-    label.innerText = currentHouse ? currentHouse.name : 'Tất Cả Tòa Nhà';
+    label.innerText = currentHouse ? currentHouse.name : t('all_houses_label');
   }
 
   const activeServices = getFilteredServices();
@@ -1245,9 +2033,9 @@ function renderSpreadsheet() {
   // Dynamically Build Individual Table Columns for Every Single Configured Service!
   const theadTr = document.getElementById('spreadsheet-thead-tr');
   let headHtml = `
-    <th>Phòng</th>
-    <th>Khách Thuê</th>
-    <th>Tiền Nhà</th>
+    <th>${t('col_room')}</th>
+    <th>${t('col_tenant')}</th>
+    <th>${t('col_rent')}</th>
   `;
 
   activeServices.forEach(s => {
@@ -1256,9 +2044,9 @@ function renderSpreadsheet() {
       const isElec = s.name.includes('Điện');
       const unitLabel = isElec ? 'kWh' : 'm³';
       headHtml += `
-        <th>${s.name} Cũ</th>
-        <th>${s.name} Mới</th>
-        <th>Số ${s.name} (${unitLabel})</th>
+        <th>${s.name} ${t('col_old_reading')}</th>
+        <th>${s.name} ${t('col_new_reading')}</th>
+        <th>${t('col_usage_prefix')}${s.name} (${unitLabel})</th>
         <th style="background: #e6f4fe; color: #0178d2;">${symbol} ${s.name}</th>
       `;
     } else {
@@ -1267,8 +2055,8 @@ function renderSpreadsheet() {
   });
 
   headHtml += `
-    <th>💰 Tổng Cộng</th>
-    <th>Thao Tác</th>
+    <th>${t('col_total')}</th>
+    <th>${t('col_actions')}</th>
   `;
 
   theadTr.innerHTML = headHtml;
@@ -1279,7 +2067,7 @@ function renderSpreadsheet() {
   const activeRooms = getFilteredRooms();
 
   if (activeRooms.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="20" style="text-align:center; padding:2rem; color:var(--text-secondary);">Chưa có phòng trọ nào phù hợp với bộ lọc.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="20" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('spreadsheet_empty_state')}</td></tr>`;
     return;
   }
 
@@ -1295,7 +2083,7 @@ function renderSpreadsheet() {
 
     let rowHtml = `
       <td><strong>${r.name}</strong>${houseBadge}</td>
-      <td>${r.tenant || '<em>(Trống)</em>'} <br><small style="color: var(--text-muted);">${r.headcount} người</small></td>
+      <td>${r.tenant || `<em>${t('empty_tenant_label')}</em>`} <br><small style="color: var(--text-muted);">${r.headcount} ${t('formula_per_person_label')}</small></td>
       <td>${formatMoney(r.baseRent)}</td>
     `;
 
@@ -1314,14 +2102,24 @@ function renderSpreadsheet() {
         grandTotal += cost;
 
         if (isServiceApplicable) {
+          const oldField = isElec ? 'elecOld' : 'waterOld';
+          const newField = isElec ? 'elecNew' : 'waterNew';
+          const oldPhoto = isElec ? rd.elecOldPhoto : rd.waterOldPhoto;
+          const newPhoto = isElec ? rd.elecNewPhoto : rd.waterNewPhoto;
           rowHtml += `
-            <td><input type="number" class="excel-input" value="${oldVal || 0}" onchange="updateReadingApi('${r.id}', '${isElec ? 'elecOld' : 'waterOld'}', this.value)"></td>
-            <td><input type="number" class="excel-input" value="${newVal || 0}" onchange="updateReadingApi('${r.id}', '${isElec ? 'elecNew' : 'waterNew'}', this.value)"></td>
+            <td>
+              <input type="number" class="excel-input" value="${oldVal || 0}" onchange="updateReadingApi('${r.id}', '${oldField}', this.value)">
+              ${meterPhotoButtonHtml(r.id, oldField, oldPhoto)}
+            </td>
+            <td>
+              <input type="number" class="excel-input" value="${newVal || 0}" onchange="updateReadingApi('${r.id}', '${newField}', this.value)">
+              ${meterPhotoButtonHtml(r.id, newField, newPhoto)}
+            </td>
             <td style="text-align: right; font-weight: 800; color: var(--tvk-blue);">${usage}</td>
             <td style="text-align: right; font-weight: 700; color: var(--tvk-blue);">${s.symbol || '🧮'} ${formatMoney(cost)} đ</td>
           `;
         } else {
-          rowHtml += `<td colspan="4" style="text-align:center; color:var(--text-muted);">(Không áp dụng)</td>`;
+          rowHtml += `<td colspan="4" style="text-align:center; color:var(--text-muted);">${t('not_applicable_label')}</td>`;
         }
       } else {
         const cost = isServiceApplicable ? calculateServiceCostForRoom(s, r) : 0;
@@ -1334,7 +2132,7 @@ function renderSpreadsheet() {
             </td>
           `;
         } else {
-          rowHtml += `<td style="text-align:center; color:var(--text-muted);">(Không áp dụng)</td>`;
+          rowHtml += `<td style="text-align:center; color:var(--text-muted);">${t('not_applicable_label')}</td>`;
         }
       }
     });
@@ -1343,10 +2141,10 @@ function renderSpreadsheet() {
       <td style="text-align: right; font-weight: 800; color: var(--tvk-orange); font-size: 0.95rem;">💰 ${formatMoney(grandTotal)} đ</td>
       <td>
         <div style="display:flex; gap:0.4rem;">
-          <button class="btn btn-secondary btn-sm" onclick="openEditRoomModal('${r.id}')" title="Chỉnh sửa thông tin & giá tiền riêng phòng này">
-            <i data-lucide="edit-3"></i> Sửa Giá
+          <button class="btn btn-secondary btn-sm" onclick="openEditRoomModal('${r.id}')" title="${t('title_edit_room_price')}">
+            <i data-lucide="edit-3"></i> ${t('btn_edit_price')}
           </button>
-          <button class="btn btn-secondary btn-sm" onclick="previewRoomInvoice('${r.id}')" title="Xem hóa đơn">
+          <button class="btn btn-secondary btn-sm" onclick="previewRoomInvoice('${r.id}')" title="${t('title_view_invoice')}">
             <i data-lucide="eye"></i>
           </button>
         </div>
@@ -1366,10 +2164,87 @@ function renderFormulaOptions(selectedId, category) {
     .join('');
 }
 
+function isReadingTextField(field) {
+  return field === 'elecFormula' || field === 'waterFormula' || field.endsWith('Photo');
+}
+
+function meterPhotoButtonHtml(roomId, field, photoDataUrl) {
+  const inputId = `meter-photo-input-${roomId}-${field}`;
+  const hasPhoto = !!photoDataUrl;
+  return `
+    <input type="file" accept="image/*" id="${inputId}" style="display:none" onchange="handleMeterPhotoUpload(event, '${roomId}', '${field}')">
+    <button type="button" class="btn btn-sm" title="${hasPhoto ? t('btn_meter_photo_view') : t('btn_meter_photo_upload')}"
+      style="padding:2px 5px; margin-top:2px; ${hasPhoto ? 'color:var(--tvk-blue); border-color:var(--tvk-blue);' : ''}"
+      onclick="${hasPhoto ? `viewMeterPhoto('${roomId}', '${field}')` : `document.getElementById('${inputId}').click()`}">
+      <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
+    </button>
+  `;
+}
+
+function handleMeterPhotoUpload(event, roomId, field) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    updateReadingApi(roomId, field, e.target.result);
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function viewMeterPhoto(roomId, field) {
+  const rd = (state.readings[state.currentMonth] || {})[roomId] || {};
+  const dataUrl = rd[field];
+  if (!dataUrl) return;
+  const inputId = `meter-photo-input-${roomId}-${field}`;
+  const content = document.getElementById('modal-meter-photo-content');
+  if (content) {
+    content.innerHTML = `
+      <img src="${dataUrl}" style="width:100%; border-radius:var(--radius-md);">
+      <button type="button" class="btn btn-sm" style="margin-top:0.75rem;" onclick="document.getElementById('${inputId}').click()">
+        <i data-lucide="upload"></i> ${t('btn_meter_photo_replace')}
+      </button>
+    `;
+  }
+  document.getElementById('modal-meter-photo').classList.add('active');
+  lucide.createIcons();
+}
+
+function openInvoiceMeterPhotos(invoiceId) {
+  const inv = state.invoices.find(i => i.id === invoiceId);
+  if (!inv) return;
+  const content = document.getElementById('modal-meter-photo-content');
+  if (!content) return;
+
+  const pairs = [
+    { label: t('line_electricity_short') + ' - ' + t('meter_old_label'), url: inv.elecOldPhoto },
+    { label: t('line_electricity_short') + ' - ' + t('meter_new_label'), url: inv.elecNewPhoto },
+    { label: t('line_water_short') + ' - ' + t('meter_old_label'), url: inv.waterOldPhoto },
+    { label: t('line_water_short') + ' - ' + t('meter_new_label'), url: inv.waterNewPhoto }
+  ].filter(p => p.url);
+
+  if (pairs.length === 0) {
+    content.innerHTML = `<p style="text-align:center; color:var(--text-secondary); padding:1rem 0;">${t('meter_photo_empty')}</p>`;
+  } else {
+    content.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:0.75rem;">
+        ${pairs.map(p => `
+          <div>
+            <div style="font-size:0.75rem; font-weight:700; margin-bottom:0.35rem; color:var(--text-secondary);">${p.label}</div>
+            <img src="${p.url}" style="width:100%; border-radius:var(--radius-md); border:1px solid var(--border-color);">
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }
+  document.getElementById('modal-meter-photo').classList.add('active');
+  lucide.createIcons();
+}
+
 async function updateReadingApi(roomId, field, value) {
   if (!state.readings[state.currentMonth]) state.readings[state.currentMonth] = {};
   if (!state.readings[state.currentMonth][roomId]) state.readings[state.currentMonth][roomId] = {};
-  state.readings[state.currentMonth][roomId][field] = (field === 'elecFormula' || field === 'waterFormula') ? value : (parseFloat(value) || 0);
+  state.readings[state.currentMonth][roomId][field] = isReadingTextField(field) ? value : (parseFloat(value) || 0);
 
   try {
     await fetch(`${API_BASE}/readings/update`, {
@@ -1411,7 +2286,7 @@ async function generateAndSendAllInvoices() {
           name: s.name,
           symbol,
           price: s.price,
-          unit: s.unit === 'Theo đầu người' ? `${r.headcount} người x ${formatMoney(s.price)}đ` : s.unit,
+          unit: s.unit === 'Theo đầu người' ? `${r.headcount} ${t('formula_per_person_label')} x ${formatMoney(s.price)}đ` : s.unit,
           total: cost,
           isParking: s.name.toLowerCase().includes('xe')
         });
@@ -1446,7 +2321,7 @@ async function generateAndSendAllInvoices() {
     console.warn('Invoice generated locally:', err);
   }
 
-  showToast(`Đã phát hành hóa đơn cho tháng ${formatMonthLabel(state.currentMonth)}!`, 'success');
+  showToast(`${t('toast_invoices_issued_prefix')}${formatMonthLabel(state.currentMonth)}!`, 'success');
   renderCurrentView();
 }
 
@@ -1456,7 +2331,7 @@ function renderAdminInvoices() {
   const monthInvoices = state.invoices.filter(i => i.month === state.currentMonth && (state.currentHouseId === 'all' || i.houseId === state.currentHouseId));
 
   if (monthInvoices.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-secondary);">Chưa có hóa đơn tháng này. Nhấn "Cập Nhật Hóa Đơn" để sinh tự động.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('invoices_empty_state')}</td></tr>`;
     return;
   }
 
@@ -1468,13 +2343,13 @@ function renderAdminInvoices() {
       <td>${inv.tenant}</td>
       <td>${formatMonthLabel(inv.month)}</td>
       <td style="font-weight: 800; color: var(--tvk-orange);">${formatMoney(inv.totalAmount)} đ</td>
-      <td><span class="badge badge-resolved">${inv.sendStatus}</span></td>
-      <td><span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${inv.status}</span></td>
-      <td><small style="color: var(--text-muted);">${inv.sentAt || 'Vừa xong'}</small></td>
+      <td><span class="badge badge-resolved">${statusLabel(inv.sendStatus)}</span></td>
+      <td><span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span></td>
+      <td><small style="color: var(--text-muted);">${inv.sentAt ? statusLabel(inv.sentAt) : t('just_now_label')}</small></td>
       <td>
         <div style="display:flex; gap:0.5rem;">
           <button class="btn btn-secondary btn-sm" onclick="viewInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i></button>
-          ${inv.status !== 'Đã thanh toán' ? `<button class="btn btn-orange btn-sm" onclick="markInvoicePaidApi('${inv.id}')"><i data-lucide="check-circle"></i> Đã Thu</button>` : ''}
+          ${inv.status !== 'Đã thanh toán' ? `<button class="btn btn-orange btn-sm" onclick="markInvoicePaidApi('${inv.id}')"><i data-lucide="check-circle"></i> ${t('btn_mark_collected')}</button>` : ''}
         </div>
       </td>
     `;
@@ -1496,7 +2371,7 @@ async function markInvoicePaidApi(invoiceId) {
     console.warn('Marked paid locally:', err);
   }
 
-  showToast(`Đã xác nhận thu tiền ${invoiceId}!`, 'success');
+  showToast(`${t('toast_invoice_marked_paid_prefix')}${invoiceId}!`, 'success');
   renderAdminInvoices();
 }
 
@@ -1507,7 +2382,11 @@ function renderAdminUsers() {
 
   state.users.forEach(u => {
     const room = state.rooms.find(r => r.id === u.roomId);
-    const roomLabel = room ? room.name : (u.roomId ? u.roomId : 'Chưa gán');
+    let roomLabel = room ? room.name : (u.roomId ? u.roomId : t('unassigned_label'));
+    if (u.role === 'investor') {
+      const house = state.houses.find(h => h.id === u.houseId);
+      roomLabel = u.houseId === 'all' ? `🌐 ${t('all_houses_label')}` : (house ? `📍 ${house.name}` : t('unassigned_label'));
+    }
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -1517,7 +2396,7 @@ function renderAdminUsers() {
       <td>
         ${u.role === 'tenant' && u.status === 'pending' ? `
           <select id="assign-room-${u.id}" class="form-control" style="width:130px; padding:0.3rem;">
-            <option value="">-- Chọn phòng --</option>
+            <option value="">-- ${t('select_room_placeholder')} --</option>
             ${state.rooms.map(r => `<option value="${r.id}">${r.name}</option>`).join('')}
           </select>
         ` : `<strong>${roomLabel}</strong>`}
@@ -1527,7 +2406,7 @@ function renderAdminUsers() {
           ${u.status === 'approved' ? dict.status_approved : (u.status === 'pending' ? dict.status_pending : dict.status_blocked)}
         </span>
       </td>
-      <td><small style="color:var(--text-muted);">${u.createdAt || 'Mới'}</small></td>
+      <td><small style="color:var(--text-muted);">${u.createdAt ? statusLabel(u.createdAt) : t('new_label')}</small></td>
       <td>
         <div style="display:flex; gap:0.5rem;">
           ${u.status === 'pending' ? `
@@ -1536,7 +2415,7 @@ function renderAdminUsers() {
             </button>
           ` : ''}
           <button class="btn btn-blue btn-sm" onclick="openEditUserModal('${u.id}')">
-            <i data-lucide="edit-2"></i> Sửa
+            <i data-lucide="edit-2"></i> ${t('btn_edit')}
           </button>
           ${u.username !== 'admin' ? `
             <button class="btn btn-secondary btn-sm" onclick="deleteUserApi('${u.id}')" style="color:var(--tvk-red);">
@@ -1570,12 +2449,12 @@ async function approveUserApi(userId) {
     console.warn('Approved user locally:', err);
   }
 
-  showToast('Đã duyệt tài khoản thành công!', 'success');
+  showToast(t('toast_user_approved'), 'success');
   renderAdminUsers();
 }
 
 async function deleteUserApi(userId) {
-  if (!confirm('Bạn có chắc chắn muốn xóa tài khoản này?')) return;
+  if (!confirm(t('confirm_delete_user'))) return;
   state.users = state.users.filter(u => u.id !== userId);
 
   try {
@@ -1588,16 +2467,20 @@ async function deleteUserApi(userId) {
     console.warn('Deleted user locally:', err);
   }
 
-  showToast('Đã xóa tài khoản!', 'success');
+  showToast(t('toast_user_deleted'), 'success');
   renderAdminUsers();
 }
 
+function populateHouseOptions(selectEl, includeAllOption) {
+  if (!selectEl) return;
+  let html = includeAllOption ? `<option value="all">🌐 ${t('all_houses_label')}</option>` : '';
+  html += state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+  selectEl.innerHTML = html;
+}
+
 function openCreateUserModal() {
-  const houseSelect = document.getElementById('create-house-id');
-  if (houseSelect) {
-    houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
-  }
-  handleCreateHouseChange();
+  document.getElementById('form-create-user').reset();
+  toggleRoomSelectInCreateModal();
   document.getElementById('modal-create-user').classList.add('active');
 }
 
@@ -1606,16 +2489,25 @@ function handleCreateHouseChange() {
   const roomSelect = document.getElementById('create-room-id');
   if (!roomSelect) return;
   const filteredRooms = state.rooms.filter(r => r.houseId === houseId);
-  roomSelect.innerHTML = filteredRooms.map(r => `<option value="${r.id}">${r.name} (${r.tenant || 'Trống'})</option>`).join('');
+  roomSelect.innerHTML = filteredRooms.map(r => `<option value="${r.id}">${r.name} (${r.tenant || t('vacant_label')})</option>`).join('');
 }
 
 function toggleRoomSelectInCreateModal() {
   const role = document.getElementById('create-role').value;
   const isTenant = role === 'tenant';
+  const isInvestor = role === 'investor';
   const houseBox = document.getElementById('box-create-assign-house');
   const roomBox = document.getElementById('box-assign-room');
-  if (houseBox) houseBox.style.display = isTenant ? 'block' : 'none';
+  if (houseBox) houseBox.style.display = (isTenant || isInvestor) ? 'block' : 'none';
   if (roomBox) roomBox.style.display = isTenant ? 'block' : 'none';
+
+  const houseSelect = document.getElementById('create-house-id');
+  if (isInvestor) {
+    populateHouseOptions(houseSelect, true);
+  } else if (isTenant) {
+    populateHouseOptions(houseSelect, false);
+    handleCreateHouseChange();
+  }
 }
 
 function openEditUserModal(userId) {
@@ -1628,20 +2520,18 @@ function openEditUserModal(userId) {
   document.getElementById('edit-role').value = u.role;
   document.getElementById('edit-status').value = u.status;
 
-  const houseSelect = document.getElementById('edit-house-id');
-  if (houseSelect) {
-    houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
-  }
-
-  const userRoom = state.rooms.find(r => r.id === u.roomId);
-  const userHouseId = userRoom ? userRoom.houseId : (state.houses[0] ? state.houses[0].id : '');
-  
-  if (houseSelect && userHouseId) {
-    houseSelect.value = userHouseId;
-  }
-
-  handleEditHouseChange(u.roomId);
   toggleRoomSelectInEditModal();
+
+  const houseSelect = document.getElementById('edit-house-id');
+  if (u.role === 'investor') {
+    if (houseSelect) houseSelect.value = u.houseId || 'all';
+  } else {
+    const userRoom = state.rooms.find(r => r.id === u.roomId);
+    const userHouseId = userRoom ? userRoom.houseId : (state.houses[0] ? state.houses[0].id : '');
+    if (houseSelect && userHouseId) houseSelect.value = userHouseId;
+    handleEditHouseChange(u.roomId);
+  }
+
   // Clear password field - always blank when modal opens
   const pwdField = document.getElementById('edit-new-password');
   if (pwdField) pwdField.value = '';
@@ -1655,17 +2545,26 @@ function handleEditHouseChange(selectedRoomId = '') {
   const roomSelect = document.getElementById('edit-room-id');
   if (!roomSelect) return;
   const filteredRooms = state.rooms.filter(r => r.houseId === houseId);
-  roomSelect.innerHTML = `<option value="">-- Chưa gán / Không có --</option>` +
-    filteredRooms.map(r => `<option value="${r.id}" ${r.id === selectedRoomId ? 'selected' : ''}>${r.name} (${r.tenant || 'Trống'})</option>`).join('');
+  roomSelect.innerHTML = `<option value="">-- ${t('unassigned_none_placeholder')} --</option>` +
+    filteredRooms.map(r => `<option value="${r.id}" ${r.id === selectedRoomId ? 'selected' : ''}>${r.name} (${r.tenant || t('vacant_label')})</option>`).join('');
 }
 
 function toggleRoomSelectInEditModal() {
   const role = document.getElementById('edit-role').value;
   const isTenant = role === 'tenant';
+  const isInvestor = role === 'investor';
   const houseBox = document.getElementById('box-edit-assign-house');
   const roomBox = document.getElementById('box-edit-assign-room');
-  if (houseBox) houseBox.style.display = isTenant ? 'block' : 'none';
+  if (houseBox) houseBox.style.display = (isTenant || isInvestor) ? 'block' : 'none';
   if (roomBox) roomBox.style.display = isTenant ? 'block' : 'none';
+
+  const houseSelect = document.getElementById('edit-house-id');
+  if (isInvestor) {
+    populateHouseOptions(houseSelect, true);
+  } else if (isTenant) {
+    populateHouseOptions(houseSelect, false);
+    handleEditHouseChange();
+  }
 }
 
 async function handleAdminSaveUser(event) {
@@ -1674,6 +2573,7 @@ async function handleAdminSaveUser(event) {
   const fullName = document.getElementById('edit-fullname').value.trim();
   const role = document.getElementById('edit-role').value;
   const roomId = role === 'tenant' ? document.getElementById('edit-room-id').value : '';
+  const houseId = role === 'investor' ? document.getElementById('edit-house-id').value : '';
   const status = document.getElementById('edit-status').value;
   const newPasswordField = document.getElementById('edit-new-password');
   const newPassword = newPasswordField ? newPasswordField.value.trim() : '';
@@ -1683,10 +2583,11 @@ async function handleAdminSaveUser(event) {
     state.users[uIdx].fullName = fullName;
     state.users[uIdx].role = role;
     state.users[uIdx].roomId = roomId;
+    state.users[uIdx].houseId = houseId;
     state.users[uIdx].status = status;
   }
 
-  const payload = { id, fullName, role, roomId, status };
+  const payload = { id, fullName, role, roomId, houseId, status };
   if (newPassword) payload.newPassword = newPassword;
 
   try {
@@ -1700,8 +2601,8 @@ async function handleAdminSaveUser(event) {
   }
 
   const msg = newPassword
-    ? 'Đã cập nhật tài khoản và đặt lại mật khẩu thành công!'
-    : 'Đã cập nhật tài khoản và phân quyền thành công!';
+    ? t('toast_user_updated_with_password')
+    : t('toast_user_updated');
   showToast(msg, 'success');
   closeModal('modal-edit-user');
   renderAdminUsers();
@@ -1713,24 +2614,59 @@ async function handleAdminCreateUser(event) {
   const password = document.getElementById('create-password').value.trim();
   const fullName = document.getElementById('create-fullname').value.trim();
   const role = document.getElementById('create-role').value;
-  const roomId = document.getElementById('create-room-id').value;
+  const roomId = role === 'tenant' ? document.getElementById('create-room-id').value : '';
+  const houseId = role === 'investor' ? document.getElementById('create-house-id').value : '';
 
-  const newUser = { id: `usr_${Date.now()}`, username, password, fullName, role, roomId, status: 'approved', createdAt: 'Hôm nay' };
+  const newUser = { id: `usr_${Date.now()}`, username, password, fullName, role, roomId, houseId, status: 'approved', createdAt: 'Hôm nay' };
   state.users.push(newUser);
 
   try {
     await fetch(`${API_BASE}/users/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, fullName, role, roomId })
+      body: JSON.stringify({ username, password, fullName, role, roomId, houseId })
     });
   } catch (err) {
     console.warn('Created user locally:', err);
   }
 
-  showToast('Tạo tài khoản mới thành công!', 'success');
+  showToast(t('toast_user_created'), 'success');
   closeModal('modal-create-user');
   renderAdminUsers();
+}
+
+function renderTenantContractView() {
+  const user = state.currentUser;
+  const userRoomId = (user && user.roomId) ? user.roomId : (state.rooms[0] ? state.rooms[0].id : 'R101');
+  const container = document.getElementById('tenant-contract-container');
+  if (!container) return;
+
+  const docs = state.roomDocuments[userRoomId] || [];
+
+  if (docs.length === 0) {
+    container.innerHTML = `
+      <div class="tvk-card" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+        <i data-lucide="file-image" style="width: 48px; height: 48px; color: var(--tvk-amber); margin-bottom: 1rem;"></i>
+        <h3>${t('contract_empty_title')}</h3>
+        <p style="margin-top: 0.5rem;">${t('contract_empty_desc')}</p>
+      </div>
+    `;
+    lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;">
+      ${docs.map(d => `
+        <div class="tvk-card" style="padding: 0.85rem; cursor: pointer;" onclick="viewDocumentFullSize('${d.dataUrl}')">
+          <img src="${d.dataUrl}" style="width: 100%; height: 160px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 0.6rem;">
+          <div style="font-weight: 700; font-size: 0.9rem;">${d.label}</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${d.uploadedAt}</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  lucide.createIcons();
 }
 
 function renderTenantInvoiceView() {
@@ -1744,8 +2680,8 @@ function renderTenantInvoiceView() {
     container.innerHTML = `
       <div class="tvk-card" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
         <i data-lucide="file-question" style="width: 48px; height: 48px; color: var(--tvk-amber); margin-bottom: 1rem;"></i>
-        <h3>Chưa Có Hóa Đơn Cho Tháng ${formatMonthLabel(state.currentMonth)}</h3>
-        <p style="margin-top: 0.5rem;">Chủ nhà đang tổng hợp chỉ số điện nước và phí dịch vụ. Vui lòng quay lại sau!</p>
+        <h3>${t('invoice_empty_title_prefix')}${formatMonthLabel(state.currentMonth)}</h3>
+        <p style="margin-top: 0.5rem;">${t('invoice_empty_desc')}</p>
       </div>
     `;
     lucide.createIcons();
@@ -1754,8 +2690,8 @@ function renderTenantInvoiceView() {
 
   const room = state.rooms.find(r => r.id === invoice.roomId);
   const house = state.houses.find(h => h.id === (room ? room.houseId : ''));
-  const houseName = house ? house.name : 'RENTALPRO MANAGEMENT';
-  const houseAddr = house ? house.address : 'Hệ Thống Quản Lý Trọ';
+  const houseName = house ? house.name : 'CALACIHOUSE MANAGEMENT';
+  const houseAddr = house ? house.address : t('default_house_addr_label');
 
   const autoCalc = room ? calculateRoomServiceTotal(room) : { items: [] };
   const itemsList = (invoice.serviceItems && invoice.serviceItems.length > 0) ? invoice.serviceItems : autoCalc.items;
@@ -1775,15 +2711,15 @@ function renderTenantInvoiceView() {
   container.innerHTML = `
     <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 1rem;">
       <button class="btn btn-blue" onclick="window.print()">
-        <i data-lucide="printer"></i> In / Tải Hóa Đơn PDF
+        <i data-lucide="printer"></i> ${t('btn_print_invoice')}
       </button>
     </div>
 
     <div class="invoice-paper">
       <div style="display:flex; justify-content:space-between; border-bottom:2px solid #e5e9f0; padding-bottom:1.25rem; margin-bottom:1.25rem;">
         <div>
-          <h2 style="font-size: 1.75rem; color: #03121a; font-weight:800;">HÓA ĐƠN TIỀN NHÀ</h2>
-          <div style="color: #687176;">Mã HĐ: <strong>${invoice.id}</strong> | Kỳ: ${formatMonthLabel(invoice.month)}</div>
+          <h2 style="font-size: 1.75rem; color: #03121a; font-weight:800;">${t('invoice_paper_title')}</h2>
+          <div style="color: #687176;">${t('invoice_id_label')} <strong>${invoice.id}</strong> | ${t('invoice_period_label')} ${formatMonthLabel(invoice.month)}</div>
         </div>
         <div style="text-align: right;">
           <div style="font-weight: 800; font-size: 1.1rem; color: #0194f3;">${houseName}</div>
@@ -1793,14 +2729,14 @@ function renderTenantInvoiceView() {
 
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
         <div>
-          <div style="color: #687176; font-size: 0.8rem; text-transform: uppercase; font-weight: 700;">Thông tin Khách thuê</div>
+          <div style="color: #687176; font-size: 0.8rem; text-transform: uppercase; font-weight: 700;">${t('tenant_info_label')}</div>
           <div style="font-weight: 800; font-size: 1.15rem; margin-top: 0.25rem; color: #03121a;">${invoice.tenant}</div>
-          <div>Phòng: <strong>${invoice.roomName}</strong></div>
+          <div>${t('room_label')} <strong>${invoice.roomName}</strong></div>
         </div>
         <div style="text-align: right;">
-          <div style="color: #687176; font-size: 0.8rem; text-transform: uppercase; font-weight: 700;">Trạng thái thanh toán</div>
+          <div style="color: #687176; font-size: 0.8rem; text-transform: uppercase; font-weight: 700;">${t('payment_status_label')}</div>
           <div style="margin-top: 0.25rem;">
-            <span class="badge ${invoice.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${invoice.status}</span>
+            <span class="badge ${invoice.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(invoice.status)}</span>
           </div>
         </div>
       </div>
@@ -1808,21 +2744,29 @@ function renderTenantInvoiceView() {
       <table class="excel-table" style="color: #03121a; width:100%;">
         <thead>
           <tr style="background:#f7f9fa; color:#43494d;">
-            <th style="padding:0.75rem;">Mục Chi Phí</th>
-            <th style="padding:0.75rem;">Diễn Giải Công Thức & Quy Tắc</th>
-            <th style="padding:0.75rem; text-align:right;">Thành Tiền (VNĐ)</th>
+            <th style="padding:0.75rem;">${t('col_cost_item')}</th>
+            <th style="padding:0.75rem;">${t('col_formula_explanation')}</th>
+            <th style="padding:0.75rem; text-align:right;">${t('col_amount_vnd')}</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td style="padding:0.75rem; font-weight:bold;">1. Tiền Thuê Phòng</td><td style="padding:0.75rem;">Cố định theo hợp đồng</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(invoice.baseRent)} đ</td></tr>
+          <tr><td style="padding:0.75rem; font-weight:bold;">1. ${t('line_room_rent')}</td><td style="padding:0.75rem;">${t('line_fixed_by_contract')}</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(invoice.baseRent)} đ</td></tr>
           <tr>
-            <td style="padding:0.75rem; font-weight:bold;">2. ⚡ Tiền Điện</td>
-            <td style="padding:0.75rem;">Chỉ số: ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, room ? room.headcount : 1)}</small></td>
+            <td style="padding:0.75rem; font-weight:bold;">2. ⚡ ${t('line_electricity')}
+              <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${invoice.id}')">
+                <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
+              </button>
+            </td>
+            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, room ? room.headcount : 1)}</small></td>
             <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--tvk-blue);">${formatMoney(invoice.elecCost)} đ</td>
           </tr>
           <tr>
-            <td style="padding:0.75rem; font-weight:bold;">3. 💧 Tiền Nước</td>
-            <td style="padding:0.75rem;">Chỉ số: ${invoice.waterOld} ➔ ${invoice.waterNew} (${invoice.waterUsage} m³)<br><small style="color:#687176;">${getFormulaDescription(invoice.waterFormula, invoice.waterUsage, room ? room.headcount : 1)}</small></td>
+            <td style="padding:0.75rem; font-weight:bold;">3. 💧 ${t('line_water')}
+              <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${invoice.id}')">
+                <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
+              </button>
+            </td>
+            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.waterOld} ➔ ${invoice.waterNew} (${invoice.waterUsage} m³)<br><small style="color:#687176;">${getFormulaDescription(invoice.waterFormula, invoice.waterUsage, room ? room.headcount : 1)}</small></td>
             <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--tvk-blue);">${formatMoney(invoice.waterCost)} đ</td>
           </tr>
           ${serviceRowsHtml}
@@ -1831,12 +2775,12 @@ function renderTenantInvoiceView() {
 
       <div style="background:#f7f9fa; padding:1.25rem; border-radius:12px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e5e9f0; margin-top:1.5rem;">
         <div>
-          <div style="font-size: 0.85rem; color: #687176;">TỔNG CỘNG THANH TOÁN</div>
+          <div style="font-size: 0.85rem; color: #687176;">${t('grand_total_label')}</div>
           <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f;">${formatMoney(invoice.totalAmount)} VNĐ</div>
         </div>
         <div style="display:flex; align-items:center; gap:0.75rem; background:white; padding:0.5rem 0.75rem; border-radius:8px; border:1px solid #cbd5e1;">
           <div style="width:48px; height:48px; background:#0194f3; color:white; font-weight:bold; font-size:0.7rem; border-radius:4px; display:flex; align-items:center; justify-content:center; text-align:center;">VIETQR<br>PAY</div>
-          <div style="font-size:0.75rem; color:#334155;">STK: <strong>9999-8888-6666</strong><br>MBBank (Chủ trọ)</div>
+          <div style="font-size:0.75rem; color:#334155;">${t('bank_account_label')} <strong>9999-8888-6666</strong><br>MBBank (${t('landlord_label')})</div>
         </div>
       </div>
     </div>
@@ -1861,14 +2805,22 @@ function viewInvoiceDetail(invoiceId) {
 
   content.innerHTML = `
     <div class="invoice-paper" style="box-shadow:none; border:1px solid var(--border-color);">
-      <h3 style="color:#03121a;">HÓA ĐƠN ${inv.roomName}</h3>
-      <div style="margin:1rem 0;">Khách thuê: <strong>${inv.tenant}</strong> (${inv.phone})</div>
+      <h3 style="color:#03121a;">${t('invoice_detail_title_prefix')}${inv.roomName}</h3>
+      <div style="margin:1rem 0;">${t('tenant_colon_label')} <strong>${inv.tenant}</strong> (${inv.phone})</div>
       <table class="excel-table" style="color:#03121a;">
-        <tr><td>1. Tiền nhà</td><td style="text-align:right;">${formatMoney(inv.baseRent)} đ</td></tr>
-        <tr><td>2. ⚡ Tiền điện (${inv.elecUsage} kWh)</td><td style="text-align:right;">${formatMoney(inv.elecCost)} đ</td></tr>
-        <tr><td>3. 💧 Tiền nước (${inv.waterUsage} m³)</td><td style="text-align:right;">${formatMoney(inv.waterCost)} đ</td></tr>
+        <tr><td>1. ${t('line_room_rent_short')}</td><td style="text-align:right;">${formatMoney(inv.baseRent)} đ</td></tr>
+        <tr><td>2. ⚡ ${t('line_electricity_short')} (${inv.elecUsage} kWh)
+          <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${inv.id}')">
+            <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
+          </button>
+        </td><td style="text-align:right;">${formatMoney(inv.elecCost)} đ</td></tr>
+        <tr><td>3. 💧 ${t('line_water_short')} (${inv.waterUsage} m³)
+          <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${inv.id}')">
+            <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
+          </button>
+        </td><td style="text-align:right;">${formatMoney(inv.waterCost)} đ</td></tr>
         ${serviceRowsHtml}
-        <tr style="font-weight:bold; font-size:1.2rem;"><td>TỔNG CỘNG</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
+        <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
       </table>
     </div>
   `;
@@ -1890,7 +2842,7 @@ function renderRoomsManagement() {
   if (!container) return;
 
   if (state.rooms.length === 0) {
-    container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-secondary);">Chưa có phòng nào. Nhấn "Thêm Phòng Mới" để tạo.</div>`;
+    container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-secondary);">${t('rooms_empty_state')}</div>`;
     return;
   }
 
@@ -1911,7 +2863,7 @@ function renderRoomsManagement() {
         <div style="font-size: 1rem; font-weight: 800; color: var(--tvk-blue); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
           <i data-lucide="building-2" style="width:18px;height:18px;"></i>
           ${house ? house.name : hid}
-          <span class="badge badge-resolved" style="font-size:0.7rem;">${rooms.length} phòng</span>
+          <span class="badge badge-resolved" style="font-size:0.7rem;">${rooms.length} ${t('rooms_unit_label')}</span>
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
           ${rooms.map(r => `
@@ -1919,17 +2871,20 @@ function renderRoomsManagement() {
               <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
                 <div>
                   <div style="font-weight:800; font-size:1rem;">${r.name}</div>
-                  <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || 'Chưa có khách'} ${r.phone ? '· ' + r.phone : ''}</div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || t('no_tenant_label')} ${r.phone ? '· ' + r.phone : ''}</div>
                 </div>
-                <span class="badge ${r.tenant ? 'badge-paid' : 'badge-open'}" style="font-size:0.7rem;">${r.tenant ? 'Đang thuê' : 'Trống'}</span>
+                <span class="badge ${r.tenant ? 'badge-paid' : 'badge-open'}" style="font-size:0.7rem;">${r.tenant ? t('status_occupied') : t('vacant_label')}</span>
               </div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
-                <div><span style="color:var(--text-muted);">Giá thuê:</span><br><strong>${formatMoney(r.baseRent)}đ/tháng</strong></div>
-                <div><span style="color:var(--text-muted);">Số người:</span><br><strong>${r.headcount || 1} người</strong></div>
+                <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
+                <div><span style="color:var(--text-muted);">${t('headcount_label')}</span><br><strong>${r.headcount || 1} ${t('formula_per_person_label')}</strong></div>
               </div>
               <div style="display:flex; gap:0.5rem;">
                 <button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditRoomModal('${r.id}')">
-                  <i data-lucide="edit-2"></i> Sửa
+                  <i data-lucide="edit-2"></i> ${t('btn_edit')}
+                </button>
+                <button class="btn btn-orange btn-sm" style="flex:1; justify-content:center;" onclick="openRoomDocumentsModal('${r.id}')">
+                  <i data-lucide="image"></i> ${t('contract_photos_label')}${(state.roomDocuments[r.id] || []).length ? ` (${(state.roomDocuments[r.id] || []).length})` : ''}
                 </button>
                 <button class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoom('${r.id}')">
                   <i data-lucide="trash-2"></i>
@@ -1944,6 +2899,130 @@ function renderRoomsManagement() {
 
   container.innerHTML = html;
   lucide.createIcons();
+}
+
+/* =====================================================================
+   ROOM DOCUMENTS — CONTRACT & RELATED IMAGES (ADMIN UPLOAD / TENANT VIEW)
+===================================================================== */
+let _currentDocRoomId = null;
+let _pendingDocDataUrl = null;
+
+function openRoomDocumentsModal(roomId) {
+  _currentDocRoomId = roomId;
+  _pendingDocDataUrl = null;
+  const room = state.rooms.find(r => r.id === roomId);
+  const titleEl = document.getElementById('room-documents-modal-title');
+  if (titleEl) titleEl.innerText = room ? `${t('contract_photos_label')} - ${room.name}` : t('contract_photos_label');
+
+  const labelInput = document.getElementById('room-document-label');
+  if (labelInput) labelInput.value = '';
+  const previewEl = document.getElementById('room-document-pending-preview');
+  if (previewEl) previewEl.innerHTML = '';
+
+  renderRoomDocumentsList();
+  document.getElementById('modal-room-documents').classList.add('active');
+  lucide.createIcons();
+}
+
+function handleRoomDocumentSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _pendingDocDataUrl = e.target.result;
+    const previewEl = document.getElementById('room-document-pending-preview');
+    if (previewEl) {
+      previewEl.innerHTML = `<img src="${_pendingDocDataUrl}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--tvk-blue);">`;
+    }
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+async function uploadRoomDocument() {
+  if (!_currentDocRoomId) return;
+  if (!_pendingDocDataUrl) { showToast(t('toast_select_image_first'), 'error'); return; }
+
+  const labelInput = document.getElementById('room-document-label');
+  const label = (labelInput && labelInput.value.trim()) || t('default_document_label');
+
+  try {
+    const res = await fetch(`${API_BASE}/rooms/documents/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: _currentDocRoomId, label, dataUrl: _pendingDocDataUrl })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (!state.roomDocuments[_currentDocRoomId]) state.roomDocuments[_currentDocRoomId] = [];
+      state.roomDocuments[_currentDocRoomId].push(data.document);
+      _pendingDocDataUrl = null;
+      if (labelInput) labelInput.value = '';
+      const previewEl = document.getElementById('room-document-pending-preview');
+      if (previewEl) previewEl.innerHTML = '';
+      renderRoomDocumentsList();
+      renderRoomsManagement();
+      showToast(t('toast_document_added'), 'success');
+    } else {
+      showToast(data.error || t('toast_upload_error'), 'error');
+    }
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+}
+
+async function deleteRoomDocument(docId) {
+  if (!_currentDocRoomId) return;
+  if (!confirm(t('confirm_delete_document'))) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/rooms/documents/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: _currentDocRoomId, id: docId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      state.roomDocuments[_currentDocRoomId] = (state.roomDocuments[_currentDocRoomId] || []).filter(d => d.id !== docId);
+      renderRoomDocumentsList();
+      renderRoomsManagement();
+      showToast(t('toast_document_deleted'), 'success');
+    }
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+}
+
+function renderRoomDocumentsList() {
+  const container = document.getElementById('room-documents-list');
+  if (!container || !_currentDocRoomId) return;
+  const docs = state.roomDocuments[_currentDocRoomId] || [];
+
+  if (docs.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:1.5rem; color:var(--text-secondary); font-size:0.85rem;">${t('room_documents_empty_state')}</div>`;
+    return;
+  }
+
+  container.innerHTML = docs.map(d => `
+    <div class="tvk-card" style="padding:0.75rem; display:flex; align-items:center; gap:0.75rem; margin-bottom:0.6rem;">
+      <img src="${d.dataUrl}" onclick="viewDocumentFullSize('${d.dataUrl}')" style="width:56px; height:56px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:700; font-size:0.9rem;">${d.label}</div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">${d.uploadedAt}</div>
+      </div>
+      <button type="button" class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoomDocument('${d.id}')">
+        <i data-lucide="trash-2"></i>
+      </button>
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+function viewDocumentFullSize(dataUrl) {
+  const win = window.open('');
+  if (win) {
+    win.document.write(`<img src="${dataUrl}" style="max-width:100%; display:block; margin:0 auto;">`);
+  }
 }
 
 /* =====================================================================
@@ -1981,35 +3060,35 @@ function openTicketDetail(ticketId) {
     infoEl.innerHTML = `
       <div style="display:flex; flex-direction:column; gap:0.6rem; font-size:0.9rem;">
         <div style="display:flex; justify-content:space-between;">
-          <span style="color:var(--text-muted);">Mã Ticket</span>
+          <span style="color:var(--text-muted);">${t('col_ticket_id')}</span>
           <strong>${ticket.id}</strong>
         </div>
         <div style="display:flex; justify-content:space-between;">
-          <span style="color:var(--text-muted);">Phòng</span>
+          <span style="color:var(--text-muted);">${t('col_room')}</span>
           <strong>${ticket.roomName || ticket.roomId}</strong>
         </div>
         <div style="display:flex; justify-content:space-between;">
-          <span style="color:var(--text-muted);">Khách Thuê</span>
+          <span style="color:var(--text-muted);">${t('col_tenant')}</span>
           <strong>${ticket.tenant}</strong>
         </div>
         <div style="display:flex; justify-content:space-between;">
-          <span style="color:var(--text-muted);">Phân Loại</span>
-          <span class="badge badge-resolved">${ticket.category}</span>
+          <span style="color:var(--text-muted);">${t('col_category')}</span>
+          <span class="badge badge-resolved">${statusLabel(ticket.category)}</span>
         </div>
         <div style="display:flex; justify-content:space-between;">
-          <span style="color:var(--text-muted);">Mức Độ</span>
-          <span class="badge ${priorityClass}">${ticket.priority}</span>
+          <span style="color:var(--text-muted);">${t('col_priority')}</span>
+          <span class="badge ${priorityClass}">${statusLabel(ticket.priority)}</span>
         </div>
         <div style="display:flex; justify-content:space-between;">
-          <span style="color:var(--text-muted);">Trạng Thái</span>
-          <span class="badge ${statusClass}">${ticket.status}</span>
+          <span style="color:var(--text-muted);">${t('col_status')}</span>
+          <span class="badge ${statusClass}">${statusLabel(ticket.status)}</span>
         </div>
         <div style="display:flex; justify-content:space-between;">
-          <span style="color:var(--text-muted);">Thời Gian</span>
+          <span style="color:var(--text-muted);">${t('col_time')}</span>
           <span>${ticket.timestamp}</span>
         </div>
         <div style="border-top: 1px solid var(--border-color); padding-top:0.6rem;">
-          <span style="color:var(--text-muted);">Mô Tả:</span>
+          <span style="color:var(--text-muted);">${t('description_colon_label')}</span>
           <p style="margin-top:0.3rem; line-height:1.5;">${ticket.description}</p>
         </div>
       </div>
@@ -2021,11 +3100,11 @@ function openTicketDetail(ticketId) {
   if (imagesEl) {
     const imgs = ticket.images || [];
     if (imgs.length === 0) {
-      imagesEl.innerHTML = `<span style="color:var(--text-muted); font-size:0.85rem;">Không có ảnh đính kèm</span>`;
+      imagesEl.innerHTML = `<span style="color:var(--text-muted); font-size:0.85rem;">${t('no_attached_images')}</span>`;
     } else {
       imagesEl.innerHTML = imgs.map(src => `
-        <img src="${src}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:2px solid var(--border-color);" 
-             onclick="window.open('${src}','_blank')" title="Click để xem ảnh lớn">
+        <img src="${src}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:2px solid var(--border-color);"
+             onclick="window.open('${src}','_blank')" title="${t('title_click_to_enlarge')}">
       `).join('');
     }
   }
@@ -2047,7 +3126,7 @@ function renderTicketComments(ticket) {
 
   const comments = ticket.comments || [];
   if (comments.length === 0 && !ticket.response) {
-    thread.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:0.85rem; padding:1rem;">Chưa có phản hồi nào.</div>`;
+    thread.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:0.85rem; padding:1rem;">${t('no_responses_yet')}</div>`;
     return;
   }
 
@@ -2061,15 +3140,15 @@ function renderTicketComments(ticket) {
     const isAdmin = c.role === 'admin';
     return `
       <div style="display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-end' : 'flex-start'};">
-        <div style="max-width:85%; background:${isAdmin ? 'var(--tvk-blue)' : 'var(--bg-base)'}; color:${isAdmin ? 'white' : 'var(--text-primary)'}; 
+        <div style="max-width:85%; background:${isAdmin ? 'var(--tvk-blue)' : 'var(--bg-base)'}; color:${isAdmin ? 'white' : 'var(--text-primary)'};
              border-radius: ${isAdmin ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}; padding:0.65rem 1rem; font-size:0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-          <div style="font-weight:700; font-size:0.75rem; margin-bottom:0.3rem; opacity:0.85;">${isAdmin ? '👤 Admin' : '🏠 ' + (c.author || 'Khách thuê')}</div>
-          ${c.statusChange ? `<div style="font-size:0.72rem; opacity:0.8; margin-bottom:0.2rem;">📋 Trạng thái: <strong>${c.statusChange}</strong></div>` : ''}
+          <div style="font-weight:700; font-size:0.75rem; margin-bottom:0.3rem; opacity:0.85;">${isAdmin ? '👤 Admin' : '🏠 ' + (c.author || t('default_tenant_label'))}</div>
+          ${c.statusChange ? `<div style="font-size:0.72rem; opacity:0.8; margin-bottom:0.2rem;">📋 ${t('status_colon_label')} <strong>${statusLabel(c.statusChange)}</strong></div>` : ''}
           <div>${c.text}</div>
           ${c.images && c.images.length > 0 ? `
             <div style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-top:0.4rem;">
               ${c.images.map(img => `
-                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'rgba(255,255,255,0.4)' : 'var(--border-color)'};" onclick="window.open('${img}', '_blank')" title="Xem ảnh lớn">
+                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'rgba(255,255,255,0.4)' : 'var(--border-color)'};" onclick="window.open('${img}', '_blank')" title="${t('title_view_larger_image')}">
               `).join('')}
             </div>
           ` : ''}
@@ -2097,7 +3176,7 @@ function handleAdminImageSelect(event) {
   });
 
   if (files.length > remaining) {
-    showToast('Tối đa 5 ảnh nghiệm thu', 'error');
+    showToast(t('toast_max_completion_images'), 'error');
   }
   event.target.value = '';
 }
@@ -2128,7 +3207,7 @@ async function submitAdminTicketComment() {
   const newStatus = statusEl ? statusEl.value : ticket.status;
   const message = msgEl ? msgEl.value.trim() : '';
 
-  if (!message) { showToast('Vui lòng nhập nội dung phản hồi', 'error'); return; }
+  if (!message) { showToast(t('toast_enter_reply_content'), 'error'); return; }
 
   const now = new Date().toLocaleString('vi-VN');
   const comment = { 
@@ -2166,7 +3245,7 @@ async function submitAdminTicketComment() {
     if (statusBadge) statusBadge.className = `badge ${statusClass}`;
   }
   updateBadges();
-  showToast(`Đã gửi phản hồi ticket ${ticket.id}!`, 'success');
+  showToast(`${t('toast_ticket_reply_sent_prefix')}${ticket.id}!`, 'success');
 }
 
 function renderAdminTickets() {
@@ -2174,7 +3253,7 @@ function renderAdminTickets() {
   if (!tbody) return;
   tbody.innerHTML = '';
   if (state.tickets.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:2rem; color:var(--text-secondary);">Không có báo lỗi nào.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('tickets_empty_state')}</td></tr>`;
     return;
   }
 
@@ -2185,16 +3264,16 @@ function renderAdminTickets() {
       <td><strong>${t.id}</strong></td>
       <td>${t.roomName || t.roomId}</td>
       <td>${t.tenant}</td>
-      <td><span class="badge badge-resolved">${t.category}</span></td>
-      <td><span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${t.priority}</span></td>
+      <td><span class="badge badge-resolved">${statusLabel(t.category)}</span></td>
+      <td><span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${statusLabel(t.priority)}</span></td>
       <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${t.description}">${t.description}</td>
-      <td>${imgCount > 0 ? `<span class="badge badge-resolved" style="cursor:pointer;" onclick="openTicketDetail('${t.id}')">📷 ${imgCount} ảnh</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
+      <td>${imgCount > 0 ? `<span class="badge badge-resolved" style="cursor:pointer;" onclick="openTicketDetail('${t.id}')">📷 ${imgCount} ${window.t('images_unit_label')}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
       <td><small style="color:var(--text-muted);">${t.timestamp}</small></td>
-      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${t.status}</span></td>
+      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${statusLabel(t.status)}</span></td>
       <td>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
           <button class="btn btn-blue btn-sm" onclick="openTicketDetail('${t.id}')">
-            <i data-lucide="eye"></i> Xem Chi Tiết
+            <i data-lucide="eye"></i> ${window.t('btn_view_details')}
           </button>
           ${state.currentUser && state.currentUser.role === 'admin' ? `
           <button class="btn btn-secondary btn-sm" style="color:var(--tvk-red);" onclick="deleteTicketApi('${t.id}')">
@@ -2208,7 +3287,7 @@ function renderAdminTickets() {
 }
 
 async function deleteTicketApi(ticketId) {
-  if (!confirm('Bạn có chắc chắn muốn xóa báo lỗi này?')) return;
+  if (!confirm(t('confirm_delete_ticket'))) return;
   state.tickets = state.tickets.filter(t => t.id !== ticketId);
   try {
     await fetch(`${API_BASE}/tickets/delete`, {
@@ -2217,7 +3296,7 @@ async function deleteTicketApi(ticketId) {
       body: JSON.stringify({ ticketId })
     });
   } catch (err) { console.warn('Deleted ticket locally'); }
-  showToast('Đã xóa báo lỗi!', 'success');
+  showToast(t('toast_ticket_deleted'), 'success');
   renderAdminTickets();
 }
 
@@ -2239,7 +3318,7 @@ function handleTenantImageSelect(event) {
   });
 
   if (files.length > remaining) {
-    showToast('Tối đa 5 ảnh mỗi báo lỗi', 'error');
+    showToast(t('toast_max_ticket_images'), 'error');
   }
   event.target.value = '';
 }
@@ -2269,7 +3348,7 @@ function renderTenantReportsView() {
   const myTickets = user ? state.tickets.filter(t => t.roomId === user.roomId || t.tenant === user.fullName) : state.tickets;
 
   if (myTickets.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-secondary);">Bạn chưa gửi báo lỗi nào.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('my_tickets_empty_state')}</td></tr>`;
     return;
   }
 
@@ -2277,14 +3356,14 @@ function renderTenantReportsView() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><small style="color:var(--text-muted);">${t.timestamp}</small></td>
-      <td><span class="badge badge-resolved">${t.category}</span></td>
+      <td><span class="badge badge-resolved">${statusLabel(t.category)}</span></td>
       <td>${t.description}</td>
-      <td><span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${t.priority}</span></td>
-      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${t.status}</span></td>
-      <td style="color:var(--tvk-blue); font-weight:600;">${t.response || '<em>Chờ Admin phản hồi...</em>'}</td>
+      <td><span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${statusLabel(t.priority)}</span></td>
+      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${statusLabel(t.status)}</span></td>
+      <td style="color:var(--tvk-blue); font-weight:600;">${t.response || `<em>${window.t('waiting_admin_reply')}</em>`}</td>
       <td>
         <button class="btn btn-blue btn-sm" onclick="openTenantTicketDetail('${t.id}')">
-          <i data-lucide="message-square"></i> Xem & Trao Đổi
+          <i data-lucide="message-square"></i> ${window.t('btn_view_and_discuss')}
         </button>
       </td>
     `;
@@ -2305,8 +3384,8 @@ async function handleTenantSubmitReport(event) {
   const newTicket = {
     id: `TK-${Math.floor(1000 + Math.random() * 9000)}`,
     roomId,
-    roomName: room ? room.name : 'Phòng',
-    tenant: user ? (user.fullName || user.username) : 'Khách',
+    roomName: room ? room.name : t('col_room'),
+    tenant: user ? (user.fullName || user.username) : t('default_guest_label'),
     category, priority, description,
     timestamp: now,
     status: 'Mới tiếp nhận',
@@ -2329,7 +3408,7 @@ async function handleTenantSubmitReport(event) {
   // Reset
   _tenantImages = [];
   renderTenantImagePreviews();
-  showToast('Đã gửi báo lỗi thành công đến Admin!', 'success');
+  showToast(t('toast_ticket_sent'), 'success');
   document.getElementById('tenant-report-form').reset();
   updateBadges();
   renderTenantReportsView();
@@ -2340,13 +3419,13 @@ function openTicketReplyModal(ticketId) { openTicketDetail(ticketId); }
 async function saveTicketResponse(event) { if(event) event.preventDefault(); }
 
 function deleteRoom(roomId) {
-  if (!confirm('Bạn chắc chắn muốn xóa phòng này?')) return;
+  if (!confirm(t('confirm_delete_room'))) return;
   state.rooms = state.rooms.filter(r => r.id !== roomId);
   fetch(`${API_BASE}/rooms/delete`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id: roomId, roomId: roomId })
   }).catch(e => console.warn('Delete room locally'));
-  showToast('Đã xóa phòng', 'success');
+  showToast(t('toast_room_deleted'), 'success');
   renderRoomsManagement();
 }
 
@@ -2392,7 +3471,7 @@ async function saveFormula(event) {
     console.warn('Saved formula locally:', err);
   }
 
-  showToast('Đã lưu công thức thành công!', 'success');
+  showToast(t('toast_formula_saved'), 'success');
   closeModal('modal-formula-config');
   renderServicesConfig();
 }
@@ -2472,7 +3551,7 @@ async function saveRoomConfig(event) {
     console.warn('Saved room locally:', err);
   }
 
-  showToast(`Đã lưu thông tin phòng "${name}" thành công!`, 'success');
+  showToast(`${t('toast_room_saved_prefix')}"${name}"${t('toast_room_saved_suffix')}`, 'success');
   closeModal('modal-room-config');
   renderRoomSelector();
   renderCurrentView();
@@ -2531,27 +3610,27 @@ function openTenantTicketDetail(ticketId) {
   if (infoEl) {
     infoEl.innerHTML = `
       <div style="display:flex; justify-content:space-between;">
-        <span style="color:var(--text-muted);">Mã Ticket</span>
+        <span style="color:var(--text-muted);">${t('col_ticket_id')}</span>
         <strong>${ticket.id}</strong>
       </div>
       <div style="display:flex; justify-content:space-between;">
-        <span style="color:var(--text-muted);">Phân Loại</span>
-        <span class="badge badge-resolved">${ticket.category}</span>
+        <span style="color:var(--text-muted);">${t('col_category')}</span>
+        <span class="badge badge-resolved">${statusLabel(ticket.category)}</span>
       </div>
       <div style="display:flex; justify-content:space-between;">
-        <span style="color:var(--text-muted);">Mức Độ</span>
-        <span class="badge ${priorityClass}">${ticket.priority}</span>
+        <span style="color:var(--text-muted);">${t('col_priority')}</span>
+        <span class="badge ${priorityClass}">${statusLabel(ticket.priority)}</span>
       </div>
       <div style="display:flex; justify-content:space-between;">
-        <span style="color:var(--text-muted);">Trạng Thái</span>
-        <span class="badge ${statusClass}">${ticket.status}</span>
+        <span style="color:var(--text-muted);">${t('col_status')}</span>
+        <span class="badge ${statusClass}">${statusLabel(ticket.status)}</span>
       </div>
       <div style="display:flex; justify-content:space-between;">
-        <span style="color:var(--text-muted);">Thời Gian</span>
+        <span style="color:var(--text-muted);">${t('col_time')}</span>
         <span>${ticket.timestamp}</span>
       </div>
       <div style="border-top: 1px solid var(--border-color); padding-top:0.4rem; margin-top:0.4rem;">
-        <span style="color:var(--text-muted);">Nội dung yêu cầu:</span>
+        <span style="color:var(--text-muted);">${t('request_content_label')}</span>
         <p style="margin-top:0.25rem; line-height:1.4;">${ticket.description}</p>
       </div>
     `;
@@ -2562,11 +3641,11 @@ function openTenantTicketDetail(ticketId) {
   if (imagesEl) {
     const imgs = ticket.images || [];
     if (imgs.length === 0) {
-      imagesEl.innerHTML = `<span style="color:var(--text-muted); font-size:0.8rem;">Không có ảnh đính kèm</span>`;
+      imagesEl.innerHTML = `<span style="color:var(--text-muted); font-size:0.8rem;">${t('no_attached_images')}</span>`;
     } else {
       imagesEl.innerHTML = imgs.map(src => `
-        <img src="${src}" style="width:70px; height:70px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:2px solid var(--border-color);" 
-             onclick="window.open('${src}','_blank')" title="Click để xem ảnh lớn">
+        <img src="${src}" style="width:70px; height:70px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:2px solid var(--border-color);"
+             onclick="window.open('${src}','_blank')" title="${t('title_click_to_enlarge')}">
       `).join('');
     }
   }
@@ -2584,7 +3663,7 @@ function renderTenantTicketComments(ticket) {
 
   const comments = ticket.comments || [];
   if (comments.length === 0 && !ticket.response) {
-    thread.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1rem;">Chưa có trao đổi nào.</div>`;
+    thread.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1rem;">${t('no_discussion_yet')}</div>`;
     return;
   }
 
@@ -2597,15 +3676,15 @@ function renderTenantTicketComments(ticket) {
     const isAdmin = c.role === 'admin';
     return `
       <div style="display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-start' : 'flex-end'};">
-        <div style="max-width:85%; background:${isAdmin ? 'var(--bg-base)' : 'var(--tvk-blue)'}; color:${isAdmin ? 'var(--text-primary)' : 'white'}; 
+        <div style="max-width:85%; background:${isAdmin ? 'var(--bg-base)' : 'var(--tvk-blue)'}; color:${isAdmin ? 'var(--text-primary)' : 'white'};
              border-radius: ${isAdmin ? '14px 14px 14px 4px' : '14px 14px 4px 14px'}; padding:0.5rem 0.85rem; font-size:0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
-          <div style="font-weight:700; font-size:0.7rem; margin-bottom:0.25rem; opacity:0.85;">${isAdmin ? '👤 Admin' : '🏠 Khách thuê'}</div>
-          ${c.statusChange ? `<div style="font-size:0.68rem; opacity:0.8; margin-bottom:0.15rem;">📋 Trạng thái: <strong>${c.statusChange}</strong></div>` : ''}
+          <div style="font-weight:700; font-size:0.7rem; margin-bottom:0.25rem; opacity:0.85;">${isAdmin ? '👤 Admin' : '🏠 ' + t('default_tenant_label')}</div>
+          ${c.statusChange ? `<div style="font-size:0.68rem; opacity:0.8; margin-bottom:0.15rem;">📋 ${t('status_colon_label')} <strong>${statusLabel(c.statusChange)}</strong></div>` : ''}
           <div>${c.text}</div>
           ${c.images && c.images.length > 0 ? `
             <div style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-top:0.4rem;">
               ${c.images.map(img => `
-                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'var(--border-color)' : 'rgba(255,255,255,0.4)'};" onclick="window.open('${img}', '_blank')" title="Xem ảnh lớn">
+                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'var(--border-color)' : 'rgba(255,255,255,0.4)'};" onclick="window.open('${img}', '_blank')" title="${t('title_view_larger_image')}">
               `).join('')}
             </div>
           ` : ''}
@@ -2626,11 +3705,11 @@ async function submitTenantTicketComment() {
   const msgEl = document.getElementById('tenant-reply-text');
   const message = msgEl ? msgEl.value.trim() : '';
 
-  if (!message) { showToast('Vui lòng nhập nội dung ý kiến', 'error'); return; }
+  if (!message) { showToast(t('toast_enter_comment_content'), 'error'); return; }
 
   const now = new Date().toLocaleString('vi-VN');
-  const comment = { 
-    author: state.currentUser ? (state.currentUser.fullName || state.currentUser.username) : 'Khách thuê', 
+  const comment = {
+    author: state.currentUser ? (state.currentUser.fullName || state.currentUser.username) : t('default_tenant_label'),
     role: 'tenant', 
     text: message, 
     time: now, 
@@ -2651,7 +3730,7 @@ async function submitTenantTicketComment() {
   } catch (err) { console.warn('Saved ticket reply locally'); }
 
   renderTenantTicketComments(ticket);
-  showToast('Đã gửi trao đổi thành công!', 'success');
+  showToast(t('toast_comment_sent'), 'success');
 }
 
 function renderAdminPermissions() {
@@ -2699,11 +3778,22 @@ async function savePermissionsMatrix() {
       body: JSON.stringify({ matrix })
     });
     state.permissions = matrix;
-    showToast('Đã lưu cấu hình phân quyền hệ thống!', 'success');
+    showToast(t('toast_permissions_saved'), 'success');
     setupUserRoleUI();
   } catch (err) {
-    showToast('Lỗi lưu cấu hình phân quyền!', 'error');
+    showToast(t('toast_permissions_save_error'), 'error');
   }
+}
+
+// MOBILE SIDEBAR TOGGLE
+function toggleSidebar() {
+  document.getElementById('sidebar')?.classList.toggle('open');
+  document.getElementById('sidebar-overlay')?.classList.toggle('active');
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-overlay')?.classList.remove('active');
 }
 
 // App DOM Initializer
@@ -2715,6 +3805,7 @@ document.addEventListener('DOMContentLoaded', () => {
       e.preventDefault();
       const view = item.getAttribute('data-view');
       if (view) switchView(view);
+      closeSidebar();
     });
   });
 });
