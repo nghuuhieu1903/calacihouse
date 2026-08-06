@@ -53,6 +53,16 @@
       "waterFormula": "water_flat_18000",
       "serviceFee": 700000.0,
       "parkingFee": 50000
+    },
+    "R1274": {
+      "elecOld": 0,
+      "elecNew": 0,
+      "waterOld": 0,
+      "waterNew": 0,
+      "elecFormula": "water_flat_18000",
+      "waterFormula": "water_flat_18000",
+      "serviceFee": 150000.0,
+      "parkingFee": 50000
     }
   }
 }

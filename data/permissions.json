@@ -1,0 +1,58 @@
+[
+  {
+    "key": "view_all_invoices",
+    "name": "Xem tất cả hóa đơn các tòa nhà",
+    "admin": true,
+    "manager": true,
+    "tenant": false
+  },
+  {
+    "key": "manage_invoices",
+    "name": "Tạo, sửa và xóa hóa đơn",
+    "admin": true,
+    "manager": false,
+    "tenant": false
+  },
+  {
+    "key": "view_all_tickets",
+    "name": "Xem tất cả báo lỗi (Tickets) các tòa nhà",
+    "admin": true,
+    "manager": true,
+    "tenant": false
+  },
+  {
+    "key": "manage_tickets",
+    "name": "Bình luận và trả lời báo lỗi (Tickets)",
+    "admin": true,
+    "manager": true,
+    "tenant": false
+  },
+  {
+    "key": "manage_rooms",
+    "name": "Quản lý phòng trọ (Thêm, Sửa, Xóa)",
+    "admin": true,
+    "manager": false,
+    "tenant": false
+  },
+  {
+    "key": "manage_services",
+    "name": "Cấu hình dịch vụ & công thức",
+    "admin": true,
+    "manager": false,
+    "tenant": false
+  },
+  {
+    "key": "manage_accounts",
+    "name": "Quản lý tài khoản người dùng",
+    "admin": true,
+    "manager": false,
+    "tenant": false
+  },
+  {
+    "key": "manage_permissions",
+    "name": "Quản lý phân quyền hệ thống",
+    "admin": true,
+    "manager": false,
+    "tenant": false
+  }
+]

@@ -230,6 +230,10 @@
           <span data-i18n="nav_users">Quản Lý Tài Khoản</span>
           <span id="admin-pending-users-badge" class="badge badge-pending" style="margin-left: auto; display: none;">0</span>
         </a>
+        <a class="nav-item" data-view="admin-permissions">
+          <i data-lucide="shield-check"></i>
+          <span>Phân Quyền Hệ Thống</span>
+        </a>
       </div>
 
       <div class="nav-section tenant-nav" style="display: none;">
@@ -526,6 +530,15 @@
                     <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Ghi chú / phương án xử lý</label>
                     <textarea id="detail-reply-message" class="form-control" rows="3" placeholder="Nhập hướng dẫn, lịch hẹn hoặc phương án xử lý..."></textarea>
                   </div>
+                  <div style="margin-bottom: 0.75rem;">
+                    <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">📷 Đính kèm ảnh hoàn thành / nghiệm thu (tùy chọn)</label>
+                    <div id="admin-image-upload-area" onclick="document.getElementById('admin-image-input').click()" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 0.75rem; text-align: center; cursor: pointer; background: var(--bg-base); color: var(--text-secondary); font-size: 0.8rem; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--tvk-blue)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                      <i data-lucide="image-plus" style="width:20px; height:20px; display:block; margin: 0 auto 0.25rem;"></i>
+                      Chọn ảnh hoàn thành (tối đa 5 ảnh)
+                    </div>
+                    <input type="file" id="admin-image-input" accept="image/*" multiple style="display:none;" onchange="handleAdminImageSelect(event)">
+                    <div id="admin-image-previews" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.4rem;"></div>
+                  </div>
                   <button class="btn btn-orange" style="width:100%; justify-content:center;" onclick="submitAdminTicketComment()">
                     <i data-lucide="send"></i> Gửi Phản Hồi
                   </button>
@@ -561,6 +574,36 @@
               </thead>
               <tbody id="admin-users-tbody"></tbody>
             </table>
+          </div>
+        </div>
+
+        <div id="view-admin-permissions" class="view-panel" style="display: none;">
+          <div style="margin-bottom: 1.5rem;">
+            <h3>🛠️ Bảng Phân Quyền Hạn Hệ Thống</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);">Thiết lập quyền xem và chỉnh sửa dữ liệu cho từng nhóm tài khoản (Admin, Quản lý, Khách thuê)</p>
+          </div>
+          
+          <div class="tvk-card" style="padding: 1.25rem;">
+            <div class="excel-table-wrapper">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th style="width: 40%;">Quyền Hạn / Chức Năng</th>
+                    <th style="text-align: center; width: 20%;">🔑 Quản Trị Viên (Admin)</th>
+                    <th style="text-align: center; width: 20%;">💼 Quản Lý (Manager)</th>
+                    <th style="text-align: center; width: 20%;">🏠 Khách Thuê (Tenant)</th>
+                  </tr>
+                </thead>
+                <tbody id="permissions-matrix-tbody">
+                  <!-- Generated dynamically in JS -->
+                </tbody>
+              </table>
+            </div>
+            <div style="margin-top: 1.25rem; display: flex; justify-content: flex-end;">
+              <button class="btn btn-orange" onclick="savePermissionsMatrix()">
+                <i data-lucide="save"></i> Lưu Cấu Hình Phân Quyền
+              </button>
+            </div>
           </div>
         </div>
 
@@ -625,6 +668,7 @@
                       <th>Mức Độ</th>
                       <th>Trạng Thái</th>
                       <th>Phản Hồi Admin</th>
+                      <th>Thao Tác</th>
                     </tr>
                   </thead>
                   <tbody id="tenant-tickets-tbody"></tbody>
@@ -770,7 +814,12 @@
           <select id="create-role" class="form-control" onchange="toggleRoomSelectInCreateModal()">
             <option value="tenant">Khách Thuê (Tenant)</option>
             <option value="admin">Quản Trị Viên (Admin)</option>
+            <option value="manager">Quản Lý (Manager)</option>
           </select>
+        </div>
+        <div style="margin-bottom: 1rem;" id="box-create-assign-house">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Chọn tòa nhà</label>
+          <select id="create-house-id" class="form-control" onchange="handleCreateHouseChange()"></select>
         </div>
         <div style="margin-bottom: 1.5rem;" id="box-assign-room">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="col_assigned_room">Gán phòng</label>
@@ -779,6 +828,61 @@
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create-user')" data-i18n="btn_cancel">Hủy</button>
           <button type="submit" class="btn btn-orange" data-i18n="btn_save">Lưu Tài Khoản</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="modal-edit-user">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="user-cog" style="color: var(--tvk-blue); vertical-align: middle;"></i> Chỉnh Sửa & Phân Quyền Thành Viên</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-edit-user')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-edit-user" onsubmit="handleAdminSaveUser(event)">
+        <input type="hidden" id="edit-user-id">
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên đăng nhập</label>
+          <input type="text" id="edit-username" class="form-control" readonly style="background: var(--bg-base); cursor: not-allowed;">
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Họ và tên</label>
+          <input type="text" id="edit-fullname" class="form-control" required placeholder="Nguyễn Văn A">
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Vai trò / Quyền hạn</label>
+          <select id="edit-role" class="form-control" onchange="toggleRoomSelectInEditModal()">
+            <option value="tenant">Khách Thuê (Tenant)</option>
+            <option value="admin">Quản Trị Viên (Admin)</option>
+            <option value="manager">Quản Lý (Manager)</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 1rem;" id="box-edit-assign-house">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Chọn tòa nhà</label>
+          <select id="edit-house-id" class="form-control" onchange="handleEditHouseChange()"></select>
+        </div>
+        <div style="margin-bottom: 1rem;" id="box-edit-assign-room">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Phòng lưu trú</label>
+          <select id="edit-room-id" class="form-control"></select>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Trạng thái tài khoản</label>
+          <select id="edit-status" class="form-control">
+            <option value="approved">Đã duyệt (Hoạt động)</option>
+            <option value="pending">Chờ duyệt (Chưa kích hoạt)</option>
+            <option value="blocked">Khóa tài khoản</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 1.5rem; background: var(--bg-base); border: 1px dashed var(--border-color); border-radius: var(--radius-md); padding: 1rem;">
+          <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.6rem;">
+            <i data-lucide="key" style="width:16px;height:16px;color:var(--tvk-orange);"></i>
+            <label style="font-size: 0.85rem; font-weight: 700; margin:0;">Đặt lại mật khẩu mới</label>
+          </div>
+          <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.6rem;">Để trống nếu không muốn thay đổi mật khẩu. Chỉ điền khi khách quên mật khẩu cần cấp lại.</p>
+          <input type="password" id="edit-new-password" class="form-control" placeholder="Nhập mật khẩu mới (để trống = giữ nguyên)">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-edit-user')">Hủy</button>
+          <button type="submit" class="btn btn-orange">Lưu Thay Đổi</button>
         </div>
       </form>
     </div>
@@ -794,8 +898,39 @@
     </div>
   </div>
 
-  <!-- Ticket reply modal kept as lightweight fallback but now tickets use inline detail view -->
-  <div class="modal-backdrop" id="modal-ticket-reply" style="display:none;"></div>
+  <!-- Ticket detail modal for tenant view -->
+  <div class="modal-backdrop" id="modal-tenant-ticket-detail">
+    <div class="modal-card" style="max-width: 780px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
+        <h3 style="display:flex; align-items:center; gap:0.5rem;"><i data-lucide="message-square" style="color: var(--tvk-blue);"></i> Chi Tiết Báo Lỗi & Trao Đổi</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-tenant-ticket-detail')"><i data-lucide="x"></i></button>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1.3fr; gap: 1.5rem;">
+        <!-- Left: Ticket details & Images -->
+        <div>
+          <div class="tvk-card" style="background: var(--bg-base); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1rem; border: 1px solid var(--border-color);">
+            <h4 style="margin-bottom: 0.75rem; color: var(--tvk-blue); font-size: 0.9rem;">📋 Thông Tin Báo Lỗi</h4>
+            <div id="tenant-ticket-info" style="display:flex; flex-direction:column; gap:0.5rem; font-size:0.85rem;"></div>
+          </div>
+          <div class="tvk-card" style="background: var(--bg-base); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <h4 style="margin-bottom: 0.5rem; color: var(--tvk-blue); font-size: 0.9rem;">📷 Ảnh Đính Kèm</h4>
+            <div id="tenant-ticket-images" style="display: flex; flex-wrap: wrap; gap: 0.4rem; min-height: 40px;"></div>
+          </div>
+        </div>
+        <!-- Right: Conversation -->
+        <div style="display: flex; flex-direction: column; justify-content: space-between; border: 1px solid var(--border-color); padding: 1rem; border-radius: var(--radius-md); background: var(--bg-surface);">
+          <h4 style="margin-bottom: 0.75rem; color: var(--tvk-blue); font-size: 0.9rem;">💬 Ý Kiến Phản Hồi</h4>
+          <div id="tenant-comments-thread" style="flex: 1; overflow-y: auto; max-height: 250px; display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem; padding-right: 0.25rem;"></div>
+          <div style="border-top: 1px solid var(--border-color); padding-top: 0.75rem;">
+            <div style="display: flex; gap: 0.5rem;">
+              <input type="text" id="tenant-reply-text" class="form-control" placeholder="Nhập ý kiến của bạn..." style="font-size:0.85rem;">
+              <button class="btn btn-orange" onclick="submitTenantTicketComment()" style="padding: 0 1rem; font-size: 0.85rem;">Gửi</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div class="modal-backdrop" id="modal-formula-config">
     <div class="modal-card">

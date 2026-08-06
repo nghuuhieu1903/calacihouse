@@ -15,7 +15,7 @@
     "password": "123",
     "fullName": "Nguyễn Văn An",
     "role": "tenant",
-    "roomId": "R101",
+    "roomId": "R102",
     "status": "approved",
     "createdAt": "2026-08-01 10:00"
   },
@@ -35,8 +35,18 @@
     "password": "123",
     "fullName": "Lê Thị Hoa (Chờ duyệt)",
     "role": "tenant",
-    "roomId": "R201",
+    "roomId": "R101",
     "status": "approved",
     "createdAt": "2026-08-05 08:30"
+  },
+  {
+    "id": "usr_99da4381",
+    "username": "manager1",
+    "password": "123",
+    "fullName": "Nguyen Quan Ly",
+    "role": "manager",
+    "roomId": "",
+    "status": "approved",
+    "createdAt": "2026-08-06 16:14"
   }
 ]

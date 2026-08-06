@@ -135,6 +135,7 @@ class RentalService:
         readings = Storage.get_readings()
         invoices = Storage.get_invoices()
         tickets = Storage.get_tickets()
+        permissions = Storage.get_permissions()
 
         RentalService.sync_readings_with_services(month)
         readings = Storage.get_readings()
@@ -150,6 +151,7 @@ class RentalService:
             'readings': readings,
             'invoices': invoices,
             'tickets': tickets,
+            'permissions': permissions,
             'currentMonth': month
         }
 
@@ -339,6 +341,30 @@ class RentalService:
         return new_user, None
 
     @staticmethod
+    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None):
+        users = Storage.get_users()
+        user = next((u for u in users if u['id'] == user_id), None)
+        if user:
+            if user['username'] == 'admin':
+                user['fullName'] = full_name
+                user['role'] = 'admin'
+                user['status'] = 'approved'
+                user['roomId'] = ''
+            else:
+                user['fullName'] = full_name
+                user['role'] = role
+                user['roomId'] = room_id if role == 'tenant' else ''
+                user['status'] = status
+            
+            # Only update password if a new one was explicitly provided
+            if new_password:
+                user['password'] = new_password
+            
+            Storage.save_users(users)
+            return user, None
+        return None, 'User not found'
+
+    @staticmethod
     def delete_user(user_id):
         users = Storage.get_users()
         users = [u for u in users if u['id'] != user_id or u['username'] == 'admin']
@@ -438,3 +464,56 @@ class RentalService:
 
         Storage.save_invoices(invoices)
         return len(rooms)
+
+    @staticmethod
+    def create_ticket(ticket_id, room_id, category, priority, description, images):
+        tickets = Storage.get_tickets()
+        rooms = Storage.get_rooms()
+        room = next((r for r in rooms if r['id'] == room_id), None)
+        room_name = room['name'] if room else 'Phòng'
+        tenant = room['tenant'] if room else 'Khách'
+        
+        ticket_obj = {
+            'id': ticket_id or f"TK-{datetime.now().strftime('%M%S')}",
+            'roomId': room_id,
+            'roomName': room_name,
+            'tenant': tenant,
+            'category': category,
+            'priority': priority,
+            'description': description,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'status': 'Mới tiếp nhận',
+            'response': '',
+            'comments': [],
+            'images': images or []
+        }
+        tickets.insert(0, ticket_obj)
+        Storage.save_tickets(tickets)
+        return ticket_obj
+
+    @staticmethod
+    def reply_ticket(ticket_id, status, response, comment=None):
+        tickets = Storage.get_tickets()
+        ticket = next((t for t in tickets if t['id'] == ticket_id), None)
+        if ticket:
+            ticket['status'] = status
+            ticket['response'] = response
+            if 'comments' not in ticket:
+                ticket['comments'] = []
+            if comment:
+                ticket['comments'].append(comment)
+            Storage.save_tickets(tickets)
+            return True
+        return False
+
+    @staticmethod
+    def save_permissions(matrix):
+        Storage.save_permissions(matrix)
+        return True
+
+    @staticmethod
+    def delete_ticket(ticket_id):
+        tickets = Storage.get_tickets()
+        tickets = [t for t in tickets if t.get('id') != ticket_id]
+        Storage.save_tickets(tickets)
+        return True

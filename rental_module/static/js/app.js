@@ -190,6 +190,7 @@ let state = {
   currentHouseId: 'all',
   currentRoomId: 'all',
   theme: 'light',
+  permissions: [],
   houses: [
     { id: 'house_a', name: 'Tòa Nhà A - Cầu Giấy', address: '12 Nguyễn Phong Sắc, Cầu Giấy' },
     { id: 'house_b', name: 'Tòa Nhà B - Bình Thạnh', address: '45 Điện Biên Phủ, Bình Thạnh' }
@@ -347,6 +348,19 @@ function handleLogout() {
   showToast('Đã đăng xuất tài khoản!', 'info');
 }
 
+function hasPermission(role, permissionKey) {
+  if (!state.permissions || state.permissions.length === 0) {
+    if (role === 'admin') return true;
+    if (role === 'manager') {
+      // Manager mặc định: chỉ xem hóa đơn và ticket, không được cấu hình dịch vụ
+      return ['view_all_invoices', 'view_all_tickets', 'manage_tickets'].includes(permissionKey);
+    }
+    return false;
+  }
+  const perm = state.permissions.find(p => p.key === permissionKey);
+  return perm ? !!perm[role] : false;
+}
+
 function setupUserRoleUI() {
   const user = state.currentUser;
   if (!user) return;
@@ -358,15 +372,54 @@ function setupUserRoleUI() {
   const nameEl = document.getElementById('user-display-name');
   const roleEl = document.getElementById('user-display-role');
 
-  avatarText.innerText = user.role === 'admin' ? 'AD' : user.username.substring(0, 2).toUpperCase();
-  nameEl.innerText = user.fullName;
-  roleEl.innerText = user.role === 'admin' ? 'Quản trị viên' : (user.roomId ? `Phòng ${user.roomId.replace('R', '')}` : 'Khách thuê');
-
   if (user.role === 'admin') {
+    avatarText.innerText = 'AD';
+    roleEl.innerText = 'Quản trị viên';
+  } else if (user.role === 'manager') {
+    avatarText.innerText = 'QL';
+    roleEl.innerText = 'Quản lý';
+  } else {
+    avatarText.innerText = user.username.substring(0, 2).toUpperCase();
+    roleEl.innerText = user.roomId ? `Phòng ${user.roomId.replace('R', '')}` : 'Khách thuê';
+  }
+
+  nameEl.innerText = user.fullName;
+
+  if (user.role === 'admin' || user.role === 'manager') {
     adminNav.style.display = 'flex';
     tenantNav.style.display = 'none';
     if (houseBox) houseBox.style.display = 'flex';
-    switchView('admin-dashboard');
+    
+    // Hide/show sidebar elements based on permissions
+    // admin-spreadsheet requires manage_services – managers are NOT allowed by default
+    const tabs = {
+      'admin-dashboard': '',
+      'admin-spreadsheet': 'manage_services',
+      'admin-invoices': 'view_all_invoices',
+      'admin-rooms': 'manage_rooms',
+      'admin-tickets': 'view_all_tickets',
+      'admin-users': 'manage_accounts',
+      'admin-permissions': 'manage_permissions'
+    };
+
+    let firstView = null;
+    Object.keys(tabs).forEach(view => {
+      const btn = document.querySelector(`.admin-nav [data-view="${view}"]`);
+      if (btn) {
+        const key = tabs[view];
+        const allowed = !key || hasPermission(user.role, key);
+        btn.style.display = allowed ? 'flex' : 'none';
+        if (allowed && !firstView) {
+          firstView = view;
+        }
+      }
+    });
+
+    if (firstView) {
+      switchView(firstView);
+    } else {
+      switchView('admin-dashboard');
+    }
   } else {
     adminNav.style.display = 'none';
     tenantNav.style.display = 'flex';
@@ -446,6 +499,7 @@ async function fetchState() {
       state.readings = data.readings || state.readings;
       state.invoices = data.invoices || state.invoices;
       state.tickets = data.tickets || state.tickets;
+      state.permissions = data.permissions || state.permissions;
       renderHouseSelector();
       renderCurrentView();
     }
@@ -514,6 +568,11 @@ function switchView(viewId) {
       titleEl.innerText = dict.users_title;
       subtitleEl.innerText = dict.users_subtitle;
       renderAdminUsers();
+      break;
+    case 'admin-permissions':
+      titleEl.innerText = 'Cấu Hình Phân Quyền Hạn';
+      subtitleEl.innerText = 'Tùy chỉnh quyền hạn của Admin, Quản lý và Khách thuê';
+      renderAdminPermissions();
       break;
     case 'tenant-invoices':
       titleEl.innerText = dict.my_invoice_title;
@@ -1476,6 +1535,9 @@ function renderAdminUsers() {
               <i data-lucide="check"></i> ${dict.btn_approve}
             </button>
           ` : ''}
+          <button class="btn btn-blue btn-sm" onclick="openEditUserModal('${u.id}')">
+            <i data-lucide="edit-2"></i> Sửa
+          </button>
           ${u.username !== 'admin' ? `
             <button class="btn btn-secondary btn-sm" onclick="deleteUserApi('${u.id}')" style="color:var(--tvk-red);">
               <i data-lucide="trash-2"></i> ${dict.btn_delete}
@@ -1531,14 +1593,118 @@ async function deleteUserApi(userId) {
 }
 
 function openCreateUserModal() {
-  const roomSelect = document.getElementById('create-room-id');
-  roomSelect.innerHTML = state.rooms.map(r => `<option value="${r.id}">${r.name} - ${r.tenant}</option>`).join('');
+  const houseSelect = document.getElementById('create-house-id');
+  if (houseSelect) {
+    houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+  }
+  handleCreateHouseChange();
   document.getElementById('modal-create-user').classList.add('active');
+}
+
+function handleCreateHouseChange() {
+  const houseId = document.getElementById('create-house-id').value;
+  const roomSelect = document.getElementById('create-room-id');
+  if (!roomSelect) return;
+  const filteredRooms = state.rooms.filter(r => r.houseId === houseId);
+  roomSelect.innerHTML = filteredRooms.map(r => `<option value="${r.id}">${r.name} (${r.tenant || 'Trống'})</option>`).join('');
 }
 
 function toggleRoomSelectInCreateModal() {
   const role = document.getElementById('create-role').value;
-  document.getElementById('box-assign-room').style.display = role === 'tenant' ? 'block' : 'none';
+  const isTenant = role === 'tenant';
+  const houseBox = document.getElementById('box-create-assign-house');
+  const roomBox = document.getElementById('box-assign-room');
+  if (houseBox) houseBox.style.display = isTenant ? 'block' : 'none';
+  if (roomBox) roomBox.style.display = isTenant ? 'block' : 'none';
+}
+
+function openEditUserModal(userId) {
+  const u = state.users.find(x => x.id === userId);
+  if (!u) return;
+
+  document.getElementById('edit-user-id').value = u.id;
+  document.getElementById('edit-username').value = u.username;
+  document.getElementById('edit-fullname').value = u.fullName;
+  document.getElementById('edit-role').value = u.role;
+  document.getElementById('edit-status').value = u.status;
+
+  const houseSelect = document.getElementById('edit-house-id');
+  if (houseSelect) {
+    houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+  }
+
+  const userRoom = state.rooms.find(r => r.id === u.roomId);
+  const userHouseId = userRoom ? userRoom.houseId : (state.houses[0] ? state.houses[0].id : '');
+  
+  if (houseSelect && userHouseId) {
+    houseSelect.value = userHouseId;
+  }
+
+  handleEditHouseChange(u.roomId);
+  toggleRoomSelectInEditModal();
+  // Clear password field - always blank when modal opens
+  const pwdField = document.getElementById('edit-new-password');
+  if (pwdField) pwdField.value = '';
+  document.getElementById('modal-edit-user').classList.add('active');
+  lucide.createIcons();
+}
+
+function handleEditHouseChange(selectedRoomId = '') {
+  const houseSelect = document.getElementById('edit-house-id');
+  const houseId = houseSelect ? houseSelect.value : '';
+  const roomSelect = document.getElementById('edit-room-id');
+  if (!roomSelect) return;
+  const filteredRooms = state.rooms.filter(r => r.houseId === houseId);
+  roomSelect.innerHTML = `<option value="">-- Chưa gán / Không có --</option>` +
+    filteredRooms.map(r => `<option value="${r.id}" ${r.id === selectedRoomId ? 'selected' : ''}>${r.name} (${r.tenant || 'Trống'})</option>`).join('');
+}
+
+function toggleRoomSelectInEditModal() {
+  const role = document.getElementById('edit-role').value;
+  const isTenant = role === 'tenant';
+  const houseBox = document.getElementById('box-edit-assign-house');
+  const roomBox = document.getElementById('box-edit-assign-room');
+  if (houseBox) houseBox.style.display = isTenant ? 'block' : 'none';
+  if (roomBox) roomBox.style.display = isTenant ? 'block' : 'none';
+}
+
+async function handleAdminSaveUser(event) {
+  event.preventDefault();
+  const id = document.getElementById('edit-user-id').value;
+  const fullName = document.getElementById('edit-fullname').value.trim();
+  const role = document.getElementById('edit-role').value;
+  const roomId = role === 'tenant' ? document.getElementById('edit-room-id').value : '';
+  const status = document.getElementById('edit-status').value;
+  const newPasswordField = document.getElementById('edit-new-password');
+  const newPassword = newPasswordField ? newPasswordField.value.trim() : '';
+
+  const uIdx = state.users.findIndex(u => u.id === id);
+  if (uIdx >= 0) {
+    state.users[uIdx].fullName = fullName;
+    state.users[uIdx].role = role;
+    state.users[uIdx].roomId = roomId;
+    state.users[uIdx].status = status;
+  }
+
+  const payload = { id, fullName, role, roomId, status };
+  if (newPassword) payload.newPassword = newPassword;
+
+  try {
+    await fetch(`${API_BASE}/users/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    console.warn('Saved user locally:', err);
+  }
+
+  const msg = newPassword
+    ? 'Đã cập nhật tài khoản và đặt lại mật khẩu thành công!'
+    : 'Đã cập nhật tài khoản và phân quyền thành công!';
+  showToast(msg, 'success');
+  closeModal('modal-edit-user');
+  renderAdminUsers();
 }
 
 async function handleAdminCreateUser(event) {
@@ -1784,6 +1950,7 @@ function renderRoomsManagement() {
    TICKET DETAIL VIEW WITH COMMENTS
 ===================================================================== */
 let _currentTicketId = null;
+let _adminImages = [];
 
 function showTicketList() {
   const listView = document.getElementById('ticket-list-view');
@@ -1797,6 +1964,9 @@ function openTicketDetail(ticketId) {
   const ticket = state.tickets.find(t => t.id === ticketId);
   if (!ticket) return;
   _currentTicketId = ticketId;
+
+  _adminImages = [];
+  renderAdminImagePreviews();
 
   const listView = document.getElementById('ticket-list-view');
   const detailView = document.getElementById('ticket-detail-view');
@@ -1896,6 +2066,13 @@ function renderTicketComments(ticket) {
           <div style="font-weight:700; font-size:0.75rem; margin-bottom:0.3rem; opacity:0.85;">${isAdmin ? '👤 Admin' : '🏠 ' + (c.author || 'Khách thuê')}</div>
           ${c.statusChange ? `<div style="font-size:0.72rem; opacity:0.8; margin-bottom:0.2rem;">📋 Trạng thái: <strong>${c.statusChange}</strong></div>` : ''}
           <div>${c.text}</div>
+          ${c.images && c.images.length > 0 ? `
+            <div style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-top:0.4rem;">
+              ${c.images.map(img => `
+                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'rgba(255,255,255,0.4)' : 'var(--border-color)'};" onclick="window.open('${img}', '_blank')" title="Xem ảnh lớn">
+              `).join('')}
+            </div>
+          ` : ''}
           <div style="font-size:0.7rem; opacity:0.65; margin-top:0.3rem; text-align:right;">${c.time || ''}</div>
         </div>
       </div>
@@ -1903,6 +2080,42 @@ function renderTicketComments(ticket) {
   }).join('');
 
   thread.scrollTop = thread.scrollHeight;
+}
+
+function handleAdminImageSelect(event) {
+  const files = Array.from(event.target.files);
+  const remaining = 5 - _adminImages.length;
+  const toAdd = files.slice(0, remaining);
+
+  toAdd.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      _adminImages.push(e.target.result);
+      renderAdminImagePreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  if (files.length > remaining) {
+    showToast('Tối đa 5 ảnh nghiệm thu', 'error');
+  }
+  event.target.value = '';
+}
+
+function renderAdminImagePreviews() {
+  const container = document.getElementById('admin-image-previews');
+  if (!container) return;
+  container.innerHTML = _adminImages.map((src, i) => `
+    <div style="position:relative; display:inline-block;">
+      <img src="${src}" style="width:70px; height:70px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--border-color);">
+      <button type="button" onclick="removeAdminImage(${i})" style="position:absolute; top:-6px; right:-6px; background:var(--color-danger); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>
+    </div>
+  `).join('');
+}
+
+function removeAdminImage(idx) {
+  _adminImages.splice(idx, 1);
+  renderAdminImagePreviews();
 }
 
 async function submitAdminTicketComment() {
@@ -1918,7 +2131,14 @@ async function submitAdminTicketComment() {
   if (!message) { showToast('Vui lòng nhập nội dung phản hồi', 'error'); return; }
 
   const now = new Date().toLocaleString('vi-VN');
-  const comment = { author: 'Admin', role: 'admin', text: message, time: now, statusChange: newStatus !== ticket.status ? newStatus : null };
+  const comment = { 
+    author: 'Admin', 
+    role: 'admin', 
+    text: message, 
+    time: now, 
+    statusChange: newStatus !== ticket.status ? newStatus : null,
+    images: [..._adminImages]
+  };
 
   if (!ticket.comments) ticket.comments = [];
   ticket.comments.push(comment);
@@ -1926,6 +2146,8 @@ async function submitAdminTicketComment() {
   ticket.response = message;
 
   if (msgEl) msgEl.value = '';
+  _adminImages = [];
+  renderAdminImagePreviews();
 
   try {
     await fetch(`${API_BASE}/tickets/reply`, {
@@ -1970,13 +2192,33 @@ function renderAdminTickets() {
       <td><small style="color:var(--text-muted);">${t.timestamp}</small></td>
       <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${t.status}</span></td>
       <td>
-        <button class="btn btn-blue btn-sm" onclick="openTicketDetail('${t.id}')">
-          <i data-lucide="eye"></i> Xem Chi Tiết
-        </button>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          <button class="btn btn-blue btn-sm" onclick="openTicketDetail('${t.id}')">
+            <i data-lucide="eye"></i> Xem Chi Tiết
+          </button>
+          ${state.currentUser && state.currentUser.role === 'admin' ? `
+          <button class="btn btn-secondary btn-sm" style="color:var(--tvk-red);" onclick="deleteTicketApi('${t.id}')">
+            <i data-lucide="trash-2"></i>
+          </button>` : ''}
+        </div>
       </td>
     `;
     tbody.appendChild(tr);
   });
+}
+
+async function deleteTicketApi(ticketId) {
+  if (!confirm('Bạn có chắc chắn muốn xóa báo lỗi này?')) return;
+  state.tickets = state.tickets.filter(t => t.id !== ticketId);
+  try {
+    await fetch(`${API_BASE}/tickets/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId })
+    });
+  } catch (err) { console.warn('Deleted ticket locally'); }
+  showToast('Đã xóa báo lỗi!', 'success');
+  renderAdminTickets();
 }
 
 /* IMAGE UPLOAD FOR TENANT REPORT */
@@ -2027,7 +2269,7 @@ function renderTenantReportsView() {
   const myTickets = user ? state.tickets.filter(t => t.roomId === user.roomId || t.tenant === user.fullName) : state.tickets;
 
   if (myTickets.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-secondary);">Bạn chưa gửi báo lỗi nào.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-secondary);">Bạn chưa gửi báo lỗi nào.</td></tr>`;
     return;
   }
 
@@ -2038,8 +2280,13 @@ function renderTenantReportsView() {
       <td><span class="badge badge-resolved">${t.category}</span></td>
       <td>${t.description}</td>
       <td><span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${t.priority}</span></td>
-      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' ? 'badge-pending' : 'badge-open')}">${t.status}</span></td>
+      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${t.status}</span></td>
       <td style="color:var(--tvk-blue); font-weight:600;">${t.response || '<em>Chờ Admin phản hồi...</em>'}</td>
+      <td>
+        <button class="btn btn-blue btn-sm" onclick="openTenantTicketDetail('${t.id}')">
+          <i data-lucide="message-square"></i> Xem & Trao Đổi
+        </button>
+      </td>
     `;
     tbody.appendChild(tr);
   });
@@ -2073,7 +2320,7 @@ async function handleTenantSubmitReport(event) {
     await fetch(`${API_BASE}/tickets/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId, category, priority, description, images: _tenantImages })
+      body: JSON.stringify({ id: newTicket.id, roomId, category, priority, description, images: _tenantImages })
     });
   } catch (err) {
     console.warn('Ticket created locally:', err);
@@ -2092,38 +2339,12 @@ async function handleTenantSubmitReport(event) {
 function openTicketReplyModal(ticketId) { openTicketDetail(ticketId); }
 async function saveTicketResponse(event) { if(event) event.preventDefault(); }
 
-function openEditRoomModal(roomId) {
-  const room = state.rooms.find(r => r.id === roomId);
-  if (!room) return;
-  // Populate and open the room config modal
-  const houseSelect = document.getElementById('room-house-id');
-  if (houseSelect) {
-    houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}" ${h.id === room.houseId ? 'selected' : ''}>${h.name}</option>`).join('');
-  }
-  document.getElementById('room-id').value = room.id;
-  document.getElementById('room-name').value = room.name || '';
-  document.getElementById('room-tenant').value = room.tenant || '';
-  document.getElementById('room-phone').value = room.phone || '';
-  document.getElementById('room-headcount').value = room.headcount || 1;
-  document.getElementById('room-base-rent').value = room.baseRent || '';
-
-  // Populate formula dropdowns
-  const formulaOpts = `<option value="">-- Chọn công thức --</option>` +
-    state.formulas.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
-  const waterSel = document.getElementById('room-water-formula');
-  const elecSel = document.getElementById('room-elec-formula');
-  if (waterSel) { waterSel.innerHTML = formulaOpts; waterSel.value = room.waterFormulaId || ''; }
-  if (elecSel) { elecSel.innerHTML = formulaOpts; elecSel.value = room.elecFormulaId || ''; }
-
-  document.getElementById('modal-room-config').classList.add('active');
-}
-
 function deleteRoom(roomId) {
   if (!confirm('Bạn chắc chắn muốn xóa phòng này?')) return;
   state.rooms = state.rooms.filter(r => r.id !== roomId);
   fetch(`${API_BASE}/rooms/delete`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ roomId })
+    body: JSON.stringify({ id: roomId, roomId: roomId })
   }).catch(e => console.warn('Delete room locally'));
   showToast('Đã xóa phòng', 'success');
   renderRoomsManagement();
@@ -2294,6 +2515,195 @@ function showToast(message, type = 'info') {
   container.appendChild(toast);
   lucide.createIcons();
   setTimeout(() => toast.remove(), 4000);
+}
+let _currentTenantTicketId = null;
+
+function openTenantTicketDetail(ticketId) {
+  const ticket = state.tickets.find(t => t.id === ticketId);
+  if (!ticket) return;
+  _currentTenantTicketId = ticketId;
+
+  // Fill ticket info
+  const priorityClass = ticket.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending';
+  const statusClass = ticket.status === 'Đã hoàn thành' ? 'badge-paid' : (ticket.status === 'Đang sửa chữa' || ticket.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open');
+  
+  const infoEl = document.getElementById('tenant-ticket-info');
+  if (infoEl) {
+    infoEl.innerHTML = `
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted);">Mã Ticket</span>
+        <strong>${ticket.id}</strong>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted);">Phân Loại</span>
+        <span class="badge badge-resolved">${ticket.category}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted);">Mức Độ</span>
+        <span class="badge ${priorityClass}">${ticket.priority}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted);">Trạng Thái</span>
+        <span class="badge ${statusClass}">${ticket.status}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--text-muted);">Thời Gian</span>
+        <span>${ticket.timestamp}</span>
+      </div>
+      <div style="border-top: 1px solid var(--border-color); padding-top:0.4rem; margin-top:0.4rem;">
+        <span style="color:var(--text-muted);">Nội dung yêu cầu:</span>
+        <p style="margin-top:0.25rem; line-height:1.4;">${ticket.description}</p>
+      </div>
+    `;
+  }
+
+  // Fill images
+  const imagesEl = document.getElementById('tenant-ticket-images');
+  if (imagesEl) {
+    const imgs = ticket.images || [];
+    if (imgs.length === 0) {
+      imagesEl.innerHTML = `<span style="color:var(--text-muted); font-size:0.8rem;">Không có ảnh đính kèm</span>`;
+    } else {
+      imagesEl.innerHTML = imgs.map(src => `
+        <img src="${src}" style="width:70px; height:70px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:2px solid var(--border-color);" 
+             onclick="window.open('${src}','_blank')" title="Click để xem ảnh lớn">
+      `).join('');
+    }
+  }
+
+  // Render comments thread
+  renderTenantTicketComments(ticket);
+  document.getElementById('tenant-reply-text').value = '';
+  document.getElementById('modal-tenant-ticket-detail').classList.add('active');
+  lucide.createIcons();
+}
+
+function renderTenantTicketComments(ticket) {
+  const thread = document.getElementById('tenant-comments-thread');
+  if (!thread) return;
+
+  const comments = ticket.comments || [];
+  if (comments.length === 0 && !ticket.response) {
+    thread.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:1rem;">Chưa có trao đổi nào.</div>`;
+    return;
+  }
+
+  let allComments = [...comments];
+  if (ticket.response && allComments.length === 0) {
+    allComments = [{ author: 'Admin', role: 'admin', text: ticket.response, time: ticket.timestamp }];
+  }
+
+  thread.innerHTML = allComments.map(c => {
+    const isAdmin = c.role === 'admin';
+    return `
+      <div style="display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-start' : 'flex-end'};">
+        <div style="max-width:85%; background:${isAdmin ? 'var(--bg-base)' : 'var(--tvk-blue)'}; color:${isAdmin ? 'var(--text-primary)' : 'white'}; 
+             border-radius: ${isAdmin ? '14px 14px 14px 4px' : '14px 14px 4px 14px'}; padding:0.5rem 0.85rem; font-size:0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+          <div style="font-weight:700; font-size:0.7rem; margin-bottom:0.25rem; opacity:0.85;">${isAdmin ? '👤 Admin' : '🏠 Khách thuê'}</div>
+          ${c.statusChange ? `<div style="font-size:0.68rem; opacity:0.8; margin-bottom:0.15rem;">📋 Trạng thái: <strong>${c.statusChange}</strong></div>` : ''}
+          <div>${c.text}</div>
+          ${c.images && c.images.length > 0 ? `
+            <div style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-top:0.4rem;">
+              ${c.images.map(img => `
+                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'var(--border-color)' : 'rgba(255,255,255,0.4)'};" onclick="window.open('${img}', '_blank')" title="Xem ảnh lớn">
+              `).join('')}
+            </div>
+          ` : ''}
+          <div style="font-size:0.65rem; opacity:0.65; margin-top:0.25rem; text-align:right;">${c.time || ''}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function submitTenantTicketComment() {
+  if (!_currentTenantTicketId) return;
+  const ticket = state.tickets.find(t => t.id === _currentTenantTicketId);
+  if (!ticket) return;
+
+  const msgEl = document.getElementById('tenant-reply-text');
+  const message = msgEl ? msgEl.value.trim() : '';
+
+  if (!message) { showToast('Vui lòng nhập nội dung ý kiến', 'error'); return; }
+
+  const now = new Date().toLocaleString('vi-VN');
+  const comment = { 
+    author: state.currentUser ? (state.currentUser.fullName || state.currentUser.username) : 'Khách thuê', 
+    role: 'tenant', 
+    text: message, 
+    time: now, 
+    statusChange: null 
+  };
+
+  if (!ticket.comments) ticket.comments = [];
+  ticket.comments.push(comment);
+
+  if (msgEl) msgEl.value = '';
+
+  try {
+    await fetch(`${API_BASE}/tickets/reply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId: ticket.id, status: ticket.status, response: ticket.response, comment })
+    });
+  } catch (err) { console.warn('Saved ticket reply locally'); }
+
+  renderTenantTicketComments(ticket);
+  showToast('Đã gửi trao đổi thành công!', 'success');
+}
+
+function renderAdminPermissions() {
+  const tbody = document.getElementById('permissions-matrix-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+  state.permissions.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight: 600; padding: 0.75rem 1rem;">${p.name}</td>
+      <td style="text-align: center;">
+        <input type="checkbox" data-permission="${p.key}" data-role="admin" ${p.admin ? 'checked' : ''}>
+      </td>
+      <td style="text-align: center;">
+        <input type="checkbox" data-permission="${p.key}" data-role="manager" ${p.manager ? 'checked' : ''}>
+      </td>
+      <td style="text-align: center;">
+        <input type="checkbox" data-permission="${p.key}" data-role="tenant" ${p.tenant ? 'checked' : ''}>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function savePermissionsMatrix() {
+  const checkboxes = document.querySelectorAll('#permissions-matrix-tbody input[type="checkbox"]');
+  const matrix = JSON.parse(JSON.stringify(state.permissions));
+
+  checkboxes.forEach(cb => {
+    const permKey = cb.getAttribute('data-permission');
+    const role = cb.getAttribute('data-role');
+    const checked = cb.checked;
+    
+    const p = matrix.find(x => x.key === permKey);
+    if (p) {
+      p[role] = checked;
+    }
+  });
+
+  try {
+    await fetch(`${API_BASE}/permissions/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ matrix })
+    });
+    state.permissions = matrix;
+    showToast('Đã lưu cấu hình phân quyền hệ thống!', 'success');
+    setupUserRoleUI();
+  } catch (err) {
+    showToast('Lỗi lưu cấu hình phân quyền!', 'error');
+  }
 }
 
 // App DOM Initializer

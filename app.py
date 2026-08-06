@@ -1,9 +1,16 @@
 import os
 from flask import Flask
+from dotenv import load_dotenv
 from rental_module import rental_bp
+from rental_module.database import init_db
+
+load_dotenv()  # load .env if present
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'rental_house_secret_key_2026'
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'rental_house_secret_key_2026')
+
+# Initialize SQLite tables on startup (safe — uses CREATE TABLE IF NOT EXISTS)
+init_db()
 
 # Register the Rental House Blueprint module
 # Can be registered with any url_prefix when integrating into an existing main website!

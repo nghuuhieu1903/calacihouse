@@ -123,7 +123,8 @@ def save_room():
 @rental_bp.route('/api/rooms/delete', methods=['POST'])
 def delete_room():
     data = request.json or {}
-    RentalService.delete_room(data.get('id'))
+    room_id = data.get('id') or data.get('roomId')
+    RentalService.delete_room(room_id)
     return jsonify({'success': True})
 
 @rental_bp.route('/api/users/approve', methods=['POST'])
@@ -143,6 +144,21 @@ def create_user():
         data.get('fullName'),
         data.get('role', 'tenant'),
         data.get('roomId', '')
+    )
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
+    return jsonify({'success': True, 'user': user})
+
+@rental_bp.route('/api/users/save', methods=['POST'])
+def save_user():
+    data = request.json or {}
+    user, error = RentalService.update_user_by_admin(
+        data.get('id'),
+        data.get('fullName'),
+        data.get('role'),
+        data.get('roomId'),
+        data.get('status'),
+        data.get('newPassword')  # Optional - only set if provided
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
@@ -177,8 +193,38 @@ def mark_paid():
 
 @rental_bp.route('/api/tickets/create', methods=['POST'])
 def create_ticket():
-    return jsonify({'success': True})
+    data = request.json or {}
+    t_obj = RentalService.create_ticket(
+        data.get('id'),
+        data.get('roomId'),
+        data.get('category'),
+        data.get('priority'),
+        data.get('description'),
+        data.get('images')
+    )
+    return jsonify({'success': True, 'ticket': t_obj})
 
 @rental_bp.route('/api/tickets/reply', methods=['POST'])
 def reply_ticket():
-    return jsonify({'success': True})
+    data = request.json or {}
+    success = RentalService.reply_ticket(
+        data.get('ticketId'),
+        data.get('status'),
+        data.get('response'),
+        data.get('comment')
+    )
+    return jsonify({'success': success})
+
+@rental_bp.route('/api/permissions/save', methods=['POST'])
+def save_permissions():
+    data = request.json or {}
+    matrix = data.get('matrix')
+    success = RentalService.save_permissions(matrix)
+    return jsonify({'success': success})
+
+@rental_bp.route('/api/tickets/delete', methods=['POST'])
+def delete_ticket():
+    data = request.json or {}
+    ticket_id = data.get('ticketId')
+    success = RentalService.delete_ticket(ticket_id)
+    return jsonify({'success': success})
