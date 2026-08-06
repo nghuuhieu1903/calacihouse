@@ -35,8 +35,8 @@
     "password": "123",
     "fullName": "Lê Thị Hoa (Chờ duyệt)",
     "role": "tenant",
-    "roomId": "",
-    "status": "pending",
+    "roomId": "R201",
+    "status": "approved",
     "createdAt": "2026-08-05 08:30"
   }
 ]

@@ -73,7 +73,10 @@ def save_service():
         data.get('unit'),
         data.get('houseIds'),
         data.get('calcType'),
-        data.get('formulaId')
+        data.get('formulaId'),
+        data.get('icon'),
+        data.get('symbol'),
+        data.get('roomIds')
     )
     return jsonify({'success': True, 'service': s_obj})
 
@@ -86,12 +89,41 @@ def delete_service():
 @rental_bp.route('/api/formulas/save', methods=['POST'])
 def save_formula():
     data = request.json or {}
-    return jsonify({'success': True})
+    f_obj = RentalService.save_formula(
+        data.get('id'),
+        data.get('name'),
+        data.get('type'),
+        data.get('rate'),
+        data.get('category')
+    )
+    return jsonify({'success': True, 'formula': f_obj})
 
 @rental_bp.route('/api/formulas/delete', methods=['POST'])
 def delete_formula():
     data = request.json or {}
     RentalService.delete_formula(data.get('id'))
+    return jsonify({'success': True})
+
+@rental_bp.route('/api/rooms/save', methods=['POST'])
+def save_room():
+    data = request.json or {}
+    r_obj = RentalService.save_room(
+        data.get('id'),
+        data.get('houseId'),
+        data.get('name'),
+        data.get('tenant'),
+        data.get('phone'),
+        data.get('baseRent'),
+        data.get('headcount'),
+        data.get('elecFormula'),
+        data.get('waterFormula')
+    )
+    return jsonify({'success': True, 'room': r_obj})
+
+@rental_bp.route('/api/rooms/delete', methods=['POST'])
+def delete_room():
+    data = request.json or {}
+    RentalService.delete_room(data.get('id'))
     return jsonify({'success': True})
 
 @rental_bp.route('/api/users/approve', methods=['POST'])

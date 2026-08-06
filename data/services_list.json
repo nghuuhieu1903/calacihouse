@@ -2,8 +2,12 @@
   {
     "id": "srv_elec",
     "houseId": "all",
-    "houseIds": ["all"],
-    "name": "⚡ Tiền Điện",
+    "houseIds": [
+      "all"
+    ],
+    "name": "Tiền Điện",
+    "icon": "zap",
+    "symbol": "⚡",
     "calcType": "formula",
     "formulaId": "elec_flat_3500",
     "price": 3500,
@@ -12,18 +16,29 @@
   {
     "id": "srv_water",
     "houseId": "all",
-    "houseIds": ["all"],
-    "name": "💧 Tiền Nước",
-    "calcType": "formula",
-    "formulaId": "water_flat_18000",
-    "price": 18000,
-    "unit": "Theo chỉ số (m³)"
+    "houseIds": [
+      "all"
+    ],
+    "roomIds": [
+      "all"
+    ],
+    "name": "Tiền Nước",
+    "icon": "droplet",
+    "symbol": "💧",
+    "calcType": "fixed",
+    "formulaId": null,
+    "price": 50000.0,
+    "unit": "Theo đầu người"
   },
   {
     "id": "srv_parking",
     "houseId": "all",
-    "houseIds": ["all"],
+    "houseIds": [
+      "all"
+    ],
     "name": "Phí Gửi Xe Máy",
+    "icon": "bike",
+    "symbol": "🛵",
     "calcType": "fixed",
     "price": 50000,
     "unit": "Cố định / phòng"
@@ -31,19 +46,46 @@
   {
     "id": "srv_trash",
     "houseId": "all",
-    "houseIds": ["all"],
+    "houseIds": [
+      "all"
+    ],
     "name": "gom rác",
+    "icon": "shield-check",
+    "symbol": "🛡️",
     "calcType": "fixed",
-    "price": 50000,
+    "formulaId": null,
+    "price": 50000.0,
     "unit": "Cố định / phòng"
   },
   {
     "id": "srv_internet",
     "houseId": "all",
-    "houseIds": ["all"],
+    "houseIds": [
+      "all"
+    ],
     "name": "Internet",
+    "icon": "wifi",
+    "symbol": "🌐",
     "calcType": "fixed",
     "price": 50000,
+    "unit": "Cố định / phòng"
+  },
+  {
+    "id": "srv_1785981932527",
+    "houseId": "all",
+    "houseIds": [
+      "all"
+    ],
+    "roomIds": [
+      "R201",
+      "R202"
+    ],
+    "name": "Tiền Nước 2",
+    "icon": "droplet",
+    "symbol": "💧",
+    "calcType": "fixed",
+    "formulaId": null,
+    "price": 50000.0,
     "unit": "Cố định / phòng"
   }
 ]

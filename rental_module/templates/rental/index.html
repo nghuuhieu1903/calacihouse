@@ -78,6 +78,12 @@
     .checkbox-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.6rem; border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s; font-weight: 600; font-size: 0.9rem; }
     .checkbox-item:hover { background: var(--tvk-blue-light); }
     .checkbox-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--tvk-blue); cursor: pointer; }
+    
+    /* ICON PICKER STYLING */
+    .icon-picker-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; background: var(--bg-base); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); }
+    .icon-picker-option { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid transparent; background: var(--bg-surface); cursor: pointer; transition: all 0.2s; }
+    .icon-picker-option:hover { border-color: var(--tvk-blue); background: var(--tvk-blue-light); }
+    .icon-picker-option.selected { border-color: var(--tvk-blue); background: var(--tvk-blue-light); font-weight: 800; box-shadow: var(--shadow-sm); }
   </style>
 </head>
 <body>
@@ -100,14 +106,14 @@
         <button class="auth-tab" id="tab-register" onclick="setAuthTab('register')">Đăng Ký Khách</button>
       </div>
 
-      <form id="form-login" onsubmit="handleLogin(event)">
+      <form id="form-login" onsubmit="handleLogin(event)" autocomplete="off">
         <div style="margin-bottom: 1rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="username">Tên đăng nhập</label>
-          <input type="text" id="login-username" class="form-control" placeholder="admin hoặc nguyenvanan" required value="admin">
+          <input type="text" id="login-username" class="form-control" placeholder="Tên đăng nhập (VD: admin)" required autocomplete="new-password" name="login-usr-no-save">
         </div>
         <div style="margin-bottom: 1.5rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="password">Mật khẩu</label>
-          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required value="123">
+          <input type="password" id="login-password" class="form-control" placeholder="••••••••" required autocomplete="new-password" name="login-pwd-no-save">
         </div>
         <button type="submit" class="btn btn-orange" style="width: 100%; justify-content: center; padding: 0.85rem; font-size: 1rem;">
           <i data-lucide="log-in"></i> <span data-i18n="login_btn">Đăng Nhập Ngay</span>
@@ -149,14 +155,14 @@
     </a>
 
     <div style="display: flex; align-items: center; gap: 1rem;">
-      <!-- MULTI-HOUSE SELECTOR DROPDOWN -->
+      <!-- MULTI-HOUSE SELECTOR -->
       <div style="display: flex; align-items: center; gap: 0.5rem;" id="nav-house-box">
         <label style="font-size: 0.85rem; font-weight: 700; color: white;">🏢 Chọn Tòa Nhà:</label>
-        <select id="select-house" class="form-control" style="width: 210px; padding: 0.4rem 0.6rem; font-weight: 800;" onchange="handleHouseChange()">
+        <select id="select-house" class="form-control" style="width: 185px; padding: 0.4rem 0.6rem; font-weight: 800;" onchange="handleHouseChange()">
           <!-- Houses populated dynamically -->
         </select>
-        <button class="btn btn-orange btn-sm" onclick="openAddHouseModal()" title="Thêm Tòa Nhà / Dãy Trọ Mới">
-          <i data-lucide="plus"></i> Tòa Nhà Mới
+        <button class="btn btn-orange btn-sm" onclick="openAddHouseModal()" title="Thêm Tòa Nhà Mới">
+          <i data-lucide="plus"></i> Tòa Nhà
         </button>
       </div>
 
@@ -210,6 +216,10 @@
           <i data-lucide="file-text"></i>
           <span data-i18n="nav_invoices">Quản Lý Hóa Đơn</span>
         </a>
+        <a class="nav-item" data-view="admin-rooms">
+          <i data-lucide="door-open"></i>
+          <span>Quản Lý Phòng</span>
+        </a>
         <a class="nav-item" data-view="admin-tickets">
           <i data-lucide="life-buoy"></i>
           <span data-i18n="nav_tickets">Xử Lý Báo Lỗi</span>
@@ -255,28 +265,28 @@
 
       <div class="content-body">
         
-        <!-- TAB: UNIFIED ADMIN SERVICES CONFIG (INCLUDING ELECTRICITY & WATER) -->
+        <!-- TAB: UNIFIED ADMIN SERVICES CONFIG (INCLUDING ELECTRICITY & WATER & ICON PICKER) -->
         <div id="view-admin-services" class="view-panel" style="display: none;">
           <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
             
             <div class="tvk-card">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3><i data-lucide="sliders" style="color: var(--tvk-blue); vertical-align: middle;"></i> Bảng Cấu Hình Dịch Vụ & Điện Nước (<span id="current-house-name-label" style="color: var(--tvk-blue);">Tòa Nhà A</span>)</h3>
+                <h3><i data-lucide="sliders" style="color: var(--tvk-blue); vertical-align: middle;"></i> Bảng Cấu Hình Dịch Vụ & Điện Nước (<span id="current-house-name-label" style="color: var(--tvk-blue);">Tất Cả Tòa Nhà</span>)</h3>
                 <button class="btn btn-orange btn-sm" onclick="openAddServiceModal()">
-                  <i data-lucide="plus"></i> Thêm Dịch Vụ / Điện Nước Mới
+                  <i data-lucide="plus"></i> Thêm Dịch Vụ Mới
                 </button>
               </div>
               <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                Tất cả dịch vụ (⚡ Tiền Điện, 💧 Tiền Nước, 🌐 Internet, 🧹 gom rác, 🛵 Xe máy...) đều được quản lý tập trung tại đây. Bạn có thể chọn Số tiền cố định hoặc Công thức tính cho từng mục.
+                Match 100% với Bảng Tính Điện Nước: Khi cấu hình Cố Định ➔ Bảng tính chỉ hiển thị số tiền. Khi cấu hình Công Thức ➔ Bảng tính tự động hiện ô nhập chỉ số Cũ/Mới. Bạn có thể chọn và sửa biểu tượng Icon cho từng dịch vụ bên dưới.
               </p>
 
               <div class="excel-table-wrapper">
                 <table class="excel-table">
                   <thead>
                     <tr>
-                      <th>Tên Dịch Vụ / Chi Phí</th>
+                      <th>Biểu Tượng & Tên Dịch Vụ</th>
                       <th>Hình Thức & Đơn Giá</th>
-                      <th>Quy Tắc / Công Thức Áp Dụng</th>
+                      <th>Quy Tắc Match Bảng Tính</th>
                       <th style="text-align: right;">Thao Tác</th>
                     </tr>
                   </thead>
@@ -293,7 +303,7 @@
                 </button>
               </div>
               <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;">
-                Tạo sẵn công thức tính theo kWh/m³ để gán cho ⚡ Điện hoặc 💧 Nước.
+                Tạo sẵn công thức tính theo kWh/m³ để gán cho các dịch vụ tính theo chỉ số.
               </p>
 
               <div id="services-formulas-grid" style="display: flex; flex-direction: column; gap: 0.85rem;"></div>
@@ -378,7 +388,7 @@
           </div>
         </div>
 
-        <!-- SPREADSHEET VIEW WITH READ-ONLY FORMATTED SERVICE FEES -->
+        <!-- SPREADSHEET VIEW WITH DYNAMIC MATCHED SERVICE COLUMNS -->
         <div id="view-admin-spreadsheet" class="view-panel" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
             <div>
@@ -398,28 +408,8 @@
           <div class="excel-table-wrapper">
             <table class="excel-table">
               <thead>
-                <tr>
-                  <th data-i18n="col_room">Phòng</th>
-                  <th data-i18n="col_tenant">Khách Thuê</th>
-                  <th data-i18n="col_rent">Tiền Nhà</th>
-                  
-                  <th data-i18n="col_elec_old">Điện Cũ</th>
-                  <th data-i18n="col_elec_new">Điện Mới</th>
-                  <th data-i18n="col_elec_kwh">Số Điện</th>
-                  <th data-i18n="col_elec_formula">Công Thức Điện</th>
-                  <th data-i18n="col_elec_cost">⚡ Tiền Điện</th>
-                  
-                  <th data-i18n="col_water_old">Nước Cũ</th>
-                  <th data-i18n="col_water_new">Nước Mới</th>
-                  <th data-i18n="col_water_m3">Số Nước</th>
-                  <th data-i18n="col_water_formula">Công Thức Nước</th>
-                  <th data-i18n="col_water_cost">💧 Tiền Nước</th>
-                  
-                  <th style="background: #e6f4fe; color: #0178d2;">🧹 Tiền Dịch Vụ</th>
-                  <th style="background: #e6f4fe; color: #0178d2;">🛵 Tiền Gửi Xe</th>
-                  
-                  <th data-i18n="col_total">💰 Tổng Cộng</th>
-                  <th data-i18n="col_actions">Thao Tác</th>
+                <tr id="spreadsheet-thead-tr">
+                  <!-- Header dynamically rendered to match exact service config -->
                 </tr>
               </thead>
               <tbody id="spreadsheet-body"></tbody>
@@ -455,29 +445,93 @@
           </div>
         </div>
 
+        <!-- ROOM MANAGEMENT VIEW -->
+        <div id="view-admin-rooms" class="view-panel" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div>
+              <h3>🚪 Quản Lý Phòng Trọ</h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary);">Thêm, sửa, xóa phòng trong các tòa nhà. Cấu hình giá thuê và công thức tính tiền.</p>
+            </div>
+            <button class="btn btn-orange" onclick="openAddRoomModal()">
+              <i data-lucide="plus-circle"></i> Thêm Phòng Mới
+            </button>
+          </div>
+          <div id="rooms-management-container"></div>
+        </div>
+
         <div id="view-admin-tickets" class="view-panel" style="display: none;">
-          <div style="margin-bottom: 1.25rem;">
-            <h3 data-i18n="tickets_title">Danh Sách Báo Lỗi Từ Khách Thuê</h3>
-            <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="tickets_subtitle">Tiếp nhận sự cố, cập nhật trạng thái và phản hồi khách thuê</p>
+          <div id="ticket-list-view">
+            <div style="margin-bottom: 1.25rem;">
+              <h3 data-i18n="tickets_title">Danh Sách Báo Lỗi Từ Khách Thuê</h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="tickets_subtitle">Tiếp nhận sự cố, cập nhật trạng thái và phản hồi khách thuê</p>
+            </div>
+            <div class="excel-table-wrapper">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th>Mã Ticket</th>
+                    <th>Phòng</th>
+                    <th>Khách Thuê</th>
+                    <th>Phân Loại</th>
+                    <th>Mức Độ</th>
+                    <th>Nội Dung</th>
+                    <th>Ảnh</th>
+                    <th>Thời Gian</th>
+                    <th>Trạng Thái</th>
+                    <th>Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody id="admin-tickets-tbody"></tbody>
+              </table>
+            </div>
           </div>
 
-          <div class="excel-table-wrapper">
-            <table class="excel-table">
-              <thead>
-                <tr>
-                  <th data-i18n="col_ticket_id">Mã Ticket</th>
-                  <th data-i18n="col_room">Phòng</th>
-                  <th data-i18n="col_tenant">Khách Thuê</th>
-                  <th data-i18n="col_category">Phân Loại</th>
-                  <th data-i18n="col_priority">Mức Độ</th>
-                  <th data-i18n="col_desc">Nội Dung</th>
-                  <th data-i18n="col_time">Thời Gian</th>
-                  <th data-i18n="col_status">Trạng Thái</th>
-                  <th data-i18n="col_actions">Thao Tác</th>
-                </tr>
-              </thead>
-              <tbody id="admin-tickets-tbody"></tbody>
-            </table>
+          <!-- TICKET DETAIL VIEW (inline) -->
+          <div id="ticket-detail-view" style="display:none;">
+            <div style="margin-bottom: 1rem;">
+              <button class="btn btn-secondary btn-sm" onclick="showTicketList()">
+                <i data-lucide="arrow-left"></i> Quay Lại Danh Sách
+              </button>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1.4fr; gap: 1.5rem;">
+              <!-- Left: ticket info -->
+              <div>
+                <div class="tvk-card" style="margin-bottom: 1rem;">
+                  <h4 style="margin-bottom: 1rem; color: var(--tvk-blue);">📋 Thông Tin Báo Lỗi</h4>
+                  <div id="ticket-detail-info"></div>
+                </div>
+                <!-- Images -->
+                <div class="tvk-card">
+                  <h4 style="margin-bottom: 0.75rem; color: var(--tvk-blue);">📷 Ảnh Đính Kèm</h4>
+                  <div id="ticket-detail-images" style="display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 60px;"></div>
+                </div>
+              </div>
+              <!-- Right: comments thread + status update -->
+              <div class="tvk-card" style="display: flex; flex-direction: column;">
+                <h4 style="margin-bottom: 1rem; color: var(--tvk-blue);">💬 Phản Hồi & Tiến Trình</h4>
+                <div id="ticket-comments-thread" style="flex: 1; overflow-y: auto; max-height: 320px; display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1rem;"></div>
+                <!-- Admin reply form -->
+                <div id="admin-reply-form-box">
+                  <div style="margin-bottom: 0.75rem;">
+                    <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Cập nhật trạng thái</label>
+                    <select id="detail-reply-status" class="form-control">
+                      <option value="Mới tiếp nhận">Mới tiếp nhận</option>
+                      <option value="Đang xử lý">Đang xử lý</option>
+                      <option value="Đang sửa chữa">Đang sửa chữa</option>
+                      <option value="Chờ phụ tùng">Chờ phụ tùng / vật tư</option>
+                      <option value="Đã hoàn thành">Đã hoàn thành</option>
+                    </select>
+                  </div>
+                  <div style="margin-bottom: 0.75rem;">
+                    <label style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Ghi chú / phương án xử lý</label>
+                    <textarea id="detail-reply-message" class="form-control" rows="3" placeholder="Nhập hướng dẫn, lịch hẹn hoặc phương án xử lý..."></textarea>
+                  </div>
+                  <button class="btn btn-orange" style="width:100%; justify-content:center;" onclick="submitAdminTicketComment()">
+                    <i data-lucide="send"></i> Gửi Phản Hồi
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -522,10 +576,9 @@
           <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 1.5rem;">
             <div class="tvk-card">
               <h3 style="margin-bottom: 1rem;"><i data-lucide="edit" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="form_ticket_title">Gửi Báo Lỗi / Khiếu Nại</span></h3>
-              
               <form id="tenant-report-form" onsubmit="handleTenantSubmitReport(event)">
                 <div style="margin-bottom: 1rem;">
-                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_category">Loại sự cố</label>
+                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">Loại sự cố</label>
                   <select id="report-category" class="form-control" required>
                     <option value="Hóa đơn">Sai chỉ số / Khiếu nại Hóa đơn</option>
                     <option value="Điện">Sự cố Hệ thống Điện</option>
@@ -534,38 +587,44 @@
                     <option value="Khác">Phản ánh Khác</option>
                   </select>
                 </div>
-
                 <div style="margin-bottom: 1rem;">
-                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_priority">Mức độ ưu tiên</label>
+                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">Mức độ ưu tiên</label>
                   <select id="report-priority" class="form-control" required>
                     <option value="Bình thường">Bình thường</option>
                     <option value="Khẩn cấp">Khẩn cấp (Cần xử lý ngay)</option>
                   </select>
                 </div>
-
-                <div style="margin-bottom: 1.25rem;">
-                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_desc">Mô tả sự cố</label>
-                  <textarea id="report-description" class="form-control" rows="4" placeholder="Nhập chi tiết vấn đề bạn đang gặp phải..." required></textarea>
+                <div style="margin-bottom: 1rem;">
+                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">Mô tả sự cố</label>
+                  <textarea id="report-description" class="form-control" rows="3" placeholder="Nhập chi tiết vấn đề bạn đang gặp phải..." required></textarea>
                 </div>
-
+                <div style="margin-bottom: 1.25rem;">
+                  <label style="font-size: 0.85rem; display: block; margin-bottom: 0.35rem;">📷 Đính kèm ảnh sự cố (tùy chọn)</label>
+                  <div id="tenant-image-upload-area" onclick="document.getElementById('tenant-image-input').click()" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 1rem; text-align: center; cursor: pointer; background: var(--bg-base); color: var(--text-secondary); font-size: 0.85rem; transition: border-color 0.2s;" onmouseover="this.style.borderColor='var(--tvk-blue)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                    <i data-lucide="image-plus" style="width:24px; height:24px; display:block; margin: 0 auto 0.4rem;"></i>
+                    Nhấn để chọn ảnh (JPG, PNG, tối đa 5 ảnh)
+                  </div>
+                  <input type="file" id="tenant-image-input" accept="image/*" multiple style="display:none;" onchange="handleTenantImageSelect(event)">
+                  <div id="tenant-image-previews" style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem;"></div>
+                </div>
                 <button type="submit" class="btn btn-orange" style="width: 100%; justify-content: center;">
-                  <i data-lucide="send"></i> <span data-i18n="btn_send_report">Gửi Báo Lỗi Cho Admin</span>
+                  <i data-lucide="send"></i> Gửi Báo Lỗi Cho Admin
                 </button>
               </form>
             </div>
 
             <div class="tvk-card">
-              <h3 style="margin-bottom: 1rem;"><i data-lucide="clock" style="color: var(--tvk-emerald); vertical-align: middle;"></i> <span data-i18n="my_tickets_history">Lịch Sử Báo Lỗi</span></h3>
+              <h3 style="margin-bottom: 1rem;"><i data-lucide="clock" style="color: var(--tvk-emerald); vertical-align: middle;"></i> Lịch Sử Báo Lỗi</h3>
               <div class="excel-table-wrapper">
                 <table class="excel-table">
                   <thead>
                     <tr>
-                      <th data-i18n="col_time">Thời Gian</th>
-                      <th data-i18n="col_category">Loại Sự Cố</th>
-                      <th data-i18n="col_desc">Mô Tả</th>
-                      <th data-i18n="col_priority">Mức Độ</th>
-                      <th data-i18n="col_status">Trạng Thái</th>
-                      <th data-i18n="col_admin_reply">Phản Hồi Admin</th>
+                      <th>Thời Gian</th>
+                      <th>Loại Sự Cố</th>
+                      <th>Mô Tả</th>
+                      <th>Mức Độ</th>
+                      <th>Trạng Thái</th>
+                      <th>Phản Hồi Admin</th>
                     </tr>
                   </thead>
                   <tbody id="tenant-tickets-tbody"></tbody>
@@ -609,36 +668,49 @@
     </div>
   </div>
 
-  <!-- Modal Add / Edit Service (SUPPORTING BOTH FIXED AMOUNTS & CALCULATION FORMULAS) -->
+  <!-- Modal Add / Edit Service (SUPPORTING ICON PICKER + CALCULATION FORMULAS) -->
   <div class="modal-backdrop" id="modal-service-config">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="sliders" style="color: var(--tvk-blue); vertical-align: middle;"></i> Cấu Hình Dịch Vụ & Điện Nước</h3>
+        <h3><i data-lucide="sliders" style="color: var(--tvk-blue); vertical-align: middle;"></i> Cấu Hình Dịch Vụ & Biểu Tượng Icon</h3>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-service-config')"><i data-lucide="x"></i></button>
       </div>
       <form id="form-service-edit" onsubmit="saveService(event)">
         <input type="hidden" id="service-id">
-        
+        <input type="hidden" id="service-icon" value="package">
+        <input type="hidden" id="service-symbol" value="📦">
+
+        <!-- ICON PICKER GALLERY -->
         <div style="margin-bottom: 1.25rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;">
-            Áp dụng cho Tòa Nhà (Tích chọn một hoặc nhiều tòa nhà)
+            Chọn Biểu Tượng Icon Cho Dịch Vụ
           </label>
-          <div id="service-houses-checkbox-group" style="display: flex; flex-direction: column; gap: 0.5rem; background: var(--bg-base); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); max-height: 180px; overflow-y: auto;">
-            <!-- Checkboxes rendered dynamically in JS -->
+          <div class="icon-picker-grid" id="icon-picker-container">
+            <!-- Icons dynamically populated in JS -->
+          </div>
+        </div>
+
+        <!-- UNIFIED HIERARCHICAL SCOPE SELECTOR (HOUSES & EXPANDABLE ROOMS) -->
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;">
+            Áp dụng cho Tòa Nhà & Phòng Chỉ Định (Tích chọn Tòa nhà hoặc mở rộng chọn Phòng riêng)
+          </label>
+          <div id="service-scope-container" style="display: flex; flex-direction: column; gap: 0.6rem; background: var(--bg-base); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); max-height: 240px; overflow-y: auto;">
+            <!-- Tree rendered dynamically in JS -->
           </div>
         </div>
 
         <div style="margin-bottom: 1rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên dịch vụ / Chi phí</label>
-          <input type="text" id="service-name" class="form-control" placeholder="VD: ⚡ Tiền Điện / 💧 Tiền Nước / Internet / gom rác..." required>
+          <input type="text" id="service-name" class="form-control" placeholder="VD: Tiền Điện / Tiền Nước / Internet / gom rác..." required>
         </div>
 
         <!-- CALCULATION METHOD SELECTOR: FIXED VS FORMULA -->
         <div style="margin-bottom: 1rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Phương thức tính tiền</label>
           <select id="service-calc-type" class="form-control" onchange="toggleServiceCalcFields()" required>
-            <option value="fixed">💰 Số Tiền Cố Định (VNĐ)</option>
-            <option value="formula">🧮 Tính Theo Công Thức Chỉ Số / Tiêu Thụ</option>
+            <option value="fixed">💰 Số Tiền Cố Định (Bảng tính chỉ hiện số tiền)</option>
+            <option value="formula">🧮 Tính Theo Chỉ Số (Bảng tính hiện ô điền Chỉ số Cũ/Mới)</option>
           </select>
         </div>
 
@@ -722,33 +794,8 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="modal-ticket-reply">
-    <div class="modal-card">
-      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="message-square" style="color: var(--tvk-blue); vertical-align: middle;"></i> Phản Hồi Báo Lỗi</h3>
-        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-ticket-reply')"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-ticket-reply" onsubmit="saveTicketResponse(event)">
-        <input type="hidden" id="reply-ticket-id">
-        <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Trạng thái xử lý</label>
-          <select id="reply-status" class="form-control" required>
-            <option value="Mới tiếp nhận">Mới tiếp nhận</option>
-            <option value="Đang sửa chữa">Đang sửa chữa / Xử lý</option>
-            <option value="Đã hoàn thành">Đã hoàn thành</option>
-          </select>
-        </div>
-        <div style="margin-bottom: 1.5rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Nội dung phản hồi cho Khách thuê</label>
-          <textarea id="reply-message" class="form-control" rows="3" placeholder="Nhập tin nhắn hướng dẫn hoặc thời gian ghé sửa chữa..." required></textarea>
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-ticket-reply')">Hủy</button>
-          <button type="submit" class="btn btn-orange">Lưu Phản Hồi</button>
-        </div>
-      </form>
-    </div>
-  </div>
+  <!-- Ticket reply modal kept as lightweight fallback but now tickets use inline detail view -->
+  <div class="modal-backdrop" id="modal-ticket-reply" style="display:none;"></div>
 
   <div class="modal-backdrop" id="modal-formula-config">
     <div class="modal-card">
@@ -760,23 +807,83 @@
         <input type="hidden" id="formula-id">
         <div style="margin-bottom: 1rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên công thức</label>
-          <input type="text" id="formula-name" class="form-control" placeholder="VD: Điện sản xuất / Điện sinh hoạt..." required>
+          <input type="text" id="formula-name" class="form-control" placeholder="VD: Nước khoán / Điện sinh hoạt..." required>
         </div>
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Loại công thức</label>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Loại công thức tính toán</label>
           <select id="formula-type" class="form-control">
-            <option value="flat">Cố định theo Đơn giá (đ / kWh hoặc m³)</option>
-            <option value="tiered">Bậc thang EVN / Nhà nước</option>
-            <option value="headcount">Tính khoán theo đầu người (đ / người)</option>
+            <option value="headcount">👤 Giá tiền x Số người ở (Tính khoán theo đầu người)</option>
+            <option value="flat">⚡/💧 Cố định theo chỉ số sử dụng (đ / kWh hoặc m³)</option>
+            <option value="tiered">📊 Bậc thang EVN / Nhà nước</option>
           </select>
         </div>
         <div style="margin-bottom: 1.5rem;" id="formula-rate-box">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Đơn giá (VNĐ)</label>
-          <input type="number" id="formula-rate" class="form-control" placeholder="3500" value="3500">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Đơn giá (VNĐ / đv hoặc VNĐ / người)</label>
+          <input type="number" id="formula-rate" class="form-control" placeholder="100000" value="100000">
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modal-formula-config')">Đóng</button>
           <button type="submit" class="btn btn-orange">Lưu Công Thức</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Add / Edit Room & Custom Room Pricing -->
+  <div class="modal-backdrop" id="modal-room-config">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="home" style="color: var(--tvk-blue); vertical-align: middle;"></i> Cấu Hình Thông Tin & Giá Tiền Phòng Riêng</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-room-config')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-room-edit" onsubmit="saveRoomConfig(event)">
+        <input type="hidden" id="room-id">
+
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Thuộc Tòa Nhà</label>
+          <select id="room-house-id" class="form-control" required></select>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên Phòng</label>
+          <input type="text" id="room-name" class="form-control" placeholder="VD: Phòng 101 (Tòa A)" required>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên Khách Thuê</label>
+            <input type="text" id="room-tenant" class="form-control" placeholder="Nguyễn Văn A">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Số Điện Thoại</label>
+            <input type="text" id="room-phone" class="form-control" placeholder="0901234567">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Số Người Ở (Để tính tiền khoán x số người)</label>
+            <input type="number" id="room-headcount" class="form-control" min="1" value="1" required>
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Giá Tiền Thuê Phòng (VNĐ/tháng)</label>
+            <input type="number" id="room-base-rent" class="form-control" placeholder="3500000" required>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Công Thức / Cách Tính Tiền Nước Cho Phòng Này</label>
+          <select id="room-water-formula" class="form-control"></select>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Công Thức Tiền Điện Áp Dụng Cho Phòng Này</label>
+          <select id="room-elec-formula" class="form-control"></select>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-room-config')">Hủy</button>
+          <button type="submit" class="btn btn-orange">Lưu Cấu Hình Phòng</button>
         </div>
       </form>
     </div>

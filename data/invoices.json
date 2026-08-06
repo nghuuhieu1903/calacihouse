@@ -18,39 +18,51 @@
     "waterUsage": 12,
     "waterFormula": "water_flat_18000",
     "waterCost": 216000,
-    "serviceFee": 100000.0,
+    "serviceFee": 200000.0,
     "parkingFee": 50000,
     "serviceItems": [
       {
+        "id": "srv_water",
+        "name": "Tiền Nước",
+        "symbol": "💧",
+        "price": 100000.0,
+        "unit": "Cố định / phòng",
+        "total": 100000.0,
+        "isParking": false
+      },
+      {
         "id": "srv_parking",
         "name": "Phí Gửi Xe Máy",
+        "symbol": "🛵",
         "price": 50000,
         "unit": "Cố định / phòng",
         "total": 50000,
         "isParking": true
       },
       {
-        "id": "srv_6c2dc9",
+        "id": "srv_trash",
         "name": "gom rác",
+        "symbol": "🛡️",
         "price": 50000.0,
         "unit": "Cố định / phòng",
         "total": 50000.0,
         "isParking": false
       },
       {
-        "id": "srv_b6ace1",
+        "id": "srv_internet",
         "name": "Internet",
-        "price": 50000.0,
+        "symbol": "🌐",
+        "price": 50000,
         "unit": "Cố định / phòng",
-        "total": 50000.0,
+        "total": 50000,
         "isParking": false
       }
     ],
-    "otherFees": 150000.0,
-    "totalAmount": 4408500.0,
+    "otherFees": 250000.0,
+    "totalAmount": 4508500.0,
     "sendStatus": "Đã gửi tự động",
     "status": "Chờ thanh toán",
-    "sentAt": "2026-08-05 17:05:44"
+    "sentAt": "2026-08-05 17:25:35"
   },
   {
     "id": "INV-202608-R102",
@@ -71,39 +83,51 @@
     "waterUsage": 18,
     "waterFormula": "water_flat_18000",
     "waterCost": 324000,
-    "serviceFee": 100000.0,
+    "serviceFee": 200000.0,
     "parkingFee": 50000,
     "serviceItems": [
       {
+        "id": "srv_water",
+        "name": "Tiền Nước",
+        "symbol": "💧",
+        "price": 100000.0,
+        "unit": "Cố định / phòng",
+        "total": 100000.0,
+        "isParking": false
+      },
+      {
         "id": "srv_parking",
         "name": "Phí Gửi Xe Máy",
+        "symbol": "🛵",
         "price": 50000,
         "unit": "Cố định / phòng",
         "total": 50000,
         "isParking": true
       },
       {
-        "id": "srv_6c2dc9",
+        "id": "srv_trash",
         "name": "gom rác",
+        "symbol": "🛡️",
         "price": 50000.0,
         "unit": "Cố định / phòng",
         "total": 50000.0,
         "isParking": false
       },
       {
-        "id": "srv_b6ace1",
+        "id": "srv_internet",
         "name": "Internet",
-        "price": 50000.0,
+        "symbol": "🌐",
+        "price": 50000,
         "unit": "Cố định / phòng",
-        "total": 50000.0,
+        "total": 50000,
         "isParking": false
       }
     ],
-    "otherFees": 150000.0,
-    "totalAmount": 5244000.0,
+    "otherFees": 250000.0,
+    "totalAmount": 5344000.0,
     "sendStatus": "Đã gửi tự động",
     "status": "Chờ thanh toán",
-    "sentAt": "2026-08-05 17:05:44"
+    "sentAt": "2026-08-05 17:25:35"
   },
   {
     "id": "INV-202608-R201",
@@ -124,39 +148,51 @@
     "waterUsage": 0,
     "waterFormula": "water_headcount_100k",
     "waterCost": 100000,
-    "serviceFee": 100000.0,
+    "serviceFee": 200000.0,
     "parkingFee": 50000,
     "serviceItems": [
       {
+        "id": "srv_water",
+        "name": "Tiền Nước",
+        "symbol": "💧",
+        "price": 100000.0,
+        "unit": "Cố định / phòng",
+        "total": 100000.0,
+        "isParking": false
+      },
+      {
         "id": "srv_parking",
         "name": "Phí Gửi Xe Máy",
+        "symbol": "🛵",
         "price": 50000,
         "unit": "Cố định / phòng",
         "total": 50000,
         "isParking": true
       },
       {
-        "id": "srv_6c2dc9",
+        "id": "srv_trash",
         "name": "gom rác",
+        "symbol": "🛡️",
         "price": 50000.0,
         "unit": "Cố định / phòng",
         "total": 50000.0,
         "isParking": false
       },
       {
-        "id": "srv_b6ace1",
+        "id": "srv_internet",
         "name": "Internet",
-        "price": 50000.0,
+        "symbol": "🌐",
+        "price": 50000,
         "unit": "Cố định / phòng",
-        "total": 50000.0,
+        "total": 50000,
         "isParking": false
       }
     ],
-    "otherFees": 150000.0,
-    "totalAmount": 4382500.0,
+    "otherFees": 250000.0,
+    "totalAmount": 4482500.0,
     "sendStatus": "Đã gửi tự động",
     "status": "Chờ thanh toán",
-    "sentAt": "2026-08-05 17:05:44"
+    "sentAt": "2026-08-05 17:25:35"
   },
   {
     "id": "INV-202608-R202",
@@ -177,38 +213,50 @@
     "waterUsage": 18,
     "waterFormula": "water_flat_18000",
     "waterCost": 324000,
-    "serviceFee": 100000.0,
+    "serviceFee": 200000.0,
     "parkingFee": 50000,
     "serviceItems": [
       {
+        "id": "srv_water",
+        "name": "Tiền Nước",
+        "symbol": "💧",
+        "price": 100000.0,
+        "unit": "Cố định / phòng",
+        "total": 100000.0,
+        "isParking": false
+      },
+      {
         "id": "srv_parking",
         "name": "Phí Gửi Xe Máy",
+        "symbol": "🛵",
         "price": 50000,
         "unit": "Cố định / phòng",
         "total": 50000,
         "isParking": true
       },
       {
-        "id": "srv_6c2dc9",
+        "id": "srv_trash",
         "name": "gom rác",
+        "symbol": "🛡️",
         "price": 50000.0,
         "unit": "Cố định / phòng",
         "total": 50000.0,
         "isParking": false
       },
       {
-        "id": "srv_b6ace1",
+        "id": "srv_internet",
         "name": "Internet",
-        "price": 50000.0,
+        "symbol": "🌐",
+        "price": 50000,
         "unit": "Cố định / phòng",
-        "total": 50000.0,
+        "total": 50000,
         "isParking": false
       }
     ],
-    "otherFees": 150000.0,
-    "totalAmount": 5304000.0,
+    "otherFees": 250000.0,
+    "totalAmount": 5404000.0,
     "sendStatus": "Đã gửi tự động",
     "status": "Chờ thanh toán",
-    "sentAt": "2026-08-05 17:05:44"
+    "sentAt": "2026-08-05 17:25:35"
   }
 ]

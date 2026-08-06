@@ -8,7 +8,7 @@
       "elecFormula": "formula_1785921804888",
       "waterFormula": "water_flat_18000",
       "otherFees": 150000,
-      "serviceFee": 100000.0,
+      "serviceFee": 200000.0,
       "parkingFee": 50000
     },
     "R102": {
@@ -19,7 +19,7 @@
       "elecFormula": "formula_1785921804888",
       "waterFormula": "water_flat_18000",
       "otherFees": 200000,
-      "serviceFee": 100000.0,
+      "serviceFee": 250000.0,
       "parkingFee": 50000
     },
     "R201": {
@@ -30,7 +30,7 @@
       "elecFormula": "formula_1785921804888",
       "waterFormula": "water_headcount_100k",
       "otherFees": 120000,
-      "serviceFee": 100000.0,
+      "serviceFee": 200000.0,
       "parkingFee": 50000
     },
     "R202": {
@@ -41,7 +41,17 @@
       "elecFormula": "formula_1785921804888",
       "waterFormula": "water_flat_18000",
       "otherFees": 150000,
-      "serviceFee": 100000.0,
+      "serviceFee": 250000.0,
+      "parkingFee": 50000
+    },
+    "R8350": {
+      "elecOld": 0,
+      "elecNew": 0,
+      "waterOld": 0,
+      "waterNew": 0,
+      "elecFormula": "water_flat_18000",
+      "waterFormula": "water_flat_18000",
+      "serviceFee": 700000.0,
       "parkingFee": 50000
     }
   }

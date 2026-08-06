@@ -1,5 +1,5 @@
 /* ==========================================================================
-   RENTALPRO - TRAVELOKA UNIFIED SERVICE & UTILITY CONFIG ENGINE
+   RENTALPRO - DYNAMIC INDIVIDUAL COLUMN SPREADSHEET ENGINE
    ========================================================================== */
 
 const I18N = {
@@ -30,23 +30,12 @@ const I18N = {
     act_manage_users: 'Duyệt Tài Khoản',
     invoice_status: 'Trạng Thái Hóa Đơn',
     spreadsheet_title: 'Bảng Báo Chỉ Số Điện Nước & Tự Động Tính Tiền',
-    spreadsheet_subtitle: 'Phí dịch vụ được áp dụng cố định theo Cấu hình (Không cần nhập tay)',
+    spreadsheet_subtitle: 'Mỗi khoản phí dịch vụ hiển thị thành một cột riêng biệt có Icon + Tên tương ứng',
     btn_formulas: 'Quản Lý Công Thức',
     btn_auto_invoice: 'Tự Động Gửi Hóa Đơn',
     col_room: 'Phòng',
     col_tenant: 'Khách Thuê',
     col_rent: 'Tiền Nhà',
-    col_elec_old: 'Điện Cũ',
-    col_elec_new: 'Điện Mới',
-    col_elec_kwh: 'Số Điện (kWh)',
-    col_elec_formula: 'Công Thức Điện',
-    col_elec_cost: '⚡ Tiền Điện',
-    col_water_old: 'Nước Cũ',
-    col_water_new: 'Nước Mới',
-    col_water_m3: 'Số Nước (m³)',
-    col_water_formula: 'Công Thức Nước',
-    col_water_cost: '💧 Tiền Nước',
-    col_other: 'Dịch Vụ Khác',
     col_total: '💰 Tổng Cộng',
     col_actions: 'Thao Tác',
     invoices_title: 'Danh Sách Hóa Đơn Đã Phát Hành',
@@ -120,23 +109,12 @@ const I18N = {
     act_manage_users: 'Approve Accounts',
     invoice_status: 'Invoice Status Breakdown',
     spreadsheet_title: 'Utility Reading Sheet & Auto Calculator',
-    spreadsheet_subtitle: 'Service fees are fixed per configuration (No manual editing required)',
+    spreadsheet_subtitle: 'Individual distinct columns with matching icon + service name',
     btn_formulas: 'Manage Formulas',
     btn_auto_invoice: 'Auto Send Invoices',
     col_room: 'Room',
     col_tenant: 'Tenant Name',
     col_rent: 'Base Rent',
-    col_elec_old: 'Elec Old',
-    col_elec_new: 'Elec New',
-    col_elec_kwh: 'Usage (kWh)',
-    col_elec_formula: 'Elec Formula',
-    col_elec_cost: '⚡ Elec Fee',
-    col_water_old: 'Water Old',
-    col_water_new: 'Water New',
-    col_water_m3: 'Usage (m³)',
-    col_water_formula: 'Water Formula',
-    col_water_cost: '💧 Water Fee',
-    col_other: 'Services & Parking',
     col_total: '💰 Grand Total',
     col_actions: 'Actions',
     invoices_title: 'Issued Invoices List',
@@ -185,6 +163,19 @@ const I18N = {
   }
 };
 
+const ICON_LIBRARY = [
+  { icon: 'zap', symbol: '⚡', label: 'Điện' },
+  { icon: 'droplet', symbol: '💧', label: 'Nước' },
+  { icon: 'wifi', symbol: '🌐', label: 'Internet' },
+  { icon: 'trash-2', symbol: '🧹', label: 'Rác' },
+  { icon: 'bike', symbol: '🛵', label: 'Xe máy' },
+  { icon: 'shield-check', symbol: '🛡️', label: 'Bảo vệ' },
+  { icon: 'sparkles', symbol: '✨', label: 'Vệ sinh' },
+  { icon: 'key', symbol: '🔑', label: 'Thẻ từ' },
+  { icon: 'snowflake', symbol: '❄️', label: 'Điều hòa' },
+  { icon: 'package', symbol: '📦', label: 'Khác' }
+];
+
 const DEFAULT_CLIENT_USERS = [
   { username: 'admin', password: '123', fullName: 'Quản Lý Hệ Thống (Admin)', role: 'admin', roomId: '', status: 'approved' },
   { username: 'nguyenvanan', password: '123', fullName: 'Nguyễn Văn An', role: 'tenant', roomId: 'R101', status: 'approved' },
@@ -197,6 +188,7 @@ let state = {
   currentView: 'admin-dashboard',
   currentMonth: '2026-08',
   currentHouseId: 'all',
+  currentRoomId: 'all',
   theme: 'light',
   houses: [
     { id: 'house_a', name: 'Tòa Nhà A - Cầu Giấy', address: '12 Nguyễn Phong Sắc, Cầu Giấy' },
@@ -210,17 +202,17 @@ let state = {
     { id: 'R202', houseId: 'house_b', name: 'Phòng 202 (Tòa B)', tenant: 'Phạm Minh Tuấn', phone: '0934567890', baseRent: 4200000, headcount: 2, elecFormula: 'elec_flat_4000', waterFormula: 'water_flat_18000' }
   ],
   services: [
-    { id: 'srv_elec', houseId: 'all', houseIds: ['all'], name: '⚡ Tiền Điện', calcType: 'formula', formulaId: 'elec_flat_3500', price: 3500, unit: 'Theo chỉ số (kWh)' },
-    { id: 'srv_water', houseId: 'all', houseIds: ['all'], name: '💧 Tiền Nước', calcType: 'formula', formulaId: 'water_flat_18000', price: 18000, unit: 'Theo chỉ số (m³)' },
-    { id: 'srv_parking', houseId: 'all', houseIds: ['all'], name: 'Phí Gửi Xe Máy', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' },
-    { id: 'srv_trash', houseId: 'all', houseIds: ['all'], name: 'gom rác', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' },
-    { id: 'srv_internet', houseId: 'all', houseIds: ['all'], name: 'Internet', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' }
+    { id: 'srv_elec', houseId: 'all', houseIds: ['all'], name: 'Tiền Điện', icon: 'zap', symbol: '⚡', calcType: 'formula', formulaId: 'elec_flat_3500', price: 3500, unit: 'Theo chỉ số (kWh)' },
+    { id: 'srv_water', houseId: 'all', houseIds: ['all'], name: 'Tiền Nước', icon: 'droplet', symbol: '💧', calcType: 'formula', formulaId: 'water_flat_18000', price: 18000, unit: 'Theo chỉ số (m³)' },
+    { id: 'srv_trash', houseId: 'all', houseIds: ['all'], name: 'gom rác', icon: 'trash-2', symbol: '🧹', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' },
+    { id: 'srv_internet', houseId: 'all', houseIds: ['all'], name: 'Internet', icon: 'wifi', symbol: '🌐', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' },
+    { id: 'srv_parking', houseId: 'all', houseIds: ['all'], name: 'Phí Gửi Xe Máy', icon: 'bike', symbol: '🛵', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' }
   ],
   formulas: [
     { id: 'elec_flat_3500', name: 'Điện Cố Định (3,500đ / kWh)', type: 'flat', rate: 3500, category: 'elec' },
     { id: 'elec_evn_tiered', name: 'Điện Bậc Thang EVN Sinh Hoạt', type: 'tiered', category: 'elec', tiers: [{ max: 50, rate: 1893 }, { max: 100, rate: 1956 }, { max: 200, rate: 2271 }, { max: 300, rate: 2860 }, { max: 'inf', rate: 3197 }] },
     { id: 'water_flat_18000', name: 'Nước Theo Khối (18,000đ / m³)', type: 'flat', rate: 18000, category: 'water' },
-    { id: 'water_headcount_100k', name: 'Nước Khoán Đầu Người (100k / người)', type: 'headcount', rate: 100000, category: 'water' }
+    { id: 'water_headcount_100k', name: 'Nước Khoán Đầu Người (Giá Tiền x Số Người)', type: 'headcount', rate: 100000, category: 'water' }
   ],
   readings: {},
   invoices: [],
@@ -327,8 +319,8 @@ async function handleRegister(event) {
     if (res.ok && data.success) {
       showToast(data.message, 'success');
       setAuthTab('login');
-      document.getElementById('login-username').value = username;
-      document.getElementById('login-password').value = password;
+      document.getElementById('login-username').value = '';
+      document.getElementById('login-password').value = '';
       return;
     }
   } catch (err) {
@@ -341,12 +333,14 @@ async function handleRegister(event) {
   });
   showToast('Đăng ký thành công! Vui lòng chờ Admin duyệt tài khoản.', 'success');
   setAuthTab('login');
-  document.getElementById('login-username').value = username;
-  document.getElementById('login-password').value = password;
+  document.getElementById('login-username').value = '';
+  document.getElementById('login-password').value = '';
 }
 
 function handleLogout() {
   state.currentUser = null;
+  if (document.getElementById('login-username')) document.getElementById('login-username').value = '';
+  if (document.getElementById('login-password')) document.getElementById('login-password').value = '';
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('tvk-navbar').style.display = 'none';
   document.getElementById('app-container').style.display = 'none';
@@ -390,11 +384,35 @@ function renderHouseSelector() {
     html += `<option value="${h.id}" ${state.currentHouseId === h.id ? 'selected' : ''}>📍 ${h.name}</option>`;
   });
   select.innerHTML = html;
+  renderRoomSelector();
+}
+
+function renderRoomSelector() {
+  const select = document.getElementById('select-room');
+  if (!select) return;
+
+  const houseRooms = state.currentHouseId === 'all' 
+    ? state.rooms 
+    : state.rooms.filter(r => r.houseId === state.currentHouseId);
+
+  let html = `<option value="all" ${state.currentRoomId === 'all' ? 'selected' : ''}>🚪 Tất Cả Phòng (${houseRooms.length})</option>`;
+  houseRooms.forEach(r => {
+    html += `<option value="${r.id}" ${state.currentRoomId === r.id ? 'selected' : ''}>Phòng ${r.name.replace('Phòng ', '')}</option>`;
+  });
+  select.innerHTML = html;
 }
 
 function handleHouseChange() {
   const select = document.getElementById('select-house');
   state.currentHouseId = select.value;
+  state.currentRoomId = 'all';
+  renderRoomSelector();
+  renderCurrentView();
+}
+
+function handleRoomChange() {
+  const select = document.getElementById('select-room');
+  state.currentRoomId = select.value;
   renderCurrentView();
 }
 
@@ -468,7 +486,7 @@ function switchView(viewId) {
       break;
     case 'admin-services':
       titleEl.innerText = dict.nav_services;
-      subtitleEl.innerText = 'Thiết lập các khoản phí dịch vụ và quy tắc tính tiền điện nước trước khi vào Bảng chỉ số';
+      subtitleEl.innerText = 'Cấu hình từng loại dịch vụ và quy tắc tính tiền';
       renderServicesConfig();
       break;
     case 'admin-spreadsheet':
@@ -481,9 +499,15 @@ function switchView(viewId) {
       subtitleEl.innerText = 'Xem danh sách và kiểm tra trạng thái thanh toán';
       renderAdminInvoices();
       break;
+    case 'admin-rooms':
+      titleEl.innerText = 'Quản Lý Phòng Trọ';
+      subtitleEl.innerText = 'Thêm, sửa, xóa phòng và cấu hình giá thuê';
+      renderRoomsManagement();
+      break;
     case 'admin-tickets':
       titleEl.innerText = dict.tickets_title;
       subtitleEl.innerText = dict.tickets_subtitle;
+      showTicketList();
       renderAdminTickets();
       break;
     case 'admin-users':
@@ -512,8 +536,14 @@ function switchView(viewId) {
    ========================================================================== */
 
 function getFilteredRooms() {
-  if (state.currentHouseId === 'all') return state.rooms;
-  return state.rooms.filter(r => r.houseId === state.currentHouseId);
+  let rooms = state.rooms;
+  if (state.currentHouseId !== 'all') {
+    rooms = rooms.filter(r => r.houseId === state.currentHouseId);
+  }
+  if (state.currentRoomId !== 'all') {
+    rooms = rooms.filter(r => r.id === state.currentRoomId);
+  }
+  return rooms;
 }
 
 function serviceMatchesHouse(service, targetHouseId) {
@@ -525,16 +555,35 @@ function serviceMatchesHouse(service, targetHouseId) {
   return service.houseId === targetHouseId;
 }
 
+function serviceMatchesRoom(service, targetRoomId) {
+  if (!targetRoomId) return true;
+  if (!service.roomIds || !Array.isArray(service.roomIds) || service.roomIds.includes('all')) {
+    return true;
+  }
+  return service.roomIds.includes(targetRoomId);
+}
+
 function getFilteredServices() {
   return state.services.filter(s => serviceMatchesHouse(s, state.currentHouseId));
 }
 
-function calculateRoomServiceTotal(room) {
+function calculateServiceCostForRoom(service, room) {
   const headcount = room.headcount || 1;
-  const houseId = room.houseId || 'house_a';
+  const price = service.price || 0;
+  const unit = service.unit || '';
 
-  // Match services assigned to 'all' or checked house IDs
-  const houseServices = state.services.filter(s => serviceMatchesHouse(s, houseId));
+  if (service.calcType === 'formula') {
+    return 0; // Calculated via readings meter
+  }
+  if (unit === 'Theo đầu người') {
+    return price * headcount;
+  }
+  return price;
+}
+
+function calculateRoomServiceTotal(room) {
+  const houseId = room.houseId || 'house_a';
+  const houseServices = state.services.filter(s => serviceMatchesHouse(s, houseId) && serviceMatchesRoom(s, room.id));
 
   let serviceTotal = 0;
   let parkingTotal = 0;
@@ -542,28 +591,23 @@ function calculateRoomServiceTotal(room) {
   let items = [];
 
   houseServices.forEach(s => {
-    // Skip Elec and Water in general serviceTotal if calculated separately
-    if (s.calcType === 'formula' || s.name.includes('Điện') || s.name.includes('Nước')) {
+    const cost = calculateServiceCostForRoom(s, room);
+    const symbol = s.symbol || '📦';
+    const name = s.name || '';
+    const unit = s.unit || '';
+    const nameLower = name.toLowerCase();
+
+    if (s.calcType === 'formula') {
       return;
     }
 
-    const price = s.price || 0;
-    const unit = s.unit || '';
-    const name = s.name || '';
-    const nameLower = name.toLowerCase();
-
     if (nameLower.includes('xe') || unit === 'Theo xe / tháng') {
-      parkingTotal += price;
-      items.push({ id: s.id, name, price, unit, total: price, isParking: true });
-    } else if (unit === 'Theo đầu người') {
-      const itemTot = price * headcount;
-      serviceTotal += itemTot;
-      serviceCount++;
-      items.push({ id: s.id, name, price, unit: `${headcount} người x ${formatMoney(price)}đ`, total: itemTot, isParking: false });
+      parkingTotal += cost;
+      items.push({ id: s.id, name, symbol, price: s.price, unit, total: cost, isParking: true });
     } else {
-      serviceTotal += price;
+      serviceTotal += cost;
       serviceCount++;
-      items.push({ id: s.id, name, price, unit, total: price, isParking: false });
+      items.push({ id: s.id, name, symbol, price: s.price, unit: unit === 'Theo đầu người' ? `${room.headcount} người x ${formatMoney(s.price)}đ` : unit, total: cost, isParking: false });
     }
   });
 
@@ -597,27 +641,50 @@ function renderServicesConfig() {
         houseBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">📍 ${house ? house.name : s.houseId}</span>`;
       }
 
+      let roomBadge = '';
+      if (!s.roomIds || (Array.isArray(s.roomIds) && s.roomIds.includes('all'))) {
+        roomBadge = `<span class="badge badge-paid" style="font-size:0.65rem;">🚪 Tất Cả Phòng</span>`;
+      } else if (Array.isArray(s.roomIds)) {
+        const roomNames = state.rooms.filter(r => s.roomIds.includes(r.id)).map(r => r.name.replace('Phòng ', 'P.')).join(', ');
+        roomBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">🔑 ${roomNames || s.roomIds.length + ' phòng'}</span>`;
+      }
+
       let calcTypeHtml = '';
+      let ruleHtml = '';
+
       if (s.calcType === 'formula') {
         const f = state.formulas.find(x => x.id === s.formulaId);
         calcTypeHtml = `
-          <span class="badge badge-pending">🧮 Theo Công Thức</span><br>
-          <strong style="color:var(--tvk-blue); font-size:0.85rem;">${f ? f.name : (s.formulaId || 'Công thức EVN')}</strong>
+          <span class="badge badge-pending">🧮 THEO CÔNG THỨC</span><br>
+          <strong style="color:var(--tvk-blue); font-size:0.85rem;">${f ? f.name : (s.formulaId || 'Bậc thang EVN')}</strong>
         `;
+        ruleHtml = `<span class="badge badge-resolved" style="background:#e6f4fe; color:#0178d2;">TẠO CỘT NHẬP CHỈ SỐ CŨ/MỚI</span>`;
       } else {
         calcTypeHtml = `
-          <span class="badge badge-paid">💰 Cố Định</span><br>
+          <span class="badge badge-paid">💰 CỐ ĐỊNH</span><br>
           <strong style="color:var(--tvk-blue); font-size:0.95rem;">${formatMoney(s.price)} đ</strong>
         `;
+        ruleHtml = `<span class="badge badge-paid">TẠO CỘT HIỂN THỊ SỐ TIỀN RÊNG</span>`;
       }
+
+      const iconSymbol = s.symbol || '📦';
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${s.name}</strong><br>${houseBadge}</td>
+        <td>
+          <div style="display:flex; align-items:center; gap:0.6rem;">
+            <div style="width:36px; height:36px; border-radius:50%; background:var(--tvk-blue-light); color:var(--tvk-blue); display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:bold;">
+              ${iconSymbol}
+            </div>
+            <div>
+              <strong>${s.name}</strong><br>${houseBadge} ${roomBadge}
+            </div>
+          </div>
+        </td>
         <td>${calcTypeHtml}</td>
-        <td><span class="badge badge-resolved">${s.calcType === 'formula' ? 'Theo chỉ số sử dụng' : (s.unit || 'Cố định / phòng')}</span></td>
+        <td>${ruleHtml}</td>
         <td style="text-align: right;">
-          <button class="btn btn-secondary btn-sm" onclick="editService('${s.id}')" title="Sửa"><i data-lucide="edit"></i></button>
+          <button class="btn btn-secondary btn-sm" onclick="editService('${s.id}')" title="Sửa Dịch Vụ & Icon"><i data-lucide="edit"></i> Sửa</button>
           <button class="btn btn-secondary btn-sm" onclick="deleteServiceApi('${s.id}')" style="color: var(--tvk-red);" title="Xóa"><i data-lucide="trash-2"></i></button>
         </td>
       `;
@@ -646,6 +713,29 @@ function renderServicesConfig() {
   });
 
   lucide.createIcons();
+}
+
+function renderIconPicker(selectedIcon = 'package') {
+  const container = document.getElementById('icon-picker-container');
+  if (!container) return;
+
+  let html = '';
+  ICON_LIBRARY.forEach(item => {
+    const isSelected = item.icon === selectedIcon;
+    html += `
+      <div class="icon-picker-option ${isSelected ? 'selected' : ''}" onclick="selectServiceIcon('${item.icon}', '${item.symbol}')">
+        <span style="font-size:1.3rem;">${item.symbol}</span>
+        <span style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px;">${item.label}</span>
+      </div>
+    `;
+  });
+  container.innerHTML = html;
+}
+
+function selectServiceIcon(iconName, symbolStr) {
+  document.getElementById('service-icon').value = iconName;
+  document.getElementById('service-symbol').value = symbolStr;
+  renderIconPicker(iconName);
 }
 
 function openAddHouseModal() {
@@ -686,60 +776,138 @@ async function saveHouse(event) {
   renderCurrentView();
 }
 
-/* RENDER MULTI-CHECKBOX HOUSE SELECTOR IN MODAL */
-function renderHouseCheckboxes(selectedHouseIds = ['all']) {
-  const container = document.getElementById('service-houses-checkbox-group');
+/* RENDER HIERARCHICAL HOUSE & EXPANDABLE ROOM SCOPE TREE IN SERVICE MODAL */
+function renderServiceScopeTree(selectedHouseIds = ['all'], selectedRoomIds = ['all']) {
+  const container = document.getElementById('service-scope-container');
   if (!container) return;
 
-  const isAllChecked = selectedHouseIds.includes('all');
+  const isAllMasterChecked = (selectedHouseIds.includes('all') || selectedHouseIds.length === state.houses.length) && 
+                             (selectedRoomIds.includes('all') || selectedRoomIds.length === state.rooms.length);
 
   let html = `
-    <label class="checkbox-item" style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.25rem;">
-      <input type="checkbox" id="chk-house-all" value="all" ${isAllChecked ? 'checked' : ''} onchange="toggleAllHouseCheckboxes(this)">
-      <span style="font-weight: 800; color: var(--tvk-blue);">🏢 Tất Cả Tòa Nhà (Áp dụng chung)</span>
-    </label>
+    <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.25rem;">
+      <label class="checkbox-item" style="margin: 0; padding: 0;">
+        <input type="checkbox" id="chk-scope-all" value="all" ${isAllMasterChecked ? 'checked' : ''} onchange="toggleAllScopeMaster(this)">
+        <span style="font-weight: 800; color: var(--tvk-blue);">🌐 Tất Cả Tòa Nhà & Phòng (Áp dụng toàn bộ hệ thống)</span>
+      </label>
+    </div>
   `;
 
   state.houses.forEach(h => {
-    const isChecked = isAllChecked || selectedHouseIds.includes(h.id);
+    const houseRooms = state.rooms.filter(r => (r.houseId === h.id || r.house_id === h.id));
+    const isHouseExplicit = isAllMasterChecked || selectedHouseIds.includes('all') || selectedHouseIds.includes(h.id);
+    const checkedRoomCount = houseRooms.filter(r => isAllMasterChecked || selectedRoomIds.includes('all') || selectedRoomIds.includes(r.id)).length;
+    const isHouseAllChecked = isAllMasterChecked || (isHouseExplicit && (selectedRoomIds.includes('all') || checkedRoomCount === houseRooms.length));
+
     html += `
-      <label class="checkbox-item">
-        <input type="checkbox" class="chk-house-single" value="${h.id}" ${isChecked ? 'checked' : ''} onchange="updateSingleHouseCheckbox()">
-        <span>📍 ${h.name}</span>
-      </label>
+      <div style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); overflow: hidden;">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: var(--bg-surface);">
+          <label class="checkbox-item" style="margin: 0; padding: 0;">
+            <input type="checkbox" class="chk-house-node" data-house="${h.id}" value="${h.id}" ${isHouseAllChecked ? 'checked' : ''} onchange="toggleHouseNodeCheckbox('${h.id}', this)">
+            <span style="font-weight: 700;">📍 ${h.name}</span>
+          </label>
+          
+          <button type="button" class="btn btn-secondary btn-sm" onclick="toggleHouseRoomSublist('${h.id}')" style="padding: 3px 10px; font-size: 0.75rem; border-radius: var(--radius-sm);">
+            <span id="badge-count-${h.id}">${isHouseAllChecked ? houseRooms.length : checkedRoomCount}/${houseRooms.length} phòng</span>
+            <i data-lucide="chevron-down" id="chevron-${h.id}" style="width:14px; height:14px; margin-left:4px;"></i>
+          </button>
+        </div>
+
+        <div id="sublist-rooms-${h.id}" style="display: none; padding: 0.5rem 0.75rem 0.65rem 2.2rem; background: var(--bg-base); border-top: 1px solid var(--border-color); flex-direction: column; gap: 0.45rem;">
+          ${houseRooms.map(r => {
+            const isRoomChecked = isHouseAllChecked || selectedRoomIds.includes(r.id);
+            return `
+              <label class="checkbox-item" style="font-size: 0.85rem; font-weight: 600;">
+                <input type="checkbox" class="chk-room-node chk-room-of-${h.id}" data-house="${h.id}" value="${r.id}" ${isRoomChecked ? 'checked' : ''} onchange="updateRoomNodeCheckbox('${h.id}')">
+                <span>🔑 ${r.name}</span>
+              </label>
+            `;
+          }).join('')}
+        </div>
+      </div>
     `;
   });
 
   container.innerHTML = html;
+  lucide.createIcons();
 }
 
-function toggleAllHouseCheckboxes(masterChk) {
-  const singles = document.querySelectorAll('.chk-house-single');
-  singles.forEach(chk => {
-    chk.checked = masterChk.checked;
+function toggleAllScopeMaster(masterChk) {
+  const isChecked = masterChk.checked;
+  document.querySelectorAll('.chk-house-node').forEach(c => c.checked = isChecked);
+  document.querySelectorAll('.chk-room-node').forEach(c => c.checked = isChecked);
+
+  state.houses.forEach(h => {
+    const houseRooms = state.rooms.filter(r => (r.houseId === h.id || r.house_id === h.id));
+    const badge = document.getElementById(`badge-count-${h.id}`);
+    if (badge) badge.innerText = isChecked ? `${houseRooms.length}/${houseRooms.length} phòng` : `0/${houseRooms.length} phòng`;
   });
 }
 
-function updateSingleHouseCheckbox() {
-  const masterChk = document.getElementById('chk-house-all');
-  const singles = Array.from(document.querySelectorAll('.chk-house-single'));
-  const allChecked = singles.every(c => c.checked);
+function toggleHouseNodeCheckbox(houseId, houseChk) {
+  const isChecked = houseChk.checked;
+  document.querySelectorAll(`.chk-room-of-${houseId}`).forEach(c => c.checked = isChecked);
+
+  const houseRooms = state.rooms.filter(r => (r.houseId === houseId || r.house_id === houseId));
+  const badge = document.getElementById(`badge-count-${houseId}`);
+  if (badge) badge.innerText = isChecked ? `${houseRooms.length}/${houseRooms.length} phòng` : `0/${houseRooms.length} phòng`;
+
+  updateMasterScopeCheckbox();
+}
+
+function updateRoomNodeCheckbox(houseId) {
+  const roomNodes = Array.from(document.querySelectorAll(`.chk-room-of-${houseId}`));
+  const checkedRooms = roomNodes.filter(c => c.checked).length;
+  const houseChk = document.querySelector(`.chk-house-node[data-house="${houseId}"]`);
+
+  if (houseChk) {
+    houseChk.checked = (checkedRooms === roomNodes.length && roomNodes.length > 0);
+  }
+
+  const badge = document.getElementById(`badge-count-${houseId}`);
+  if (badge) badge.innerText = `${checkedRooms}/${roomNodes.length} phòng`;
+
+  updateMasterScopeCheckbox();
+}
+
+function updateMasterScopeCheckbox() {
+  const masterChk = document.getElementById('chk-scope-all');
+  const allRooms = Array.from(document.querySelectorAll('.chk-room-node'));
+  const allChecked = allRooms.length > 0 && allRooms.every(c => c.checked);
   if (masterChk) masterChk.checked = allChecked;
 }
 
-function getSelectedHouseIdsFromCheckboxes() {
-  const masterChk = document.getElementById('chk-house-all');
-  if (masterChk && masterChk.checked) {
-    return ['all'];
+function toggleHouseRoomSublist(houseId) {
+  const sublist = document.getElementById(`sublist-rooms-${houseId}`);
+  const chevron = document.getElementById(`chevron-${houseId}`);
+  if (!sublist) return;
+
+  const isHidden = sublist.style.display === 'none' || sublist.style.display === '';
+  sublist.style.display = isHidden ? 'flex' : 'none';
+  if (chevron) {
+    chevron.setAttribute('data-lucide', isHidden ? 'chevron-up' : 'chevron-down');
+    lucide.createIcons();
   }
-  const checkedSingles = Array.from(document.querySelectorAll('.chk-house-single'))
+}
+
+function getSelectedScopeFromTree() {
+  const masterChk = document.getElementById('chk-scope-all');
+  if (masterChk && masterChk.checked) {
+    return { houseIds: ['all'], roomIds: ['all'] };
+  }
+
+  const checkedHouses = Array.from(document.querySelectorAll('.chk-house-node'))
     .filter(c => c.checked)
     .map(c => c.value);
 
-  if (checkedSingles.length === state.houses.length || checkedSingles.length === 0) {
-    return ['all'];
-  }
-  return checkedSingles;
+  const checkedRooms = Array.from(document.querySelectorAll('.chk-room-node'))
+    .filter(c => c.checked)
+    .map(c => c.value);
+
+  const houseIds = (checkedHouses.length === state.houses.length || checkedHouses.length === 0) ? ['all'] : checkedHouses;
+  const roomIds = (checkedRooms.length === state.rooms.length || checkedRooms.length === 0) ? ['all'] : checkedRooms;
+
+  return { houseIds, roomIds };
 }
 
 function toggleServiceCalcFields() {
@@ -762,14 +930,18 @@ function toggleServiceCalcFields() {
 function openAddServiceModal() {
   document.getElementById('service-id').value = '';
   document.getElementById('service-name').value = '';
+  document.getElementById('service-icon').value = 'package';
+  document.getElementById('service-symbol').value = '📦';
   document.getElementById('service-calc-type').value = 'fixed';
   document.getElementById('service-price').value = '50000';
   document.getElementById('service-unit').value = 'Cố định / phòng';
   
+  renderIconPicker('package');
   toggleServiceCalcFields();
 
-  const initialSelected = state.currentHouseId === 'all' ? ['all'] : [state.currentHouseId];
-  renderHouseCheckboxes(initialSelected);
+  const initialHouseSelected = state.currentHouseId === 'all' ? ['all'] : [state.currentHouseId];
+  const initialRoomSelected = state.currentRoomId === 'all' ? ['all'] : [state.currentRoomId];
+  renderServiceScopeTree(initialHouseSelected, initialRoomSelected);
   document.getElementById('modal-service-config').classList.add('active');
 }
 
@@ -781,10 +953,16 @@ function editService(srvId) {
   if (Array.isArray(srv.houseIds)) houseIds = srv.houseIds;
   else if (srv.houseId) houseIds = [srv.houseId];
 
-  renderHouseCheckboxes(houseIds);
+  let roomIds = ['all'];
+  if (Array.isArray(srv.roomIds)) roomIds = srv.roomIds;
+
+  renderServiceScopeTree(houseIds, roomIds);
+  renderIconPicker(srv.icon || 'package');
 
   document.getElementById('service-id').value = srv.id;
   document.getElementById('service-name').value = srv.name;
+  document.getElementById('service-icon').value = srv.icon || 'package';
+  document.getElementById('service-symbol').value = srv.symbol || '📦';
   document.getElementById('service-calc-type').value = srv.calcType || 'fixed';
 
   toggleServiceCalcFields();
@@ -802,12 +980,14 @@ function editService(srvId) {
 async function saveService(event) {
   event.preventDefault();
   const id = document.getElementById('service-id').value;
-  const selectedHouseIds = getSelectedHouseIdsFromCheckboxes();
+  const { houseIds: selectedHouseIds, roomIds: selectedRoomIds } = getSelectedScopeFromTree();
   const name = document.getElementById('service-name').value.trim();
+  const icon = document.getElementById('service-icon').value;
+  const symbol = document.getElementById('service-symbol').value;
   const calcType = document.getElementById('service-calc-type').value;
 
   const houseId = selectedHouseIds.length === 1 ? selectedHouseIds[0] : 'all';
-  let sObj = { id: id || `srv_${Date.now()}`, houseId, houseIds: selectedHouseIds, name, calcType };
+  let sObj = { id: id || `srv_${Date.now()}`, houseId, houseIds: selectedHouseIds, roomIds: selectedRoomIds, name, icon, symbol, calcType };
 
   if (calcType === 'formula') {
     sObj.formulaId = document.getElementById('service-formula-id').value;
@@ -823,7 +1003,7 @@ async function saveService(event) {
   if (idx >= 0) state.services[idx] = sObj;
   else state.services.push(sObj);
 
-  // Sync readings for all rooms
+  // Clear stored readings overrides to enforce real-time recalculation
   if (state.readings[state.currentMonth]) {
     state.rooms.forEach(r => {
       if (state.readings[state.currentMonth][r.id]) {
@@ -843,7 +1023,7 @@ async function saveService(event) {
     console.warn('Service saved locally:', err);
   }
 
-  showToast(`Đã lưu dịch vụ "${name}"! Bảng tính & Hóa đơn đã cập nhật.`, 'success');
+  showToast(`Đã lưu dịch vụ "${name}" (${symbol})! Bảng tính & Hóa đơn đã cập nhật.`, 'success');
   closeModal('modal-service-config');
   renderServicesConfig();
   if (state.currentView === 'admin-spreadsheet') renderSpreadsheet();
@@ -896,7 +1076,7 @@ async function deleteFormulaApi(formulaId) {
 }
 
 /* ==========================================================================
-   SPREADSHEET ENGINE (STRICT READ-ONLY FORMATTED SERVICE FEES)
+   DYNAMIC SPREADSHEET WITH INDIVIDUAL SERVICE COLUMNS (NO GỘP CHUNG)
    ========================================================================== */
 
 function calculateUtilityAmount(usage, formulaId, headcount = 1) {
@@ -944,16 +1124,21 @@ function renderAdminDashboard() {
 
   activeRooms.forEach(r => {
     const rd = monthReadings[r.id] || {};
-    const elecUsage = Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0));
-    const waterUsage = Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-    const elecCost = calculateUtilityAmount(elecUsage, rd.elecFormula || r.elecFormula, r.headcount);
-    const waterCost = calculateUtilityAmount(waterUsage, rd.waterFormula || r.waterFormula, r.headcount);
-    
-    const autoCalc = calculateRoomServiceTotal(r);
-    const srvFee = autoCalc.serviceTotal;
-    const prkFee = autoCalc.parkingTotal;
+    let roomTot = r.baseRent;
 
-    totalRevenue += (r.baseRent + elecCost + waterCost + srvFee + prkFee);
+    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId));
+    houseServices.forEach(s => {
+      if (s.calcType === 'formula') {
+        const isElec = s.name.includes('Điện');
+        const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
+        const fId = isElec ? (rd.elecFormula || r.elecFormula) : (rd.waterFormula || r.waterFormula);
+        roomTot += calculateUtilityAmount(usage, fId, r.headcount);
+      } else {
+        roomTot += calculateServiceCostForRoom(s, r);
+      }
+    });
+
+    totalRevenue += roomTot;
   });
 
   const monthInvoices = state.invoices.filter(inv => inv.month === state.currentMonth && (state.currentHouseId === 'all' || inv.houseId === state.currentHouseId));
@@ -996,87 +1181,121 @@ function renderSpreadsheet() {
     label.innerText = currentHouse ? currentHouse.name : 'Tất Cả Tòa Nhà';
   }
 
+  const activeServices = getFilteredServices();
+
+  // Dynamically Build Individual Table Columns for Every Single Configured Service!
+  const theadTr = document.getElementById('spreadsheet-thead-tr');
+  let headHtml = `
+    <th>Phòng</th>
+    <th>Khách Thuê</th>
+    <th>Tiền Nhà</th>
+  `;
+
+  activeServices.forEach(s => {
+    const symbol = s.symbol || '📦';
+    if (s.calcType === 'formula') {
+      const isElec = s.name.includes('Điện');
+      const unitLabel = isElec ? 'kWh' : 'm³';
+      headHtml += `
+        <th>${s.name} Cũ</th>
+        <th>${s.name} Mới</th>
+        <th>Số ${s.name} (${unitLabel})</th>
+        <th style="background: #e6f4fe; color: #0178d2;">${symbol} ${s.name}</th>
+      `;
+    } else {
+      headHtml += `<th style="background: #e6f4fe; color: #0178d2;">${symbol} ${s.name}</th>`;
+    }
+  });
+
+  headHtml += `
+    <th>💰 Tổng Cộng</th>
+    <th>Thao Tác</th>
+  `;
+
+  theadTr.innerHTML = headHtml;
+
   const tbody = document.getElementById('spreadsheet-body');
   tbody.innerHTML = '';
   const monthReadings = state.readings[state.currentMonth] || {};
-
   const activeRooms = getFilteredRooms();
 
   if (activeRooms.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding:2rem; color:var(--text-secondary);">Tòa nhà này chưa có phòng trọ nào.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="20" style="text-align:center; padding:2rem; color:var(--text-secondary);">Chưa có phòng trọ nào phù hợp với bộ lọc.</td></tr>`;
     return;
   }
 
   activeRooms.forEach(r => {
-    const autoCalc = calculateRoomServiceTotal(r);
     const rd = monthReadings[r.id] || {
       elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0,
       elecFormula: r.elecFormula, waterFormula: r.waterFormula
     };
 
-    const elecUsage = Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0));
-    const waterUsage = Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-    const elecCost = calculateUtilityAmount(elecUsage, rd.elecFormula, r.headcount);
-    const waterCost = calculateUtilityAmount(waterUsage, rd.waterFormula, r.headcount);
-    
-    // STRICT READ-ONLY CONFIGURED SERVICE FEES (NO INPUT BOXES)
-    const serviceFee = autoCalc.serviceTotal;
-    const parkingFee = autoCalc.parkingTotal;
-
-    const grandTotal = r.baseRent + elecCost + waterCost + serviceFee + parkingFee;
-
+    let grandTotal = r.baseRent;
     const house = state.houses.find(h => h.id === r.houseId);
     const houseBadge = house ? `<br><span class="badge badge-resolved" style="font-size:0.65rem;">${house.name}</span>` : '';
 
-    const nonParkingItems = autoCalc.items.filter(i => !i.isParking);
-    const serviceBadgesHtml = nonParkingItems.length > 0 
-      ? nonParkingItems.map(i => `<div style="font-size:0.75rem; color:var(--text-secondary); white-space:nowrap;">• ${i.name}: <strong>${formatMoney(i.total)}đ</strong></div>`).join('')
-      : `<span style="font-size:0.75rem; color:var(--text-muted);">(Chưa có dịch vụ)</span>`;
-
-    const parkingItems = autoCalc.items.filter(i => i.isParking);
-    const parkingBadgesHtml = parkingItems.length > 0
-      ? parkingItems.map(i => `<div style="font-size:0.75rem; color:var(--text-secondary); white-space:nowrap;">• ${i.name}: <strong>${formatMoney(i.total)}đ</strong></div>`).join('')
-      : `<span style="font-size:0.75rem; color:var(--text-muted);">(Không gửi xe)</span>`;
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
+    let rowHtml = `
       <td><strong>${r.name}</strong>${houseBadge}</td>
-      <td>${r.tenant} <br><small style="color: var(--text-muted);">${r.headcount} người</small></td>
+      <td>${r.tenant || '<em>(Trống)</em>'} <br><small style="color: var(--text-muted);">${r.headcount} người</small></td>
       <td>${formatMoney(r.baseRent)}</td>
-      
-      <!-- ⚡ ELECTRICITY -->
-      <td><input type="number" class="excel-input" value="${rd.elecOld}" onchange="updateReadingApi('${r.id}', 'elecOld', this.value)"></td>
-      <td><input type="number" class="excel-input" value="${rd.elecNew}" onchange="updateReadingApi('${r.id}', 'elecNew', this.value)"></td>
-      <td style="text-align: right; font-weight: 800; color: var(--tvk-blue);">${elecUsage}</td>
-      <td><select class="formula-select" onchange="updateReadingApi('${r.id}', 'elecFormula', this.value)">${renderFormulaOptions(rd.elecFormula, 'elec')}</select></td>
-      <td style="text-align: right; font-weight: 700; color: var(--tvk-blue);">⚡ ${formatMoney(elecCost)}</td>
+    `;
 
-      <!-- 💧 WATER -->
-      <td><input type="number" class="excel-input" value="${rd.waterOld}" onchange="updateReadingApi('${r.id}', 'waterOld', this.value)"></td>
-      <td><input type="number" class="excel-input" value="${rd.waterNew}" onchange="updateReadingApi('${r.id}', 'waterNew', this.value)"></td>
-      <td style="text-align: right; font-weight: 800; color: var(--tvk-blue);">${waterUsage}</td>
-      <td><select class="formula-select" onchange="updateReadingApi('${r.id}', 'waterFormula', this.value)">${renderFormulaOptions(rd.waterFormula, 'water')}</select></td>
-      <td style="text-align: right; font-weight: 700; color: var(--tvk-blue);">💧 ${formatMoney(waterCost)}</td>
+    // Render Each Active Service as its Own Independent Column!
+    activeServices.forEach(s => {
+      const isServiceApplicable = serviceMatchesHouse(s, r.houseId);
 
-      <!-- 🧹 SERVICES (STRICT READ-ONLY FORMATTED TEXT) -->
-      <td>
-        <div style="font-weight: 800; color: var(--tvk-blue); font-size: 0.95rem;">🧹 ${formatMoney(serviceFee)} đ</div>
-        <div style="margin-top:4px;">${serviceBadgesHtml}</div>
-      </td>
-      
-      <!-- 🛵 PARKING (STRICT READ-ONLY FORMATTED TEXT) -->
-      <td>
-        <div style="font-weight: 800; color: var(--tvk-blue); font-size: 0.95rem;">🛵 ${formatMoney(parkingFee)} đ</div>
-        <div style="margin-top:4px;">${parkingBadgesHtml}</div>
-      </td>
+      if (s.calcType === 'formula') {
+        const isElec = s.name.includes('Điện');
+        const oldVal = isElec ? rd.elecOld : rd.waterOld;
+        const newVal = isElec ? rd.elecNew : rd.waterNew;
+        const usage = Math.max(0, (newVal || 0) - (oldVal || 0));
+        const fSelected = isElec ? (rd.elecFormula || r.elecFormula) : (rd.waterFormula || r.waterFormula);
+        
+        const cost = isServiceApplicable ? calculateUtilityAmount(usage, fSelected, r.headcount) : 0;
+        grandTotal += cost;
 
+        if (isServiceApplicable) {
+          rowHtml += `
+            <td><input type="number" class="excel-input" value="${oldVal || 0}" onchange="updateReadingApi('${r.id}', '${isElec ? 'elecOld' : 'waterOld'}', this.value)"></td>
+            <td><input type="number" class="excel-input" value="${newVal || 0}" onchange="updateReadingApi('${r.id}', '${isElec ? 'elecNew' : 'waterNew'}', this.value)"></td>
+            <td style="text-align: right; font-weight: 800; color: var(--tvk-blue);">${usage}</td>
+            <td style="text-align: right; font-weight: 700; color: var(--tvk-blue);">${s.symbol || '🧮'} ${formatMoney(cost)} đ</td>
+          `;
+        } else {
+          rowHtml += `<td colspan="4" style="text-align:center; color:var(--text-muted);">(Không áp dụng)</td>`;
+        }
+      } else {
+        const cost = isServiceApplicable ? calculateServiceCostForRoom(s, r) : 0;
+        grandTotal += cost;
+
+        if (isServiceApplicable) {
+          rowHtml += `
+            <td style="text-align: right; font-weight: 700; color: var(--tvk-blue);">
+              ${s.symbol || '📦'} ${formatMoney(cost)} đ
+            </td>
+          `;
+        } else {
+          rowHtml += `<td style="text-align:center; color:var(--text-muted);">(Không áp dụng)</td>`;
+        }
+      }
+    });
+
+    rowHtml += `
       <td style="text-align: right; font-weight: 800; color: var(--tvk-orange); font-size: 0.95rem;">💰 ${formatMoney(grandTotal)} đ</td>
       <td>
-        <button class="btn btn-secondary btn-sm" onclick="previewRoomInvoice('${r.id}')" title="Xem hóa đơn">
-          <i data-lucide="eye"></i>
-        </button>
+        <div style="display:flex; gap:0.4rem;">
+          <button class="btn btn-secondary btn-sm" onclick="openEditRoomModal('${r.id}')" title="Chỉnh sửa thông tin & giá tiền riêng phòng này">
+            <i data-lucide="edit-3"></i> Sửa Giá
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="previewRoomInvoice('${r.id}')" title="Xem hóa đơn">
+            <i data-lucide="eye"></i>
+          </button>
+        </div>
       </td>
     `;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = rowHtml;
     tbody.appendChild(tr);
   });
 }
@@ -1108,17 +1327,40 @@ async function updateReadingApi(roomId, field, value) {
 async function generateAndSendAllInvoices() {
   const monthReadings = state.readings[state.currentMonth] || {};
   state.rooms.forEach(r => {
-    const autoCalc = calculateRoomServiceTotal(r);
     const rd = monthReadings[r.id] || { elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0, elecFormula: r.elecFormula, waterFormula: r.waterFormula };
+    let totalAmount = r.baseRent;
+    let serviceItems = [];
+    let elecCost = 0;
+    let waterCost = 0;
+
+    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId));
+    houseServices.forEach(s => {
+      const symbol = s.symbol || '📦';
+      if (s.calcType === 'formula') {
+        const isElec = s.name.includes('Điện');
+        const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
+        const fId = isElec ? (rd.elecFormula || r.elecFormula) : (rd.waterFormula || r.waterFormula);
+        const cost = calculateUtilityAmount(usage, fId, r.headcount);
+        if (isElec) elecCost = cost;
+        else waterCost = cost;
+        totalAmount += cost;
+      } else {
+        const cost = calculateServiceCostForRoom(s, r);
+        totalAmount += cost;
+        serviceItems.push({
+          id: s.id,
+          name: s.name,
+          symbol,
+          price: s.price,
+          unit: s.unit === 'Theo đầu người' ? `${r.headcount} người x ${formatMoney(s.price)}đ` : s.unit,
+          total: cost,
+          isParking: s.name.toLowerCase().includes('xe')
+        });
+      }
+    });
+
     const elecUsage = Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0));
     const waterUsage = Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-    const elecCost = calculateUtilityAmount(elecUsage, rd.elecFormula, r.headcount);
-    const waterCost = calculateUtilityAmount(waterUsage, rd.waterFormula, r.headcount);
-    
-    const serviceFee = autoCalc.serviceTotal;
-    const parkingFee = autoCalc.parkingTotal;
-
-    const totalAmount = r.baseRent + elecCost + waterCost + serviceFee + parkingFee;
 
     const invoiceId = `INV-${state.currentMonth.replace('-', '')}-${r.id}`;
     const idx = state.invoices.findIndex(i => i.id === invoiceId);
@@ -1126,7 +1368,9 @@ async function generateAndSendAllInvoices() {
       id: invoiceId, month: state.currentMonth, roomId: r.id, houseId: r.houseId, roomName: r.name, tenant: r.tenant, phone: r.phone,
       baseRent: r.baseRent, elecOld: rd.elecOld, elecNew: rd.elecNew, elecUsage, elecFormula: rd.elecFormula, elecCost,
       waterOld: rd.waterOld, waterNew: rd.waterNew, waterUsage, waterFormula: rd.waterFormula, waterCost,
-      serviceFee, parkingFee, serviceItems: autoCalc.items, otherFees: serviceFee + parkingFee, totalAmount, sendStatus: 'Đã gửi tự động', status: idx >= 0 ? state.invoices[idx].status : 'Chờ thanh toán', sentAt: 'Hôm nay'
+      serviceFee: serviceItems.reduce((sum, item) => sum + item.total, 0),
+      parkingFee: 0,
+      serviceItems, otherFees: serviceItems.reduce((sum, item) => sum + item.total, 0), totalAmount, sendStatus: 'Đã gửi tự động', status: idx >= 0 ? state.invoices[idx].status : 'Chờ thanh toán', sentAt: 'Hôm nay'
     };
 
     if (idx >= 0) state.invoices[idx] = invObj;
@@ -1355,7 +1599,7 @@ function renderTenantInvoiceView() {
   itemsList.forEach(item => {
     serviceRowsHtml += `
       <tr>
-        <td style="padding:0.75rem; font-weight:bold;">${lineNo++}. ${item.name}</td>
+        <td style="padding:0.75rem; font-weight:bold;">${lineNo++}. ${item.symbol || '📦'} ${item.name}</td>
         <td style="padding:0.75rem;">${item.unit}</td>
         <td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(item.total)} đ</td>
       </tr>
@@ -1446,7 +1690,7 @@ function viewInvoiceDetail(invoiceId) {
   let serviceRowsHtml = '';
   let lineNo = 4;
   itemsList.forEach(item => {
-    serviceRowsHtml += `<tr><td>${lineNo++}. ${item.name} (${item.unit})</td><td style="text-align:right;">${formatMoney(item.total)} đ</td></tr>`;
+    serviceRowsHtml += `<tr><td>${lineNo++}. ${item.symbol || '📦'} ${item.name} (${item.unit})</td><td style="text-align:right;">${formatMoney(item.total)} đ</td></tr>`;
   });
 
   content.innerHTML = `
@@ -1472,34 +1716,309 @@ function previewRoomInvoice(roomId) {
   viewInvoiceDetail(invoiceId);
 }
 
+/* =====================================================================
+   ROOM MANAGEMENT VIEW
+===================================================================== */
+function renderRoomsManagement() {
+  const container = document.getElementById('rooms-management-container');
+  if (!container) return;
+
+  if (state.rooms.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-secondary);">Chưa có phòng nào. Nhấn "Thêm Phòng Mới" để tạo.</div>`;
+    return;
+  }
+
+  // Group by house
+  const byHouse = {};
+  state.rooms.forEach(r => {
+    const hid = r.houseId || 'unknown';
+    if (!byHouse[hid]) byHouse[hid] = [];
+    byHouse[hid].push(r);
+  });
+
+  let html = '';
+  Object.keys(byHouse).forEach(hid => {
+    const house = state.houses.find(h => h.id === hid);
+    const rooms = byHouse[hid];
+    html += `
+      <div style="margin-bottom: 1.5rem;">
+        <div style="font-size: 1rem; font-weight: 800; color: var(--tvk-blue); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i data-lucide="building-2" style="width:18px;height:18px;"></i>
+          ${house ? house.name : hid}
+          <span class="badge badge-resolved" style="font-size:0.7rem;">${rooms.length} phòng</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+          ${rooms.map(r => `
+            <div class="tvk-card" style="position:relative; padding: 1.1rem 1.25rem;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
+                <div>
+                  <div style="font-weight:800; font-size:1rem;">${r.name}</div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || 'Chưa có khách'} ${r.phone ? '· ' + r.phone : ''}</div>
+                </div>
+                <span class="badge ${r.tenant ? 'badge-paid' : 'badge-open'}" style="font-size:0.7rem;">${r.tenant ? 'Đang thuê' : 'Trống'}</span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
+                <div><span style="color:var(--text-muted);">Giá thuê:</span><br><strong>${formatMoney(r.baseRent)}đ/tháng</strong></div>
+                <div><span style="color:var(--text-muted);">Số người:</span><br><strong>${r.headcount || 1} người</strong></div>
+              </div>
+              <div style="display:flex; gap:0.5rem;">
+                <button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditRoomModal('${r.id}')">
+                  <i data-lucide="edit-2"></i> Sửa
+                </button>
+                <button class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoom('${r.id}')">
+                  <i data-lucide="trash-2"></i>
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  lucide.createIcons();
+}
+
+/* =====================================================================
+   TICKET DETAIL VIEW WITH COMMENTS
+===================================================================== */
+let _currentTicketId = null;
+
+function showTicketList() {
+  const listView = document.getElementById('ticket-list-view');
+  const detailView = document.getElementById('ticket-detail-view');
+  if (listView) listView.style.display = 'block';
+  if (detailView) detailView.style.display = 'none';
+  _currentTicketId = null;
+}
+
+function openTicketDetail(ticketId) {
+  const ticket = state.tickets.find(t => t.id === ticketId);
+  if (!ticket) return;
+  _currentTicketId = ticketId;
+
+  const listView = document.getElementById('ticket-list-view');
+  const detailView = document.getElementById('ticket-detail-view');
+  if (listView) listView.style.display = 'none';
+  if (detailView) detailView.style.display = 'block';
+
+  // Fill ticket info
+  const priorityClass = ticket.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending';
+  const statusClass = ticket.status === 'Đã hoàn thành' ? 'badge-paid' : (ticket.status === 'Đang sửa chữa' || ticket.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open');
+  const infoEl = document.getElementById('ticket-detail-info');
+  if (infoEl) {
+    infoEl.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:0.6rem; font-size:0.9rem;">
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted);">Mã Ticket</span>
+          <strong>${ticket.id}</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted);">Phòng</span>
+          <strong>${ticket.roomName || ticket.roomId}</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted);">Khách Thuê</span>
+          <strong>${ticket.tenant}</strong>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted);">Phân Loại</span>
+          <span class="badge badge-resolved">${ticket.category}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted);">Mức Độ</span>
+          <span class="badge ${priorityClass}">${ticket.priority}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted);">Trạng Thái</span>
+          <span class="badge ${statusClass}">${ticket.status}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between;">
+          <span style="color:var(--text-muted);">Thời Gian</span>
+          <span>${ticket.timestamp}</span>
+        </div>
+        <div style="border-top: 1px solid var(--border-color); padding-top:0.6rem;">
+          <span style="color:var(--text-muted);">Mô Tả:</span>
+          <p style="margin-top:0.3rem; line-height:1.5;">${ticket.description}</p>
+        </div>
+      </div>
+    `;
+  }
+
+  // Fill images
+  const imagesEl = document.getElementById('ticket-detail-images');
+  if (imagesEl) {
+    const imgs = ticket.images || [];
+    if (imgs.length === 0) {
+      imagesEl.innerHTML = `<span style="color:var(--text-muted); font-size:0.85rem;">Không có ảnh đính kèm</span>`;
+    } else {
+      imagesEl.innerHTML = imgs.map(src => `
+        <img src="${src}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:2px solid var(--border-color);" 
+             onclick="window.open('${src}','_blank')" title="Click để xem ảnh lớn">
+      `).join('');
+    }
+  }
+
+  // Fill current status
+  const statusSelect = document.getElementById('detail-reply-status');
+  if (statusSelect) statusSelect.value = ticket.status || 'Mới tiếp nhận';
+  const replyMsg = document.getElementById('detail-reply-message');
+  if (replyMsg) replyMsg.value = '';
+
+  // Render comments thread
+  renderTicketComments(ticket);
+  lucide.createIcons();
+}
+
+function renderTicketComments(ticket) {
+  const thread = document.getElementById('ticket-comments-thread');
+  if (!thread) return;
+
+  const comments = ticket.comments || [];
+  if (comments.length === 0 && !ticket.response) {
+    thread.innerHTML = `<div style="text-align:center; color:var(--text-muted); font-size:0.85rem; padding:1rem;">Chưa có phản hồi nào.</div>`;
+    return;
+  }
+
+  // Build comments from legacy response + new comments array
+  let allComments = [...comments];
+  if (ticket.response && allComments.length === 0) {
+    allComments = [{ author: 'Admin', role: 'admin', text: ticket.response, time: ticket.timestamp }];
+  }
+
+  thread.innerHTML = allComments.map(c => {
+    const isAdmin = c.role === 'admin';
+    return `
+      <div style="display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-end' : 'flex-start'};">
+        <div style="max-width:85%; background:${isAdmin ? 'var(--tvk-blue)' : 'var(--bg-base)'}; color:${isAdmin ? 'white' : 'var(--text-primary)'}; 
+             border-radius: ${isAdmin ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}; padding:0.65rem 1rem; font-size:0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+          <div style="font-weight:700; font-size:0.75rem; margin-bottom:0.3rem; opacity:0.85;">${isAdmin ? '👤 Admin' : '🏠 ' + (c.author || 'Khách thuê')}</div>
+          ${c.statusChange ? `<div style="font-size:0.72rem; opacity:0.8; margin-bottom:0.2rem;">📋 Trạng thái: <strong>${c.statusChange}</strong></div>` : ''}
+          <div>${c.text}</div>
+          <div style="font-size:0.7rem; opacity:0.65; margin-top:0.3rem; text-align:right;">${c.time || ''}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function submitAdminTicketComment() {
+  if (!_currentTicketId) return;
+  const ticket = state.tickets.find(t => t.id === _currentTicketId);
+  if (!ticket) return;
+
+  const statusEl = document.getElementById('detail-reply-status');
+  const msgEl = document.getElementById('detail-reply-message');
+  const newStatus = statusEl ? statusEl.value : ticket.status;
+  const message = msgEl ? msgEl.value.trim() : '';
+
+  if (!message) { showToast('Vui lòng nhập nội dung phản hồi', 'error'); return; }
+
+  const now = new Date().toLocaleString('vi-VN');
+  const comment = { author: 'Admin', role: 'admin', text: message, time: now, statusChange: newStatus !== ticket.status ? newStatus : null };
+
+  if (!ticket.comments) ticket.comments = [];
+  ticket.comments.push(comment);
+  ticket.status = newStatus;
+  ticket.response = message;
+
+  if (msgEl) msgEl.value = '';
+
+  try {
+    await fetch(`${API_BASE}/tickets/reply`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticketId: ticket.id, status: newStatus, response: message, comment })
+    });
+  } catch (err) { console.warn('Saved ticket reply locally'); }
+
+  renderTicketComments(ticket);
+  // Refresh status badge in info panel
+  const statusClass = newStatus === 'Đã hoàn thành' ? 'badge-paid' : (newStatus === 'Đang sửa chữa' || newStatus === 'Đang xử lý' ? 'badge-pending' : 'badge-open');
+  const infoEl = document.getElementById('ticket-detail-info');
+  if (infoEl) {
+    const statusBadge = infoEl.querySelector('[data-status]');
+    if (statusBadge) statusBadge.className = `badge ${statusClass}`;
+  }
+  updateBadges();
+  showToast(`Đã gửi phản hồi ticket ${ticket.id}!`, 'success');
+}
+
 function renderAdminTickets() {
   const tbody = document.getElementById('admin-tickets-tbody');
+  if (!tbody) return;
   tbody.innerHTML = '';
   if (state.tickets.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-secondary);">Không có báo lỗi nào.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:2rem; color:var(--text-secondary);">Không có báo lỗi nào.</td></tr>`;
     return;
   }
 
   state.tickets.forEach(t => {
+    const imgCount = (t.images || []).length;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${t.id}</strong></td>
-      <td>${t.roomName}</td>
+      <td>${t.roomName || t.roomId}</td>
       <td>${t.tenant}</td>
       <td><span class="badge badge-resolved">${t.category}</span></td>
       <td><span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${t.priority}</span></td>
-      <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t.description}</td>
+      <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${t.description}">${t.description}</td>
+      <td>${imgCount > 0 ? `<span class="badge badge-resolved" style="cursor:pointer;" onclick="openTicketDetail('${t.id}')">📷 ${imgCount} ảnh</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
       <td><small style="color:var(--text-muted);">${t.timestamp}</small></td>
-      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' ? 'badge-pending' : 'badge-open')}">${t.status}</span></td>
+      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${t.status}</span></td>
       <td>
-        <button class="btn btn-blue btn-sm" onclick="openTicketReplyModal('${t.id}')">
-          <i data-lucide="message-square"></i> Xử Lý
+        <button class="btn btn-blue btn-sm" onclick="openTicketDetail('${t.id}')">
+          <i data-lucide="eye"></i> Xem Chi Tiết
         </button>
       </td>
     `;
     tbody.appendChild(tr);
   });
 }
+
+/* IMAGE UPLOAD FOR TENANT REPORT */
+let _tenantImages = [];
+
+function handleTenantImageSelect(event) {
+  const files = Array.from(event.target.files);
+  const remaining = 5 - _tenantImages.length;
+  const toAdd = files.slice(0, remaining);
+
+  toAdd.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      _tenantImages.push(e.target.result);
+      renderTenantImagePreviews();
+    };
+    reader.readAsDataURL(file);
+  });
+
+  if (files.length > remaining) {
+    showToast('Tối đa 5 ảnh mỗi báo lỗi', 'error');
+  }
+  event.target.value = '';
+}
+
+function renderTenantImagePreviews() {
+  const container = document.getElementById('tenant-image-previews');
+  if (!container) return;
+  container.innerHTML = _tenantImages.map((src, i) => `
+    <div style="position:relative; display:inline-block;">
+      <img src="${src}" style="width:70px; height:70px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--border-color);">
+      <button type="button" onclick="removeTenantImage(${i})" style="position:absolute; top:-6px; right:-6px; background:var(--color-danger); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>
+    </div>
+  `).join('');
+}
+
+function removeTenantImage(idx) {
+  _tenantImages.splice(idx, 1);
+  renderTenantImagePreviews();
+}
+
+
 
 function renderTenantReportsView() {
   const tbody = document.getElementById('tenant-tickets-tbody');
@@ -1530,14 +2049,23 @@ async function handleTenantSubmitReport(event) {
   event.preventDefault();
   const user = state.currentUser;
   const roomId = (user && user.roomId) ? user.roomId : (state.rooms[0] ? state.rooms[0].id : 'R101');
+  const room = state.rooms.find(r => r.id === roomId);
   const category = document.getElementById('report-category').value;
   const priority = document.getElementById('report-priority').value;
   const description = document.getElementById('report-description').value;
+  const now = new Date().toLocaleString('vi-VN');
 
   const newTicket = {
     id: `TK-${Math.floor(1000 + Math.random() * 9000)}`,
-    roomId, roomName: 'Phòng', tenant: user ? user.fullName : 'Khách',
-    category, priority, description, timestamp: 'Hôm nay', status: 'Mới tiếp nhận', response: ''
+    roomId,
+    roomName: room ? room.name : 'Phòng',
+    tenant: user ? (user.fullName || user.username) : 'Khách',
+    category, priority, description,
+    timestamp: now,
+    status: 'Mới tiếp nhận',
+    response: '',
+    comments: [],
+    images: [..._tenantImages]
   };
   state.tickets.unshift(newTicket);
 
@@ -1545,51 +2073,60 @@ async function handleTenantSubmitReport(event) {
     await fetch(`${API_BASE}/tickets/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId, category, priority, description })
+      body: JSON.stringify({ roomId, category, priority, description, images: _tenantImages })
     });
   } catch (err) {
     console.warn('Ticket created locally:', err);
   }
 
+  // Reset
+  _tenantImages = [];
+  renderTenantImagePreviews();
   showToast('Đã gửi báo lỗi thành công đến Admin!', 'success');
   document.getElementById('tenant-report-form').reset();
+  updateBadges();
   renderTenantReportsView();
 }
 
-function openTicketReplyModal(ticketId) {
-  const ticket = state.tickets.find(t => t.id === ticketId);
-  if (!ticket) return;
-  document.getElementById('reply-ticket-id').value = ticket.id;
-  document.getElementById('reply-status').value = ticket.status;
-  document.getElementById('reply-message').value = ticket.response || '';
-  document.getElementById('modal-ticket-reply').classList.add('active');
+/* Old ticket reply modal kept as stub - now using inline detail view */
+function openTicketReplyModal(ticketId) { openTicketDetail(ticketId); }
+async function saveTicketResponse(event) { if(event) event.preventDefault(); }
+
+function openEditRoomModal(roomId) {
+  const room = state.rooms.find(r => r.id === roomId);
+  if (!room) return;
+  // Populate and open the room config modal
+  const houseSelect = document.getElementById('room-house-id');
+  if (houseSelect) {
+    houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}" ${h.id === room.houseId ? 'selected' : ''}>${h.name}</option>`).join('');
+  }
+  document.getElementById('room-id').value = room.id;
+  document.getElementById('room-name').value = room.name || '';
+  document.getElementById('room-tenant').value = room.tenant || '';
+  document.getElementById('room-phone').value = room.phone || '';
+  document.getElementById('room-headcount').value = room.headcount || 1;
+  document.getElementById('room-base-rent').value = room.baseRent || '';
+
+  // Populate formula dropdowns
+  const formulaOpts = `<option value="">-- Chọn công thức --</option>` +
+    state.formulas.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+  const waterSel = document.getElementById('room-water-formula');
+  const elecSel = document.getElementById('room-elec-formula');
+  if (waterSel) { waterSel.innerHTML = formulaOpts; waterSel.value = room.waterFormulaId || ''; }
+  if (elecSel) { elecSel.innerHTML = formulaOpts; elecSel.value = room.elecFormulaId || ''; }
+
+  document.getElementById('modal-room-config').classList.add('active');
 }
 
-async function saveTicketResponse(event) {
-  event.preventDefault();
-  const ticketId = document.getElementById('reply-ticket-id').value;
-  const status = document.getElementById('reply-status').value;
-  const response = document.getElementById('reply-message').value;
-
-  const ticket = state.tickets.find(t => t.id === ticketId);
-  if (ticket) {
-    ticket.status = status;
-    ticket.response = response;
-  }
-
-  try {
-    await fetch(`${API_BASE}/tickets/reply`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticketId, status, response })
-    });
-  } catch (err) {
-    console.warn('Replied ticket locally:', err);
-  }
-
-  showToast(`Đã cập nhật ticket ${ticketId}!`, 'success');
-  closeModal('modal-ticket-reply');
-  renderAdminTickets();
+function deleteRoom(roomId) {
+  if (!confirm('Bạn chắc chắn muốn xóa phòng này?')) return;
+  state.rooms = state.rooms.filter(r => r.id !== roomId);
+  fetch(`${API_BASE}/rooms/delete`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roomId })
+  }).catch(e => console.warn('Delete room locally'));
+  showToast('Đã xóa phòng', 'success');
+  renderRoomsManagement();
 }
 
 function updateBadges() {
@@ -1637,6 +2174,87 @@ async function saveFormula(event) {
   showToast('Đã lưu công thức thành công!', 'success');
   closeModal('modal-formula-config');
   renderServicesConfig();
+}
+
+function openAddRoomModal() {
+  document.getElementById('room-id').value = '';
+  document.getElementById('room-name').value = '';
+  document.getElementById('room-tenant').value = '';
+  document.getElementById('room-phone').value = '';
+  document.getElementById('room-headcount').value = '1';
+  document.getElementById('room-base-rent').value = '3500000';
+
+  const houseSelect = document.getElementById('room-house-id');
+  houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+  if (state.currentHouseId !== 'all') houseSelect.value = state.currentHouseId;
+
+  const waterSelect = document.getElementById('room-water-formula');
+  waterSelect.innerHTML = state.formulas.filter(f => f.category === 'water' || f.type === 'headcount').map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+
+  const elecSelect = document.getElementById('room-elec-formula');
+  elecSelect.innerHTML = state.formulas.filter(f => f.category === 'elec' || f.type !== 'headcount').map(f => `<option value="${f.id}">${f.name}</option>`).join('');
+
+  document.getElementById('modal-room-config').classList.add('active');
+}
+
+function openEditRoomModal(roomId) {
+  const r = state.rooms.find(x => x.id === roomId);
+  if (!r) return;
+
+  document.getElementById('room-id').value = r.id;
+  document.getElementById('room-name').value = r.name;
+  document.getElementById('room-tenant').value = r.tenant || '';
+  document.getElementById('room-phone').value = r.phone || '';
+  document.getElementById('room-headcount').value = r.headcount || 1;
+  document.getElementById('room-base-rent').value = r.baseRent || 0;
+
+  const houseSelect = document.getElementById('room-house-id');
+  houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}" ${h.id === r.houseId ? 'selected' : ''}>${h.name}</option>`).join('');
+
+  const waterSelect = document.getElementById('room-water-formula');
+  waterSelect.innerHTML = state.formulas.filter(f => f.category === 'water' || f.type === 'headcount').map(f => `<option value="${f.id}" ${f.id === r.waterFormula ? 'selected' : ''}>${f.name}</option>`).join('');
+
+  const elecSelect = document.getElementById('room-elec-formula');
+  elecSelect.innerHTML = state.formulas.filter(f => f.category === 'elec' || f.type !== 'headcount').map(f => `<option value="${f.id}" ${f.id === r.elecFormula ? 'selected' : ''}>${f.name}</option>`).join('');
+
+  document.getElementById('modal-room-config').classList.add('active');
+}
+
+async function saveRoomConfig(event) {
+  event.preventDefault();
+  const id = document.getElementById('room-id').value;
+  const houseId = document.getElementById('room-house-id').value;
+  const name = document.getElementById('room-name').value.trim();
+  const tenant = document.getElementById('room-tenant').value.trim();
+  const phone = document.getElementById('room-phone').value.trim();
+  const headcount = parseInt(document.getElementById('room-headcount').value) || 1;
+  const baseRent = parseFloat(document.getElementById('room-base-rent').value) || 0;
+  const waterFormula = document.getElementById('room-water-formula').value;
+  const elecFormula = document.getElementById('room-elec-formula').value;
+
+  const rObj = {
+    id: id || `R${Date.now().toString().slice(-4)}`,
+    houseId, name, tenant, phone, headcount, baseRent, waterFormula, elecFormula
+  };
+
+  const idx = state.rooms.findIndex(r => r.id === rObj.id);
+  if (idx >= 0) state.rooms[idx] = rObj;
+  else state.rooms.push(rObj);
+
+  try {
+    await fetch(`${API_BASE}/rooms/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rObj)
+    });
+  } catch (err) {
+    console.warn('Saved room locally:', err);
+  }
+
+  showToast(`Đã lưu thông tin phòng "${name}" thành công!`, 'success');
+  closeModal('modal-room-config');
+  renderRoomSelector();
+  renderCurrentView();
 }
 
 function handleMonthChange() {

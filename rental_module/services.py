@@ -51,14 +51,24 @@ class RentalService:
         return s.get('houseId') == target_house_id
 
     @staticmethod
+    def service_matches_room(s, target_room_id):
+        if not target_room_id:
+            return True
+        room_ids = s.get('roomIds')
+        if not room_ids or not isinstance(room_ids, list) or 'all' in room_ids:
+            return True
+        return target_room_id in room_ids
+
+    @staticmethod
     def calculate_room_services_total(room, services):
         headcount = room.get('headcount', 1)
         house_id = room.get('houseId', 'house_a')
+        room_id = room.get('id', '')
         
-        # Match services assigned to ALL houses or checked house IDs
+        # Match services assigned to house AND room
         house_services = [
             s for s in services 
-            if RentalService.service_matches_house(s, house_id)
+            if RentalService.service_matches_house(s, house_id) and RentalService.service_matches_room(s, room_id)
         ]
 
         service_total = 0
@@ -66,26 +76,27 @@ class RentalService:
         item_list = []
 
         for s in house_services:
-            if s.get('calcType') == 'formula' or 'Điện' in s.get('name', '') or 'Nước' in s.get('name', ''):
+            if s.get('calcType') == 'formula':
                 continue
 
             price = s.get('price', 0)
             unit = s.get('unit', '')
             name = s.get('name', '')
+            symbol = s.get('symbol', '📦')
             name_lower = name.lower()
 
             if 'xe' in name_lower or unit == 'Theo xe / tháng':
                 item_price = price
                 parking_total += item_price
-                item_list.append({ 'id': s.get('id'), 'name': name, 'price': price, 'unit': unit, 'total': item_price, 'isParking': True })
+                item_list.append({ 'id': s.get('id'), 'name': name, 'symbol': symbol, 'price': price, 'unit': unit, 'total': item_price, 'isParking': True })
             elif unit == 'Theo đầu người':
                 item_price = price * headcount
                 service_total += item_price
-                item_list.append({ 'id': s.get('id'), 'name': name, 'price': price, 'unit': f"{headcount} người x {price:,.0f}đ", 'total': item_price, 'isParking': False })
+                item_list.append({ 'id': s.get('id'), 'name': name, 'symbol': symbol, 'price': price, 'unit': f"{headcount} người x {price:,.0f}đ", 'total': item_price, 'isParking': False })
             else:
                 item_price = price
                 service_total += item_price
-                item_list.append({ 'id': s.get('id'), 'name': name, 'price': price, 'unit': unit, 'total': item_price, 'isParking': False })
+                item_list.append({ 'id': s.get('id'), 'name': name, 'symbol': symbol, 'price': price, 'unit': unit, 'total': item_price, 'isParking': False })
 
         return service_total, parking_total, item_list
 
@@ -165,14 +176,17 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', formula_id=None):
+    def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', formula_id=None, icon='package', symbol='📦', room_ids=None):
         services = Storage.get_services()
         srv_id = service_id or f"srv_{uuid.uuid4().hex[:6]}"
         srv_obj = { 
             'id': srv_id, 
             'houseId': house_id or 'all', 
             'houseIds': house_ids if house_ids else (['all'] if house_id == 'all' else [house_id]),
+            'roomIds': room_ids if room_ids else ['all'],
             'name': name, 
+            'icon': icon or 'package',
+            'symbol': symbol or '📦',
             'calcType': calc_type or 'fixed',
             'formulaId': formula_id,
             'price': float(price or 0), 
@@ -198,10 +212,62 @@ class RentalService:
         return True
 
     @staticmethod
+    def save_formula(formula_id, name, f_type, rate, category=None):
+        formulas = Storage.get_formulas()
+        f_id = formula_id or f"formula_{uuid.uuid4().hex[:6]}"
+        cat = category or ('water' if 'nước' in name.lower() else 'elec')
+        f_obj = {
+            'id': f_id,
+            'name': name,
+            'type': f_type,
+            'rate': float(rate or 0),
+            'category': cat
+        }
+        idx = next((i for i, f in enumerate(formulas) if f['id'] == f_id), -1)
+        if idx >= 0:
+            formulas[idx] = f_obj
+        else:
+            formulas.append(f_obj)
+        Storage.save_formulas(formulas)
+        return f_obj
+
+    @staticmethod
     def delete_formula(formula_id):
         formulas = Storage.get_formulas()
         formulas = [f for f in formulas if f['id'] != formula_id]
         Storage.save_formulas(formulas)
+        return True
+
+    @staticmethod
+    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, elec_formula, water_formula):
+        rooms = Storage.get_rooms()
+        r_id = room_id or f"R{uuid.uuid4().hex[:4].upper()}"
+        r_obj = {
+            'id': r_id,
+            'houseId': house_id or 'house_a',
+            'name': name,
+            'tenant': tenant or '',
+            'phone': phone or '',
+            'baseRent': float(base_rent or 0),
+            'headcount': int(headcount or 1),
+            'elecFormula': elec_formula or 'elec_flat_3500',
+            'waterFormula': water_formula or 'water_flat_18000'
+        }
+        idx = next((i for i, r in enumerate(rooms) if r['id'] == r_id), -1)
+        if idx >= 0:
+            rooms[idx] = r_obj
+        else:
+            rooms.append(r_obj)
+        Storage.save_rooms(rooms)
+        RentalService.sync_readings_with_services()
+        return r_obj
+
+    @staticmethod
+    def delete_room(room_id):
+        rooms = Storage.get_rooms()
+        rooms = [r for r in rooms if r['id'] != room_id]
+        Storage.save_rooms(rooms)
+        RentalService.sync_readings_with_services()
         return True
 
     @staticmethod
