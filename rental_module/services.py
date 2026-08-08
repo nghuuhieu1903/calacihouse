@@ -134,9 +134,12 @@ class RentalService:
         formulas = Storage.get_formulas()
         readings = Storage.get_readings()
         invoices = Storage.get_invoices()
-        tickets = Storage.get_tickets()
+        tickets = Storage.get_tickets_light()
         permissions = Storage.get_permissions()
         room_documents = Storage.get_room_documents()
+        # Investor payout math is internal to admin/manager — never shipped to
+        # an investor or tenant session (see role filtering below).
+        investor_expenses = Storage.get_investor_expenses()
 
         RentalService.sync_readings_with_services(month)
         readings = Storage.get_readings()
@@ -158,6 +161,13 @@ class RentalService:
                 room_documents = {rid: docs for rid, docs in room_documents.items() if rid in room_ids}
             users = []  # investor dashboard has no need for the account directory
 
+        # The investor payout report is an admin/manager-only tool — an investor
+        # or tenant session must never receive these figures, regardless of the
+        # house filtering above.
+        role = current_user.get('role') if current_user else None
+        if role not in ('admin', 'manager'):
+            investor_expenses = []
+
         safe_users = [{k: v for k, v in u.items() if k != 'password'} for u in users]
 
         return {
@@ -171,6 +181,7 @@ class RentalService:
             'tickets': tickets,
             'permissions': permissions,
             'roomDocuments': room_documents,
+            'investorExpenses': investor_expenses,
             'currentMonth': month
         }
 
@@ -474,6 +485,37 @@ class RentalService:
         return len(rooms)
 
     @staticmethod
+    def save_investor_expense(expense_id, house_id, month, description, amount):
+        expenses = Storage.get_investor_expenses()
+        e_id = expense_id or f"exp_{uuid.uuid4().hex[:8]}"
+        idx = next((i for i, e in enumerate(expenses) if e['id'] == e_id), -1)
+        created_at = expenses[idx]['createdAt'] if idx >= 0 else datetime.now().strftime('%Y-%m-%d %H:%M')
+
+        e_obj = {
+            'id': e_id,
+            'houseId': house_id or '',
+            'month': month or '',
+            'description': description or '',
+            'amount': float(amount or 0),
+            'createdAt': created_at
+        }
+
+        if idx >= 0:
+            expenses[idx] = e_obj
+        else:
+            expenses.append(e_obj)
+
+        Storage.save_investor_expenses(expenses)
+        return e_obj
+
+    @staticmethod
+    def delete_investor_expense(expense_id):
+        expenses = Storage.get_investor_expenses()
+        expenses = [e for e in expenses if e['id'] != expense_id]
+        Storage.save_investor_expenses(expenses)
+        return True
+
+    @staticmethod
     def create_ticket(ticket_id, room_id, category, priority, description, images):
         tickets = Storage.get_tickets()
         rooms = Storage.get_rooms()
@@ -518,6 +560,10 @@ class RentalService:
     def save_permissions(matrix):
         Storage.save_permissions(matrix)
         return True
+
+    @staticmethod
+    def get_ticket_detail(ticket_id):
+        return Storage.get_ticket_full(ticket_id)
 
     @staticmethod
     def delete_ticket(ticket_id):

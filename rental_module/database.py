@@ -1,101 +1,161 @@
-import sqlite3
 import os
+import pymysql
+import pymysql.cursors
 
-# Database file stored inside the data/ folder
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'rental.db')
+MYSQL_HOST = os.getenv('MYSQL_HOST', 'localhost')
+MYSQL_PORT = int(os.getenv('MYSQL_PORT', '3306'))
+MYSQL_USER = os.getenv('MYSQL_USER', 'root')
+MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '')
+MYSQL_DATABASE = os.getenv('MYSQL_DATABASE', 'calacihouse')
 
 
 def get_db():
-    """Open a new SQLite connection for each call. Thread-safe via WAL mode."""
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row          # rows behave like dicts
-    conn.execute("PRAGMA journal_mode=WAL") # allows concurrent reads
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+    """Open a new MySQL connection for each call. DictCursor makes rows
+    behave like dicts (row['col']), matching the sqlite3.Row access pattern
+    the rest of the app was written against."""
+    return pymysql.connect(
+        host=MYSQL_HOST,
+        port=MYSQL_PORT,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        database=MYSQL_DATABASE,
+        charset='utf8mb4',
+        cursorclass=pymysql.cursors.DictCursor,
+        autocommit=False
+    )
+
+
+def _create_database_if_missing():
+    """A fresh MySQL server has no schema yet — connect without selecting a
+    database and create it before get_db() (which always selects one) is
+    used anywhere else."""
+    conn = pymysql.connect(
+        host=MYSQL_HOST, port=MYSQL_PORT, user=MYSQL_USER, password=MYSQL_PASSWORD,
+        charset='utf8mb4'
+    )
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"CREATE DATABASE IF NOT EXISTS `{MYSQL_DATABASE}` "
+                "CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+# Photo uploads (meter readings, room contracts, ticket attachments) are
+# stored as base64 data URLs inside JSON blobs and can run to a few MB —
+# MySQL's plain TEXT caps at ~64KB, so anything that may hold embedded
+# images must be LONGTEXT. Everything else is a normal identifier/label.
+SCHEMA_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS houses (
+        id          VARCHAR(191) PRIMARY KEY,
+        name        TEXT NOT NULL,
+        address     TEXT,
+        description TEXT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS users (
+        id          VARCHAR(191) PRIMARY KEY,
+        username    VARCHAR(191) NOT NULL UNIQUE,
+        password    VARCHAR(255) DEFAULT '',
+        full_name   TEXT,
+        role        VARCHAR(32) DEFAULT 'tenant',
+        room_id     VARCHAR(191) DEFAULT '',
+        house_id    VARCHAR(191) DEFAULT '',
+        status      VARCHAR(32) DEFAULT 'pending',
+        created_at  VARCHAR(32) DEFAULT ''
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS rooms (
+        id             VARCHAR(191) PRIMARY KEY,
+        house_id       VARCHAR(191) DEFAULT '',
+        name           TEXT NOT NULL,
+        tenant         TEXT,
+        phone          VARCHAR(32) DEFAULT '',
+        base_rent      DOUBLE DEFAULT 0,
+        headcount      INT DEFAULT 1,
+        elec_formula   VARCHAR(191) DEFAULT '',
+        water_formula  VARCHAR(191) DEFAULT ''
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS services (
+        id           VARCHAR(191) PRIMARY KEY,
+        house_id     VARCHAR(191) DEFAULT '',
+        name         TEXT NOT NULL,
+        price        DOUBLE DEFAULT 0,
+        unit         VARCHAR(191) DEFAULT '',
+        icon         VARCHAR(64) DEFAULT '',
+        symbol       VARCHAR(16) DEFAULT '',
+        calc_type    VARCHAR(32) DEFAULT 'fixed',
+        formula_id   VARCHAR(191) DEFAULT '',
+        house_ids    TEXT,
+        room_ids     TEXT,
+        apply_rooms  TEXT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS formulas (
+        id          VARCHAR(191) PRIMARY KEY,
+        name        TEXT NOT NULL,
+        type        VARCHAR(32) DEFAULT '',
+        rate        DOUBLE DEFAULT 0,
+        category    VARCHAR(32) DEFAULT '',
+        tiers_json  TEXT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS investor_expenses (
+        id          VARCHAR(191) PRIMARY KEY,
+        house_id    VARCHAR(191) DEFAULT '',
+        month       VARCHAR(16) DEFAULT '',
+        description TEXT,
+        amount      DOUBLE DEFAULT 0,
+        created_at  VARCHAR(32) DEFAULT ''
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS tickets (
+        id            VARCHAR(191) PRIMARY KEY,
+        room_id       VARCHAR(191) DEFAULT '',
+        room_name     TEXT,
+        tenant        TEXT,
+        category      VARCHAR(64) DEFAULT '',
+        priority      VARCHAR(32) DEFAULT '',
+        description   TEXT,
+        timestamp     VARCHAR(32) DEFAULT '',
+        status        VARCHAR(64) DEFAULT '',
+        response      TEXT,
+        comments_json LONGTEXT,
+        images_json   LONGTEXT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
+    # Generic key-value store for readings, invoices, permissions & room
+    # documents — all of which nest arbitrary JSON (including photos).
+    """
+    CREATE TABLE IF NOT EXISTS kv_store (
+        `key`   VARCHAR(191) PRIMARY KEY,
+        `value` LONGTEXT
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """
+]
 
 
 def init_db():
-    """Create all tables if they don't already exist. Called once on app startup."""
+    """Create the database and all tables if they don't already exist.
+    Called once on app startup. Safe to run every time (IF NOT EXISTS)."""
+    _create_database_if_missing()
     conn = get_db()
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS houses (
-            id          TEXT PRIMARY KEY,
-            name        TEXT NOT NULL,
-            address     TEXT DEFAULT '',
-            description TEXT DEFAULT ''
-        );
-
-        CREATE TABLE IF NOT EXISTS users (
-            id          TEXT PRIMARY KEY,
-            username    TEXT NOT NULL UNIQUE,
-            password    TEXT NOT NULL DEFAULT '',
-            full_name   TEXT DEFAULT '',
-            role        TEXT DEFAULT 'tenant',
-            room_id     TEXT DEFAULT '',
-            house_id    TEXT DEFAULT '',
-            status      TEXT DEFAULT 'pending',
-            created_at  TEXT DEFAULT ''
-        );
-
-        CREATE TABLE IF NOT EXISTS rooms (
-            id             TEXT PRIMARY KEY,
-            house_id       TEXT DEFAULT '',
-            name           TEXT NOT NULL,
-            tenant         TEXT DEFAULT '',
-            phone          TEXT DEFAULT '',
-            base_rent      INTEGER DEFAULT 0,
-            headcount      INTEGER DEFAULT 1,
-            elec_formula   TEXT DEFAULT '',
-            water_formula  TEXT DEFAULT ''
-        );
-
-        CREATE TABLE IF NOT EXISTS services (
-            id           TEXT PRIMARY KEY,
-            house_id     TEXT DEFAULT '',
-            name         TEXT NOT NULL,
-            price        INTEGER DEFAULT 0,
-            unit         TEXT DEFAULT '',
-            icon         TEXT DEFAULT '',
-            apply_rooms  TEXT DEFAULT '[]'
-        );
-
-        CREATE TABLE IF NOT EXISTS formulas (
-            id          TEXT PRIMARY KEY,
-            name        TEXT NOT NULL,
-            type        TEXT DEFAULT '',
-            rate        REAL DEFAULT 0,
-            category    TEXT DEFAULT '',
-            tiers_json  TEXT
-        );
-
-        CREATE TABLE IF NOT EXISTS tickets (
-            id            TEXT PRIMARY KEY,
-            room_id       TEXT DEFAULT '',
-            room_name     TEXT DEFAULT '',
-            tenant        TEXT DEFAULT '',
-            category      TEXT DEFAULT '',
-            priority      TEXT DEFAULT '',
-            description   TEXT DEFAULT '',
-            timestamp     TEXT DEFAULT '',
-            status        TEXT DEFAULT '',
-            response      TEXT DEFAULT '',
-            comments_json TEXT DEFAULT '[]',
-            images_json   TEXT DEFAULT '[]'
-        );
-
-        -- Generic key-value store for readings, invoices, permissions
-        CREATE TABLE IF NOT EXISTS kv_store (
-            key   TEXT PRIMARY KEY,
-            value TEXT
-        );
-    """)
-
-    # Migrate older DBs created before the investor role was added
-    user_cols = [r['name'] for r in conn.execute("PRAGMA table_info(users)").fetchall()]
-    if 'house_id' not in user_cols:
-        conn.execute("ALTER TABLE users ADD COLUMN house_id TEXT DEFAULT ''")
-
-    conn.commit()
-    conn.close()
-    print("[DB] SQLite ready:", DB_PATH)
+    try:
+        with conn.cursor() as cur:
+            for statement in SCHEMA_STATEMENTS:
+                cur.execute(statement)
+        conn.commit()
+    finally:
+        conn.close()
+    print("[DB] MySQL ready:", f"{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}")

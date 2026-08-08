@@ -34,6 +34,18 @@ def login():
     session['user'] = user
     return jsonify({'success': True, 'user': user})
 
+@rental_bp.route('/api/auth/me', methods=['GET'])
+def get_current_user():
+    user = session.get('user')
+    if not user:
+        return jsonify({'success': False}), 401
+    return jsonify({'success': True, 'user': user})
+
+@rental_bp.route('/api/auth/logout', methods=['POST'])
+def logout():
+    session.pop('user', None)
+    return jsonify({'success': True})
+
 @rental_bp.route('/api/houses/save', methods=['POST'])
 @admin_required
 def save_house():
@@ -197,6 +209,26 @@ def generate_all_invoices():
 def mark_paid():
     return jsonify({'success': True})
 
+@rental_bp.route('/api/investor-expenses/save', methods=['POST'])
+@admin_required
+def save_investor_expense():
+    data = request.json or {}
+    e_obj = RentalService.save_investor_expense(
+        data.get('id'),
+        data.get('houseId'),
+        data.get('month'),
+        data.get('description'),
+        data.get('amount')
+    )
+    return jsonify({'success': True, 'expense': e_obj})
+
+@rental_bp.route('/api/investor-expenses/delete', methods=['POST'])
+@admin_required
+def delete_investor_expense():
+    data = request.json or {}
+    RentalService.delete_investor_expense(data.get('id'))
+    return jsonify({'success': True})
+
 @rental_bp.route('/api/tickets/create', methods=['POST'])
 @login_required
 def create_ticket():
@@ -210,6 +242,14 @@ def create_ticket():
         data.get('images')
     )
     return jsonify({'success': True, 'ticket': t_obj})
+
+@rental_bp.route('/api/tickets/<ticket_id>', methods=['GET'])
+@login_required
+def get_ticket_detail(ticket_id):
+    ticket = RentalService.get_ticket_detail(ticket_id)
+    if not ticket:
+        return jsonify({'success': False, 'error': 'Không tìm thấy báo lỗi'}), 404
+    return jsonify({'success': True, 'ticket': ticket})
 
 @rental_bp.route('/api/tickets/reply', methods=['POST'])
 @roles_required('admin', 'manager')

@@ -132,7 +132,8 @@ DEFAULT_PERMISSIONS = [
     {"key": "manage_rooms",      "name": "Quản lý phòng trọ (Thêm, Sửa, Xóa)",      "admin": True, "manager": False, "tenant": False},
     {"key": "manage_services",   "name": "Cấu hình dịch vụ & công thức",             "admin": True, "manager": False, "tenant": False},
     {"key": "manage_accounts",   "name": "Quản lý tài khoản người dùng",             "admin": True, "manager": False, "tenant": False},
-    {"key": "manage_permissions","name": "Quản lý phân quyền hệ thống",              "admin": True, "manager": False, "tenant": False}
+    {"key": "manage_permissions","name": "Quản lý phân quyền hệ thống",              "admin": True, "manager": False, "tenant": False},
+    {"key": "view_investor_report", "name": "Xem báo cáo chủ đầu tư",                "admin": True, "manager": False, "tenant": False}
 ]
 
 
@@ -178,10 +179,15 @@ def _service(row):
     return {
         'id': row['id'],
         'houseId': row['house_id'] or '',
+        'houseIds': json.loads(row['house_ids']) if row['house_ids'] else ['all'],
+        'roomIds': json.loads(row['room_ids']) if row['room_ids'] else ['all'],
         'name': row['name'],
         'price': row['price'],
         'unit': row['unit'] or '',
         'icon': row['icon'] or '',
+        'symbol': row['symbol'] or '📦',
+        'calcType': row['calc_type'] or 'fixed',
+        'formulaId': row['formula_id'] or None,
         'applyRooms': json.loads(row['apply_rooms']) if row['apply_rooms'] else []
     }
 
@@ -196,6 +202,16 @@ def _formula(row):
     if row['tiers_json']:
         f['tiers'] = json.loads(row['tiers_json'])
     return f
+
+def _investor_expense(row):
+    return {
+        'id': row['id'],
+        'houseId': row['house_id'] or '',
+        'month': row['month'] or '',
+        'description': row['description'] or '',
+        'amount': row['amount'] or 0,
+        'createdAt': row['created_at'] or ''
+    }
 
 def _ticket(row):
     return {
@@ -215,7 +231,7 @@ def _ticket(row):
 
 
 # ---------------------------------------------------------------------------
-# Storage class — same public interface as before, now backed by SQLite
+# Storage class — same public interface as before, now backed by MySQL
 # ---------------------------------------------------------------------------
 
 class Storage:
@@ -225,8 +241,12 @@ class Storage:
     @staticmethod
     def _kv_get(key, default):
         conn = get_db()
-        row = conn.execute("SELECT value FROM kv_store WHERE key=?", (key,)).fetchone()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT `value` FROM kv_store WHERE `key`=%s", (key,))
+                row = cur.fetchone()
+        finally:
+            conn.close()
         if row:
             return json.loads(row['value'])
         return default
@@ -234,20 +254,27 @@ class Storage:
     @staticmethod
     def _kv_set(key, value):
         conn = get_db()
-        conn.execute(
-            "INSERT OR REPLACE INTO kv_store (key, value) VALUES (?,?)",
-            (key, json.dumps(value, ensure_ascii=False))
-        )
-        conn.commit()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "REPLACE INTO kv_store (`key`, `value`) VALUES (%s,%s)",
+                    (key, json.dumps(value, ensure_ascii=False))
+                )
+            conn.commit()
+        finally:
+            conn.close()
 
     # -- Houses -------------------------------------------------------------
 
     @staticmethod
     def get_houses():
         conn = get_db()
-        rows = conn.execute("SELECT * FROM houses ORDER BY id").fetchall()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM houses ORDER BY id")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
         result = [_house(r) for r in rows]
         if not result:
             Storage.save_houses(DEFAULT_HOUSES)
@@ -257,22 +284,29 @@ class Storage:
     @staticmethod
     def save_houses(houses):
         conn = get_db()
-        conn.execute("DELETE FROM houses")
-        for h in houses:
-            conn.execute(
-                "INSERT OR REPLACE INTO houses (id, name, address, description) VALUES (?,?,?,?)",
-                (h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''))
-            )
-        conn.commit()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM houses")
+                for h in houses:
+                    cur.execute(
+                        "REPLACE INTO houses (id, name, address, description) VALUES (%s,%s,%s,%s)",
+                        (h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''))
+                    )
+            conn.commit()
+        finally:
+            conn.close()
 
     # -- Users --------------------------------------------------------------
 
     @staticmethod
     def get_users():
         conn = get_db()
-        rows = conn.execute("SELECT * FROM users ORDER BY created_at").fetchall()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM users ORDER BY created_at")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
         result = [_user(r) for r in rows]
         if not result:
             Storage.save_users(DEFAULT_USERS)
@@ -282,34 +316,41 @@ class Storage:
     @staticmethod
     def save_users(users):
         conn = get_db()
-        conn.execute("DELETE FROM users")
-        for u in users:
-            conn.execute(
-                "INSERT OR REPLACE INTO users "
-                "(id, username, password, full_name, role, room_id, house_id, status, created_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?)",
-                (
-                    u['id'],
-                    u['username'],
-                    u.get('password', ''),
-                    u.get('fullName', ''),
-                    u.get('role', 'tenant'),
-                    u.get('roomId', ''),
-                    u.get('houseId', ''),
-                    u.get('status', 'pending'),
-                    u.get('createdAt', '')
-                )
-            )
-        conn.commit()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM users")
+                for u in users:
+                    cur.execute(
+                        "REPLACE INTO users "
+                        "(id, username, password, full_name, role, room_id, house_id, status, created_at) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                        (
+                            u['id'],
+                            u['username'],
+                            u.get('password', ''),
+                            u.get('fullName', ''),
+                            u.get('role', 'tenant'),
+                            u.get('roomId', ''),
+                            u.get('houseId', ''),
+                            u.get('status', 'pending'),
+                            u.get('createdAt', '')
+                        )
+                    )
+            conn.commit()
+        finally:
+            conn.close()
 
     # -- Rooms --------------------------------------------------------------
 
     @staticmethod
     def get_rooms():
         conn = get_db()
-        rows = conn.execute("SELECT * FROM rooms ORDER BY id").fetchall()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM rooms ORDER BY id")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
         result = [_room(r) for r in rows]
         if not result:
             Storage.save_rooms(DEFAULT_ROOMS)
@@ -319,69 +360,88 @@ class Storage:
     @staticmethod
     def save_rooms(rooms):
         conn = get_db()
-        conn.execute("DELETE FROM rooms")
-        for r in rooms:
-            conn.execute(
-                "INSERT OR REPLACE INTO rooms "
-                "(id, house_id, name, tenant, phone, base_rent, headcount, elec_formula, water_formula) "
-                "VALUES (?,?,?,?,?,?,?,?,?)",
-                (
-                    r['id'],
-                    r.get('houseId', ''),
-                    r.get('name', ''),
-                    r.get('tenant', ''),
-                    r.get('phone', ''),
-                    r.get('baseRent', 0),
-                    r.get('headcount', 1),
-                    r.get('elecFormula', ''),
-                    r.get('waterFormula', '')
-                )
-            )
-        conn.commit()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM rooms")
+                for r in rooms:
+                    cur.execute(
+                        "REPLACE INTO rooms "
+                        "(id, house_id, name, tenant, phone, base_rent, headcount, elec_formula, water_formula) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                        (
+                            r['id'],
+                            r.get('houseId', ''),
+                            r.get('name', ''),
+                            r.get('tenant', ''),
+                            r.get('phone', ''),
+                            r.get('baseRent', 0),
+                            r.get('headcount', 1),
+                            r.get('elecFormula', ''),
+                            r.get('waterFormula', '')
+                        )
+                    )
+            conn.commit()
+        finally:
+            conn.close()
 
     # -- Services -----------------------------------------------------------
 
     @staticmethod
     def get_services():
         conn = get_db()
-        rows = conn.execute("SELECT * FROM services ORDER BY house_id, id").fetchall()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM services ORDER BY house_id, id")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
         result = [_service(r) for r in rows]
         if not result:
             Storage.save_services(DEFAULT_SERVICES)
-            return DEFAULT_SERVICES
+            return Storage.get_services()
         return result
 
     @staticmethod
     def save_services(services):
         conn = get_db()
-        conn.execute("DELETE FROM services")
-        for s in services:
-            conn.execute(
-                "INSERT OR REPLACE INTO services "
-                "(id, house_id, name, price, unit, icon, apply_rooms) "
-                "VALUES (?,?,?,?,?,?,?)",
-                (
-                    s['id'],
-                    s.get('houseId', ''),
-                    s.get('name', ''),
-                    s.get('price', 0),
-                    s.get('unit', ''),
-                    s.get('icon', ''),
-                    json.dumps(s.get('applyRooms', []))
-                )
-            )
-        conn.commit()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM services")
+                for s in services:
+                    cur.execute(
+                        "REPLACE INTO services "
+                        "(id, house_id, name, price, unit, icon, symbol, calc_type, formula_id, house_ids, room_ids, apply_rooms) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                        (
+                            s['id'],
+                            s.get('houseId', ''),
+                            s.get('name', ''),
+                            s.get('price', 0),
+                            s.get('unit', ''),
+                            s.get('icon', ''),
+                            s.get('symbol', '📦'),
+                            s.get('calcType', 'fixed'),
+                            s.get('formulaId') or '',
+                            json.dumps(s.get('houseIds', ['all'])),
+                            json.dumps(s.get('roomIds', ['all'])),
+                            json.dumps(s.get('applyRooms', []))
+                        )
+                    )
+            conn.commit()
+        finally:
+            conn.close()
 
     # -- Formulas -----------------------------------------------------------
 
     @staticmethod
     def get_formulas():
         conn = get_db()
-        rows = conn.execute("SELECT * FROM formulas ORDER BY category, id").fetchall()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM formulas ORDER BY category, id")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
         result = [_formula(r) for r in rows]
         if not result:
             Storage.save_formulas(DEFAULT_FORMULAS)
@@ -391,23 +451,63 @@ class Storage:
     @staticmethod
     def save_formulas(formulas):
         conn = get_db()
-        conn.execute("DELETE FROM formulas")
-        for f in formulas:
-            conn.execute(
-                "INSERT OR REPLACE INTO formulas "
-                "(id, name, type, rate, category, tiers_json) "
-                "VALUES (?,?,?,?,?,?)",
-                (
-                    f['id'],
-                    f.get('name', ''),
-                    f.get('type', ''),
-                    f.get('rate', 0),
-                    f.get('category', ''),
-                    json.dumps(f['tiers']) if 'tiers' in f else None
-                )
-            )
-        conn.commit()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM formulas")
+                for f in formulas:
+                    cur.execute(
+                        "REPLACE INTO formulas "
+                        "(id, name, type, rate, category, tiers_json) "
+                        "VALUES (%s,%s,%s,%s,%s,%s)",
+                        (
+                            f['id'],
+                            f.get('name', ''),
+                            f.get('type', ''),
+                            f.get('rate', 0),
+                            f.get('category', ''),
+                            json.dumps(f['tiers']) if 'tiers' in f else None
+                        )
+                    )
+            conn.commit()
+        finally:
+            conn.close()
+
+    # -- Investor Expenses (installation/repair costs deducted before split) --
+
+    @staticmethod
+    def get_investor_expenses():
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM investor_expenses ORDER BY month DESC, created_at DESC")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+        return [_investor_expense(r) for r in rows]
+
+    @staticmethod
+    def save_investor_expenses(expenses):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM investor_expenses")
+                for e in expenses:
+                    cur.execute(
+                        "REPLACE INTO investor_expenses "
+                        "(id, house_id, month, description, amount, created_at) "
+                        "VALUES (%s,%s,%s,%s,%s,%s)",
+                        (
+                            e['id'],
+                            e.get('houseId', ''),
+                            e.get('month', ''),
+                            e.get('description', ''),
+                            e.get('amount', 0),
+                            e.get('createdAt', '')
+                        )
+                    )
+            conn.commit()
+        finally:
+            conn.close()
 
     # -- Readings (complex nested dict → kv_store) --------------------------
 
@@ -434,10 +534,12 @@ class Storage:
     @staticmethod
     def get_tickets():
         conn = get_db()
-        rows = conn.execute(
-            "SELECT * FROM tickets ORDER BY timestamp DESC"
-        ).fetchall()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM tickets ORDER BY timestamp DESC")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
         result = [_ticket(r) for r in rows]
         if not result:
             Storage.save_tickets(DEFAULT_TICKETS)
@@ -445,32 +547,89 @@ class Storage:
         return result
 
     @staticmethod
+    def get_tickets_light():
+        """Same rows as get_tickets() but without the embedded base64 photo
+        attachments — used for the bulk /api/data payload so a ticket with
+        several MB of photos doesn't get shipped on every page load.
+        Call get_ticket_full() to fetch one ticket's full images/comments
+        on demand (e.g. when its detail view is opened)."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT id, room_id, room_name, tenant, category, priority, description,
+                           timestamp, status, response,
+                           JSON_LENGTH(images_json) as images_count,
+                           JSON_LENGTH(comments_json) as comments_count
+                    FROM tickets ORDER BY timestamp DESC
+                """)
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+        if not rows:
+            Storage.save_tickets(DEFAULT_TICKETS)
+            return Storage.get_tickets_light()
+        return [
+            {
+                'id': r['id'],
+                'roomId': r['room_id'] or '',
+                'roomName': r['room_name'] or '',
+                'tenant': r['tenant'] or '',
+                'category': r['category'] or '',
+                'priority': r['priority'] or '',
+                'description': r['description'] or '',
+                'timestamp': r['timestamp'] or '',
+                'status': r['status'] or '',
+                'response': r['response'] or '',
+                'comments': [],
+                'images': [],
+                'imagesCount': r['images_count'] or 0,
+                'commentsCount': r['comments_count'] or 0
+            }
+            for r in rows
+        ]
+
+    @staticmethod
+    def get_ticket_full(ticket_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM tickets WHERE id=%s", (ticket_id,))
+                row = cur.fetchone()
+        finally:
+            conn.close()
+        return _ticket(row) if row else None
+
+    @staticmethod
     def save_tickets(tickets):
         conn = get_db()
-        conn.execute("DELETE FROM tickets")
-        for t in tickets:
-            conn.execute(
-                "INSERT OR REPLACE INTO tickets "
-                "(id, room_id, room_name, tenant, category, priority, description, "
-                " timestamp, status, response, comments_json, images_json) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                (
-                    t['id'],
-                    t.get('roomId', ''),
-                    t.get('roomName', ''),
-                    t.get('tenant', ''),
-                    t.get('category', ''),
-                    t.get('priority', ''),
-                    t.get('description', ''),
-                    t.get('timestamp', ''),
-                    t.get('status', ''),
-                    t.get('response', ''),
-                    json.dumps(t.get('comments', []), ensure_ascii=False),
-                    json.dumps(t.get('images', []),   ensure_ascii=False)
-                )
-            )
-        conn.commit()
-        conn.close()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM tickets")
+                for t in tickets:
+                    cur.execute(
+                        "REPLACE INTO tickets "
+                        "(id, room_id, room_name, tenant, category, priority, description, "
+                        " timestamp, status, response, comments_json, images_json) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                        (
+                            t['id'],
+                            t.get('roomId', ''),
+                            t.get('roomName', ''),
+                            t.get('tenant', ''),
+                            t.get('category', ''),
+                            t.get('priority', ''),
+                            t.get('description', ''),
+                            t.get('timestamp', ''),
+                            t.get('status', ''),
+                            t.get('response', ''),
+                            json.dumps(t.get('comments', []), ensure_ascii=False),
+                            json.dumps(t.get('images', []),   ensure_ascii=False)
+                        )
+                    )
+            conn.commit()
+        finally:
+            conn.close()
 
     # -- Permissions (simple list → kv_store) -------------------------------
 

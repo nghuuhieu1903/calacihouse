@@ -231,6 +231,8 @@ const I18N = {
     headcount_label: 'Số người:',
     contract_photos_label: 'Ảnh Hợp Đồng',
     toast_select_image_first: 'Vui lòng chọn một ảnh trước',
+    toast_image_too_large: 'Ảnh quá lớn, không thể nén xuống dưới 5MB. Vui lòng chọn ảnh khác.',
+    toast_image_compress_failed: 'Không đọc được file này. Vui lòng chọn một ảnh hợp lệ.',
     default_document_label: 'Tài liệu',
     toast_document_added: 'Đã thêm ảnh hợp đồng!',
     toast_upload_error: 'Lỗi khi tải ảnh lên',
@@ -295,6 +297,43 @@ const I18N = {
     title_logout: 'Đăng Xuất',
     nav_rooms: 'Quản Lý Phòng',
     nav_permissions: 'Phân Quyền Hệ Thống',
+    nav_investor_report: 'Báo Cáo Chủ Đầu Tư',
+    view_admin_investor_report_title: 'Báo Cáo Chủ Đầu Tư',
+    view_admin_investor_report_subtitle: 'Tính toán doanh thu chia sẻ và số tiền chủ đầu tư nhận được mỗi tháng',
+    ir_expenses_title: '🔧 Chi Phí Lắp Đặt / Sửa Chữa Trong Tháng',
+    ir_expenses_desc: 'Các khoản chi này sẽ được trừ vào doanh thu trước khi tính phần chia cho chủ đầu tư.',
+    btn_add_expense: 'Thêm Chi Phí',
+    ir_fee_percent_label: 'Tỷ lệ % Quản lý giữ lại (còn lại là phần chủ đầu tư):',
+    col_expense_desc: 'Mô Tả',
+    col_expense_house: 'Tòa Nhà',
+    col_expense_amount: 'Số Tiền',
+    ir_expenses_empty: 'Chưa có khoản chi lắp đặt / sửa chữa nào trong tháng này.',
+    modal_add_expense_title: 'Thêm Chi Phí Lắp Đặt / Sửa Chữa',
+    modal_edit_expense_title: 'Sửa Chi Phí Lắp Đặt / Sửa Chữa',
+    lbl_expense_house: 'Tòa Nhà',
+    lbl_expense_month: 'Tháng',
+    lbl_expense_desc: 'Mô Tả',
+    lbl_expense_amount: 'Số Tiền (VNĐ)',
+    btn_save_expense: 'Lưu Chi Phí',
+    toast_expense_saved: 'Đã lưu khoản chi phí!',
+    toast_expense_deleted: 'Đã xóa khoản chi phí!',
+    confirm_delete_expense: 'Bạn chắc chắn muốn xóa khoản chi phí này?',
+    ir_invoices_counted_label: 'hóa đơn được tính trong tháng này',
+    ir_line_rent: 'Tổng tiền nhà',
+    ir_line_other_services: 'Dịch vụ khác (internet, rác, gửi xe...)',
+    ir_line_water_share: 'Tiền nước (chủ đầu tư nhận 50%)',
+    ir_of_label: 'của',
+    ir_line_elec_excluded: 'Tiền điện (không tính, đã xử lý riêng)',
+    ir_not_counted_label: 'Không tính',
+    ir_line_expenses: 'Trừ chi phí lắp đặt / sửa chữa',
+    ir_line_net_revenue: 'Doanh thu chia sẻ',
+    ir_line_manager_share: 'Phần quản lý giữ lại',
+    ir_line_investor_share: 'Chủ đầu tư nhận',
+    ir_summary_title: '📊 Tổng Hợp Theo Tòa Nhà',
+    ir_select_house_hint: 'Chọn một tòa nhà cụ thể ở thanh trên để xem báo cáo chi tiết từng dòng.',
+    ir_no_house_hint: 'Chưa có tòa nhà nào để lập báo cáo.',
+    ir_no_invoices_hint: 'Chưa có hóa đơn nào trong tháng này để tính báo cáo.',
+    total_label: 'TỔNG CỘNG',
     nav_my_contract: 'Hợp Đồng Của Tôi',
     services_config_title: 'Bảng Cấu Hình Dịch Vụ & Điện Nước',
     btn_add_service: 'Thêm Dịch Vụ Mới',
@@ -631,6 +670,8 @@ const I18N = {
     headcount_label: 'Headcount:',
     contract_photos_label: 'Contract Photos',
     toast_select_image_first: 'Please select an image first',
+    toast_image_too_large: 'Image is too large to compress under 5MB. Please choose a different photo.',
+    toast_image_compress_failed: 'Could not read this file. Please choose a valid image.',
     default_document_label: 'Document',
     toast_document_added: 'Contract photo added!',
     toast_upload_error: 'Error uploading image',
@@ -695,6 +736,43 @@ const I18N = {
     title_logout: 'Log Out',
     nav_rooms: 'Room Management',
     nav_permissions: 'System Permissions',
+    nav_investor_report: 'Investor Report',
+    view_admin_investor_report_title: 'Investor Report',
+    view_admin_investor_report_subtitle: 'Calculate shared revenue and the payout owed to the investor each month',
+    ir_expenses_title: '🔧 Installation / Repair Costs This Month',
+    ir_expenses_desc: 'These costs are deducted from revenue before splitting the payout with the investor.',
+    btn_add_expense: 'Add Cost',
+    ir_fee_percent_label: 'Management fee % kept (remainder goes to the investor):',
+    col_expense_desc: 'Description',
+    col_expense_house: 'House',
+    col_expense_amount: 'Amount',
+    ir_expenses_empty: 'No installation / repair costs recorded for this month yet.',
+    modal_add_expense_title: 'Add Installation / Repair Cost',
+    modal_edit_expense_title: 'Edit Installation / Repair Cost',
+    lbl_expense_house: 'House',
+    lbl_expense_month: 'Month',
+    lbl_expense_desc: 'Description',
+    lbl_expense_amount: 'Amount (VND)',
+    btn_save_expense: 'Save Cost',
+    toast_expense_saved: 'Cost saved!',
+    toast_expense_deleted: 'Cost deleted!',
+    confirm_delete_expense: 'Are you sure you want to delete this cost?',
+    ir_invoices_counted_label: 'invoices counted this month',
+    ir_line_rent: 'Total room rent',
+    ir_line_other_services: 'Other services (internet, trash, parking...)',
+    ir_line_water_share: 'Water fee (investor gets 50%)',
+    ir_of_label: 'of',
+    ir_line_elec_excluded: 'Electricity fee (excluded, handled separately)',
+    ir_not_counted_label: 'Not counted',
+    ir_line_expenses: 'Less: installation / repair costs',
+    ir_line_net_revenue: 'Shared revenue',
+    ir_line_manager_share: 'Management share',
+    ir_line_investor_share: 'Investor receives',
+    ir_summary_title: '📊 Summary By House',
+    ir_select_house_hint: 'Pick a specific house in the top bar to see the line-by-line report.',
+    ir_no_house_hint: 'No houses to report on yet.',
+    ir_no_invoices_hint: 'No invoices this month to calculate a report from.',
+    total_label: 'TOTAL',
     nav_my_contract: 'My Contract',
     services_config_title: 'Service & Utility Configuration Table',
     btn_add_service: 'Add New Service',
@@ -895,7 +973,9 @@ let state = {
   readings: {},
   invoices: [],
   tickets: [],
-  roomDocuments: {}
+  roomDocuments: {},
+  investorExpenses: [],
+  investorFeePercent: 20
 };
 
 const API_BASE = '/api';
@@ -962,7 +1042,12 @@ async function handleLogin(event) {
   }
 }
 
-function handleLogout() {
+async function handleLogout() {
+  try {
+    await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+  } catch (err) {
+    console.warn('Could not clear server session:', err);
+  }
   state.currentUser = null;
   if (document.getElementById('login-username')) document.getElementById('login-username').value = '';
   if (document.getElementById('login-password')) document.getElementById('login-password').value = '';
@@ -970,6 +1055,25 @@ function handleLogout() {
   document.getElementById('tvk-navbar').style.display = 'none';
   document.getElementById('app-container').style.display = 'none';
   showToast(t('toast_logout_success'), 'info');
+}
+
+async function restoreSession() {
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        state.currentUser = data.user;
+        document.getElementById('auth-screen').style.display = 'none';
+        document.getElementById('tvk-navbar').style.display = 'flex';
+        document.getElementById('app-container').style.display = 'flex';
+        setupUserRoleUI();
+        await fetchState();
+      }
+    }
+  } catch (err) {
+    console.warn('No active session, showing login screen:', err);
+  }
 }
 
 function hasPermission(role, permissionKey) {
@@ -1025,6 +1129,7 @@ function setupUserRoleUI() {
       'admin-dashboard': '',
       'admin-spreadsheet': 'manage_services',
       'admin-invoices': 'view_all_invoices',
+      'admin-investor-report': 'view_investor_report',
       'admin-rooms': 'manage_rooms',
       'admin-tickets': 'view_all_tickets',
       'admin-users': 'manage_accounts',
@@ -1160,6 +1265,7 @@ async function fetchState() {
       state.tickets = data.tickets || state.tickets;
       state.permissions = data.permissions || state.permissions;
       state.roomDocuments = data.roomDocuments || state.roomDocuments;
+      state.investorExpenses = data.investorExpenses || state.investorExpenses;
       renderHouseSelector();
       renderCurrentView();
     }
@@ -1212,6 +1318,11 @@ function switchView(viewId) {
       titleEl.innerText = dict.invoices_title;
       subtitleEl.innerText = dict.view_admin_invoices_subtitle;
       renderAdminInvoices();
+      break;
+    case 'admin-investor-report':
+      titleEl.innerText = dict.view_admin_investor_report_title;
+      subtitleEl.innerText = dict.view_admin_investor_report_subtitle;
+      renderInvestorReport();
       break;
     case 'admin-rooms':
       titleEl.innerText = dict.view_admin_rooms_title;
@@ -2181,15 +2292,16 @@ function meterPhotoButtonHtml(roomId, field, photoDataUrl) {
   `;
 }
 
-function handleMeterPhotoUpload(event, roomId, field) {
+async function handleMeterPhotoUpload(event, roomId, field) {
   const file = event.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    updateReadingApi(roomId, field, e.target.result);
-  };
-  reader.readAsDataURL(file);
   event.target.value = '';
+  if (!file) return;
+  try {
+    const dataUrl = await compressImageFile(file);
+    updateReadingApi(roomId, field, dataUrl);
+  } catch (err) {
+    showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+  }
 }
 
 function viewMeterPhoto(roomId, field) {
@@ -2373,6 +2485,259 @@ async function markInvoicePaidApi(invoiceId) {
 
   showToast(`${t('toast_invoice_marked_paid_prefix')}${invoiceId}!`, 'success');
   renderAdminInvoices();
+}
+
+/* ==========================================================================
+   INVESTOR PAYOUT REPORT
+   Doanh thu chia sẻ = Tổng tiền nhà + Dịch vụ khác + 50% tiền nước
+                        − Chi phí lắp đặt/sửa chữa trong tháng
+   (Tiền điện không tính — đã được quản lý xử lý riêng.)
+   Chủ đầu tư nhận = Doanh thu chia sẻ × (100 − % quản lý giữ lại)
+   ========================================================================== */
+
+function updateInvestorFeePercent(value) {
+  const v = parseFloat(value);
+  state.investorFeePercent = isNaN(v) ? 20 : Math.min(100, Math.max(0, v));
+  renderInvestorReport();
+}
+
+function computeInvestorReportData(houseId, month) {
+  const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId);
+  const rent = invoices.reduce((s, i) => s + (i.baseRent || 0), 0);
+  const other = invoices.reduce((s, i) => s + (i.otherFees || 0), 0);
+  const water = invoices.reduce((s, i) => s + (i.waterCost || 0), 0);
+  const elec = invoices.reduce((s, i) => s + (i.elecCost || 0), 0);
+  const waterShare = water * 0.5;
+
+  const expenses = state.investorExpenses
+    .filter(e => e.month === month && e.houseId === houseId)
+    .reduce((s, e) => s + (e.amount || 0), 0);
+
+  const sharedRevenue = rent + other + waterShare - expenses;
+  const feePercent = state.investorFeePercent != null ? state.investorFeePercent : 20;
+  const managerShare = sharedRevenue * (feePercent / 100);
+  const investorShare = sharedRevenue - managerShare;
+
+  return { invoiceCount: invoices.length, rent, other, water, waterShare, elec, expenses, sharedRevenue, feePercent, managerShare, investorShare };
+}
+
+function renderInvestorReportCard(house, d) {
+  const line = (label, value, opts = {}) => `
+    <div style="display:flex; justify-content:space-between; gap:1rem; ${opts.style || ''}">
+      <span>${label}</span>
+      <strong>${opts.prefix || ''}${formatMoney(value)} đ</strong>
+    </div>
+  `;
+  return `
+    <div class="tvk-card">
+      <div style="margin-bottom:1.25rem;">
+        <h3 style="margin-bottom:0.25rem;">📊 ${house.name}</h3>
+        <p style="font-size:0.85rem; color:var(--text-secondary);">${d.invoiceCount} ${t('ir_invoices_counted_label')}</p>
+      </div>
+
+      <div style="display:flex; flex-direction:column; gap:0.65rem; font-size:0.92rem;">
+        ${line('🏠 ' + t('ir_line_rent'), d.rent)}
+        ${line('🧾 ' + t('ir_line_other_services'), d.other)}
+        ${line(`💧 ${t('ir_line_water_share')} (${t('ir_of_label')} ${formatMoney(d.water)}đ)`, d.waterShare, { prefix: '+' })}
+        <div style="display:flex; justify-content:space-between; gap:1rem; color:var(--text-muted);">
+          <span>⚡ ${t('ir_line_elec_excluded')} (${formatMoney(d.elec)}đ)</span>
+          <strong>${t('ir_not_counted_label')}</strong>
+        </div>
+        ${line('🔧 ' + t('ir_line_expenses'), d.expenses, { prefix: '−', style: 'color:var(--tvk-red);' })}
+        <hr style="border-color:var(--border-color); width:100%;">
+        ${line(t('ir_line_net_revenue'), d.sharedRevenue, { style: 'font-size:1.05rem; font-weight:800;' })}
+        ${line(`${t('ir_line_manager_share')} (${d.feePercent}%)`, d.managerShare)}
+      </div>
+
+      <div style="margin-top:1.25rem; padding:1.25rem; border-radius:var(--radius-lg); background:linear-gradient(135deg, var(--tvk-blue-light) 0%, #ffffff 100%); border:1px solid #bce2fd; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+        <div style="font-weight:800; color:var(--tvk-blue-dark);">${t('ir_line_investor_share')} (${100 - d.feePercent}%)</div>
+        <div style="font-size:1.6rem; font-weight:800; color:var(--tvk-blue);">${formatMoney(d.investorShare)} đ</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderInvestorReportSummaryTable(houses, month) {
+  let totalShared = 0, totalExpenses = 0, totalInvestor = 0;
+  const rows = houses.map(h => {
+    const d = computeInvestorReportData(h.id, month);
+    totalShared += d.sharedRevenue;
+    totalExpenses += d.expenses;
+    totalInvestor += d.investorShare;
+    return `
+      <tr>
+        <td><strong>${h.name}</strong></td>
+        <td style="text-align:right;">${formatMoney(d.sharedRevenue)} đ</td>
+        <td style="text-align:right;">${formatMoney(d.expenses)} đ</td>
+        <td style="text-align:right; font-weight:800; color:var(--tvk-blue);">${formatMoney(d.investorShare)} đ</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <div class="tvk-card">
+      <h3 style="margin-bottom:1rem;">${t('ir_summary_title')} — ${formatMonthLabel(month)}</h3>
+      <div class="excel-table-wrapper">
+        <table class="excel-table">
+          <thead>
+            <tr>
+              <th>${t('col_house')}</th>
+              <th style="text-align:right;">${t('ir_line_net_revenue')}</th>
+              <th style="text-align:right;">${t('ir_line_expenses')}</th>
+              <th style="text-align:right;">${t('ir_line_investor_share')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+            <tr style="font-weight:800; background:var(--bg-base);">
+              <td>${t('total_label')}</td>
+              <td style="text-align:right;">${formatMoney(totalShared)} đ</td>
+              <td style="text-align:right;">${formatMoney(totalExpenses)} đ</td>
+              <td style="text-align:right; color:var(--tvk-blue);">${formatMoney(totalInvestor)} đ</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:0.75rem;">${t('ir_select_house_hint')}</p>
+    </div>
+  `;
+}
+
+function renderInvestorReport() {
+  renderInvestorExpensesTable();
+
+  const feeInput = document.getElementById('ir-fee-percent');
+  if (feeInput && document.activeElement !== feeInput) {
+    feeInput.value = state.investorFeePercent;
+  }
+
+  const container = document.getElementById('investor-report-breakdown-container');
+  if (!container) return;
+
+  if (state.houses.length === 0) {
+    container.innerHTML = `<div class="tvk-card" style="text-align:center; color:var(--text-secondary);">${t('ir_no_house_hint')}</div>`;
+    return;
+  }
+
+  const month = state.currentMonth;
+
+  if (state.currentHouseId === 'all') {
+    container.innerHTML = renderInvestorReportSummaryTable(state.houses, month);
+    return;
+  }
+
+  const house = state.houses.find(h => h.id === state.currentHouseId);
+  if (!house) {
+    container.innerHTML = '';
+    return;
+  }
+  const d = computeInvestorReportData(house.id, month);
+  container.innerHTML = renderInvestorReportCard(house, d);
+}
+
+function renderInvestorExpensesTable() {
+  const tbody = document.getElementById('investor-expenses-table-body');
+  if (!tbody) return;
+
+  const month = state.currentMonth;
+  const houseId = state.currentHouseId;
+  const rows = state.investorExpenses.filter(e => e.month === month && (houseId === 'all' || e.houseId === houseId));
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('ir_expenses_empty')}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(e => {
+    const house = state.houses.find(h => h.id === e.houseId);
+    return `
+      <tr>
+        <td>${e.description}</td>
+        <td>${house ? house.name : e.houseId}</td>
+        <td style="text-align:right; font-weight:700; color:var(--tvk-red);">${formatMoney(e.amount)} đ</td>
+        <td style="text-align:right;">
+          <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+            <button class="btn btn-secondary btn-sm" onclick="openEditInvestorExpenseModal('${e.id}')"><i data-lucide="edit-2"></i></button>
+            <button class="btn btn-secondary btn-sm" onclick="deleteInvestorExpenseApi('${e.id}')" style="color:var(--tvk-red);"><i data-lucide="trash-2"></i></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  lucide.createIcons();
+}
+
+function openAddInvestorExpenseModal() {
+  document.getElementById('ie-id').value = '';
+  document.getElementById('ie-house-id').innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+  if (state.currentHouseId !== 'all') document.getElementById('ie-house-id').value = state.currentHouseId;
+  document.getElementById('ie-month').value = state.currentMonth;
+  document.getElementById('ie-description').value = '';
+  document.getElementById('ie-amount').value = '';
+  document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--tvk-orange); vertical-align: middle;"></i> ${t('modal_add_expense_title')}`;
+  document.getElementById('modal-investor-expense').classList.add('active');
+  lucide.createIcons();
+}
+
+function openEditInvestorExpenseModal(expenseId) {
+  const e = state.investorExpenses.find(x => x.id === expenseId);
+  if (!e) return;
+  document.getElementById('ie-id').value = e.id;
+  document.getElementById('ie-house-id').innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
+  document.getElementById('ie-house-id').value = e.houseId;
+  document.getElementById('ie-month').value = e.month;
+  document.getElementById('ie-description').value = e.description;
+  document.getElementById('ie-amount').value = e.amount;
+  document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--tvk-orange); vertical-align: middle;"></i> ${t('modal_edit_expense_title')}`;
+  document.getElementById('modal-investor-expense').classList.add('active');
+  lucide.createIcons();
+}
+
+async function submitInvestorExpense(event) {
+  event.preventDefault();
+  const id = document.getElementById('ie-id').value;
+  const houseId = document.getElementById('ie-house-id').value;
+  const month = document.getElementById('ie-month').value;
+  const description = document.getElementById('ie-description').value.trim();
+  const amount = parseFloat(document.getElementById('ie-amount').value) || 0;
+
+  const eObj = { id: id || `exp_${Date.now()}`, houseId, month, description, amount };
+  const idx = state.investorExpenses.findIndex(x => x.id === eObj.id);
+  if (idx >= 0) state.investorExpenses[idx] = { ...state.investorExpenses[idx], ...eObj };
+  else state.investorExpenses.push(eObj);
+
+  try {
+    await fetch(`${API_BASE}/investor-expenses/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(eObj)
+    });
+  } catch (err) {
+    console.warn('Saved expense locally:', err);
+  }
+
+  showToast(t('toast_expense_saved'), 'success');
+  closeModal('modal-investor-expense');
+  renderInvestorReport();
+}
+
+async function deleteInvestorExpenseApi(expenseId) {
+  if (!confirm(t('confirm_delete_expense'))) return;
+  state.investorExpenses = state.investorExpenses.filter(e => e.id !== expenseId);
+
+  try {
+    await fetch(`${API_BASE}/investor-expenses/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: expenseId })
+    });
+  } catch (err) {
+    console.warn('Deleted expense locally:', err);
+  }
+
+  showToast(t('toast_expense_deleted'), 'success');
+  renderInvestorReport();
 }
 
 function renderAdminUsers() {
@@ -2924,19 +3289,19 @@ function openRoomDocumentsModal(roomId) {
   lucide.createIcons();
 }
 
-function handleRoomDocumentSelect(event) {
+async function handleRoomDocumentSelect(event) {
   const file = event.target.files[0];
+  event.target.value = '';
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    _pendingDocDataUrl = e.target.result;
+  try {
+    _pendingDocDataUrl = await compressImageFile(file);
     const previewEl = document.getElementById('room-document-pending-preview');
     if (previewEl) {
       previewEl.innerHTML = `<img src="${_pendingDocDataUrl}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--tvk-blue);">`;
     }
-  };
-  reader.readAsDataURL(file);
-  event.target.value = '';
+  } catch (err) {
+    showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+  }
 }
 
 async function uploadRoomDocument() {
@@ -3039,8 +3404,25 @@ function showTicketList() {
   _currentTicketId = null;
 }
 
-function openTicketDetail(ticketId) {
-  const ticket = state.tickets.find(t => t.id === ticketId);
+async function fetchFullTicket(ticketId) {
+  const idx = state.tickets.findIndex(t => t.id === ticketId);
+  if (idx < 0) return null;
+  try {
+    const res = await fetch(`${API_BASE}/tickets/${ticketId}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        state.tickets[idx] = data.ticket;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch full ticket, using cached summary:', err);
+  }
+  return state.tickets[idx];
+}
+
+async function openTicketDetail(ticketId) {
+  const ticket = await fetchFullTicket(ticketId);
   if (!ticket) return;
   _currentTicketId = ticketId;
 
@@ -3166,13 +3548,14 @@ function handleAdminImageSelect(event) {
   const remaining = 5 - _adminImages.length;
   const toAdd = files.slice(0, remaining);
 
-  toAdd.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      _adminImages.push(e.target.result);
+  toAdd.forEach(async file => {
+    try {
+      const dataUrl = await compressImageFile(file);
+      _adminImages.push(dataUrl);
       renderAdminImagePreviews();
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+    }
   });
 
   if (files.length > remaining) {
@@ -3258,7 +3641,7 @@ function renderAdminTickets() {
   }
 
   state.tickets.forEach(t => {
-    const imgCount = (t.images || []).length;
+    const imgCount = t.imagesCount != null ? t.imagesCount : (t.images || []).length;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${t.id}</strong></td>
@@ -3308,13 +3691,14 @@ function handleTenantImageSelect(event) {
   const remaining = 5 - _tenantImages.length;
   const toAdd = files.slice(0, remaining);
 
-  toAdd.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      _tenantImages.push(e.target.result);
+  toAdd.forEach(async file => {
+    try {
+      const dataUrl = await compressImageFile(file);
+      _tenantImages.push(dataUrl);
       renderTenantImagePreviews();
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+    }
   });
 
   if (files.length > remaining) {
@@ -3574,6 +3958,68 @@ function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
 }
 
+/* ==========================================================================
+   IMAGE COMPRESSION — every photo upload (meter readings, room documents,
+   ticket attachments) goes through this so nothing over ~5MB ever reaches
+   the server. Downscales long edge to 1600px and re-encodes as JPEG,
+   stepping quality/size down until under the cap while staying readable.
+   ========================================================================== */
+const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const IMAGE_MAX_DIMENSION = 1600;
+const IMAGE_MIN_DIMENSION = 480;
+
+function compressImageFile(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || !file.type.startsWith('image/')) {
+      reject(new Error('not-an-image'));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read-failed'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('load-failed'));
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = img.width;
+        let height = img.height;
+        const scale = Math.min(1, IMAGE_MAX_DIMENSION / Math.max(width, height));
+        canvas.width = Math.round(width * scale);
+        canvas.height = Math.round(height * scale);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        let quality = 0.85;
+        let dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        // Step 1: reduce quality first — cheapest way to shrink size
+        while (dataUrl.length > IMAGE_MAX_BYTES && quality > 0.35) {
+          quality -= 0.1;
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        // Step 2: still too big (huge original) — shrink dimensions too
+        while (dataUrl.length > IMAGE_MAX_BYTES && Math.min(canvas.width, canvas.height) > IMAGE_MIN_DIMENSION) {
+          canvas.width = Math.round(canvas.width * 0.8);
+          canvas.height = Math.round(canvas.height * 0.8);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          dataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        if (dataUrl.length > IMAGE_MAX_BYTES) {
+          reject(new Error('too-large'));
+          return;
+        }
+        resolve(dataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function formatMoney(num) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(num || 0));
 }
@@ -3597,8 +4043,8 @@ function showToast(message, type = 'info') {
 }
 let _currentTenantTicketId = null;
 
-function openTenantTicketDetail(ticketId) {
-  const ticket = state.tickets.find(t => t.id === ticketId);
+async function openTenantTicketDetail(ticketId) {
+  const ticket = await fetchFullTicket(ticketId);
   if (!ticket) return;
   _currentTenantTicketId = ticketId;
 
@@ -3808,4 +4254,6 @@ document.addEventListener('DOMContentLoaded', () => {
       closeSidebar();
     });
   });
+
+  restoreSession();
 });

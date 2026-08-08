@@ -1,9 +1,13 @@
 [Unit]
 Description=Rental House Management Flask App (Gunicorn)
-After=network.target
+# If MySQL runs on this same VPS, this makes systemd start it first and
+# restart this service if MySQL restarts. Drop the mysql.service bits if
+# you're pointing MYSQL_HOST at a remote/managed database instead.
+After=network.target mysql.service
+Wants=mysql.service
 
 [Service]
-Type=notify
+Type=simple
 User=www-data
 Group=www-data
 WorkingDirectory=/opt/calacihouse

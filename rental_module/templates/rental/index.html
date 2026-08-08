@@ -11,80 +11,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- External Stylesheet -->
+  <!-- External Stylesheet (single source of truth — do not duplicate rules inline,
+       an inline copy would win the cascade over this file's @media rules) -->
   <link rel="stylesheet" href="{{ url_for('rental.static', filename='css/styles.css') }}">
-  <style>
-    /* Inline Fallback Protection */
-    :root {
-      --tvk-blue: #0194f3; --tvk-blue-dark: #0178d2; --tvk-blue-light: #e6f4fe;
-      --tvk-orange: #ff5e1f; --tvk-orange-hover: #e54e12; --tvk-emerald: #00b67a;
-      --tvk-amber: #f99d1c; --tvk-red: #f53157;
-      --bg-base: #f2f4f7; --bg-surface: #ffffff; --bg-card: #ffffff; --border-color: #e5e9f0;
-      --text-primary: #03121a; --text-secondary: #687176; --text-muted: #969e9e;
-      --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px; --radius-full: 9999px;
-      --shadow-sm: 0 2px 6px rgba(3, 18, 26, 0.06); --shadow-md: 0 6px 18px rgba(3, 18, 26, 0.08); --shadow-lg: 0 12px 30px rgba(3, 18, 26, 0.12);
-    }
-    [data-theme="dark"] {
-      --bg-base: #0f172a; --bg-surface: #1e293b; --bg-card: #1e293b; --border-color: #334155;
-      --text-primary: #f8fafc; --text-secondary: #94a3b8; --text-muted: #64748b;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; background-color: var(--bg-base); color: var(--text-primary); min-height: 100vh; }
-    .auth-screen { position: fixed; inset: 0; background: linear-gradient(135deg, #0194f3 0%, #0178d2 50%, #005bb5 100%); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
-    .auth-card { width: 100%; max-width: 440px; background: var(--bg-card); border-radius: var(--radius-lg); padding: 2.25rem; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25); }
-    .auth-tabs { display: flex; background: #f2f4f7; padding: 4px; border-radius: var(--radius-md); margin-bottom: 1.5rem; }
-    [data-theme="dark"] .auth-tabs { background: #0f172a; }
-    .auth-tab { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-secondary); font-weight: 700; font-size: 0.9rem; border-radius: var(--radius-sm); cursor: pointer; }
-    .auth-tab.active { background: var(--tvk-blue); color: #ffffff; box-shadow: var(--shadow-sm); }
-    .tvk-navbar { background: var(--tvk-blue); color: #ffffff; padding: 0.85rem 2rem; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 4px 12px rgba(1, 148, 243, 0.25); position: sticky; top: 0; z-index: 100; }
-    .tvk-brand { display: flex; align-items: center; gap: 0.75rem; color: #ffffff; text-decoration: none; font-size: 1.35rem; font-weight: 800; }
-    .tvk-brand-badge { background: var(--tvk-orange); padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
-    .app-container { display: flex; min-height: calc(100vh - 60px); }
-    .sidebar { width: 260px; background: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
-    .nav-section { padding: 1.25rem 0.85rem; flex: 1; display: flex; flex-direction: column; gap: 0.35rem; }
-    .nav-label { padding: 0.4rem 0.85rem; font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; letter-spacing: 0.05em; }
-    .nav-item { display: flex; align-items: center; gap: 0.85rem; padding: 0.8rem 1rem; color: var(--text-secondary); text-decoration: none; border-radius: var(--radius-md); font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s ease; }
-    .nav-item:hover { background: var(--tvk-blue-light); color: var(--tvk-blue); }
-    .nav-item.active { background: var(--tvk-blue); color: #ffffff; box-shadow: 0 4px 12px rgba(1, 148, 243, 0.3); }
-    .main-content { flex: 1; padding: 2rem; overflow-y: auto; }
-    .tvk-card { background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color); padding: 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1.5rem; }
-    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.65rem 1.35rem; font-size: 0.875rem; font-weight: 700; border-radius: var(--radius-full); border: none; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }
-    .btn-orange { background: var(--tvk-orange); color: #ffffff; box-shadow: 0 4px 12px rgba(255, 94, 31, 0.3); }
-    .btn-orange:hover { background: var(--tvk-orange-hover); transform: translateY(-1px); }
-    .btn-blue { background: var(--tvk-blue); color: #ffffff; box-shadow: 0 4px 12px rgba(1, 148, 243, 0.3); }
-    .btn-secondary { background: var(--bg-base); color: var(--text-primary); border: 1px solid var(--border-color); }
-    .btn-sm { padding: 0.4rem 0.85rem; font-size: 0.8rem; }
-    .form-control { width: 100%; padding: 0.7rem 0.95rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-primary); font-size: 0.9rem; font-family: inherit; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
-    .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.35rem; display: flex; align-items: center; justify-content: space-between; }
-    .stat-val { font-size: 1.6rem; font-weight: 800; color: var(--tvk-blue); margin-top: 0.25rem; }
-    .excel-table-wrapper { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--bg-surface); }
-    .excel-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-    .excel-table th { background: #f7f9fa; color: #43494d; padding: 1rem; text-align: left; font-weight: 800; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
-    [data-theme="dark"] .excel-table th { background: #0f172a; color: #94a3b8; }
-    .excel-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); }
-    .excel-input { width: 95px; padding: 0.45rem; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: right; font-weight: 700; color: var(--text-primary); }
-    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 0.3rem 0.75rem; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
-    .badge-paid { background: #e6f9f2; color: var(--tvk-emerald); border: 1px solid #b3f2db; }
-    .badge-pending { background: #fff2ec; color: var(--tvk-orange); border: 1px solid #ffd4c2; }
-    .badge-open { background: #ffecee; color: var(--tvk-red); border: 1px solid #ffc2c9; }
-    .badge-resolved { background: var(--tvk-blue-light); color: var(--tvk-blue); border: 1px solid #bce2fd; }
-    .modal-backdrop { position: fixed; inset: 0; background: rgba(3, 18, 26, 0.65); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: all 0.25s ease; }
-    .modal-backdrop.active { opacity: 1; pointer-events: auto; }
-    .modal-card { width: 100%; max-width: 650px; max-height: 90vh; overflow-y: auto; padding: 2rem; background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }
-    .toast-container { position: fixed; bottom: 2rem; right: 2rem; display: flex; flex-direction: column; gap: 0.75rem; z-index: 1000; }
-    .toast { padding: 1rem 1.25rem; border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-primary); border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); display: flex; align-items: center; gap: 0.75rem; }
-    .invoice-paper { background: #ffffff; color: #03121a; border-radius: var(--radius-lg); padding: 2.5rem; box-shadow: var(--shadow-lg); max-width: 800px; margin: 0 auto; }
-    .checkbox-item { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0.6rem; border-radius: var(--radius-sm); cursor: pointer; transition: background 0.15s; font-weight: 600; font-size: 0.9rem; }
-    .checkbox-item:hover { background: var(--tvk-blue-light); }
-    .checkbox-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--tvk-blue); cursor: pointer; }
-    
-    /* ICON PICKER STYLING */
-    .icon-picker-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; background: var(--bg-base); padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); }
-    .icon-picker-option { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0.6rem; border-radius: var(--radius-sm); border: 1px solid transparent; background: var(--bg-surface); cursor: pointer; transition: all 0.2s; }
-    .icon-picker-option:hover { border-color: var(--tvk-blue); background: var(--tvk-blue-light); }
-    .icon-picker-option.selected { border-color: var(--tvk-blue); background: var(--tvk-blue-light); font-weight: 800; box-shadow: var(--shadow-sm); }
-  </style>
 </head>
 <body>
 
@@ -209,6 +138,10 @@
         <a class="nav-item" data-view="admin-invoices">
           <i data-lucide="file-text"></i>
           <span data-i18n="nav_invoices">Quản Lý Hóa Đơn</span>
+        </a>
+        <a class="nav-item" data-view="admin-investor-report">
+          <i data-lucide="percent"></i>
+          <span data-i18n="nav_investor_report">Báo Cáo Chủ Đầu Tư</span>
         </a>
         <a class="nav-item" data-view="admin-rooms">
           <i data-lucide="door-open"></i>
@@ -546,6 +479,45 @@
           </div>
         </div>
 
+        <!-- INVESTOR PAYOUT REPORT — internal admin tool: computes how much the
+             investor is owed each month after excluding electricity, halving
+             water, and deducting installation/repair costs -->
+        <div id="view-admin-investor-report" class="view-panel" style="display: none;">
+          <div class="tvk-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: 0.5rem;">
+              <div>
+                <h3 data-i18n="ir_expenses_title">🔧 Chi Phí Lắp Đặt / Sửa Chữa Trong Tháng</h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;" data-i18n="ir_expenses_desc">Các khoản chi này sẽ được trừ vào doanh thu trước khi tính phần chia cho chủ đầu tư.</p>
+              </div>
+              <button class="btn btn-orange btn-sm" onclick="openAddInvestorExpenseModal()">
+                <i data-lucide="plus"></i> <span data-i18n="btn_add_expense">Thêm Chi Phí</span>
+              </button>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 0.6rem; margin: 0.75rem 0 1.25rem;">
+              <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="ir_fee_percent_label">Tỷ lệ % Quản lý giữ lại (còn lại là phần chủ đầu tư):</label>
+              <input type="number" id="ir-fee-percent" class="form-control" style="width: 90px;" min="0" max="100" value="20" oninput="updateInvestorFeePercent(this.value)">
+              <span style="font-weight: 700;">%</span>
+            </div>
+
+            <div class="excel-table-wrapper">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="col_expense_desc">Mô Tả</th>
+                    <th data-i18n="col_expense_house">Tòa Nhà</th>
+                    <th style="text-align: right;" data-i18n="col_expense_amount">Số Tiền</th>
+                    <th style="text-align: right;" data-i18n="col_actions">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody id="investor-expenses-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="investor-report-breakdown-container"></div>
+        </div>
+
         <!-- ROOM MANAGEMENT VIEW -->
         <div id="view-admin-rooms" class="view-panel" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
@@ -812,6 +784,39 @@
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-house')" data-i18n="btn_cancel">Hủy</button>
           <button type="submit" class="btn btn-orange" data-i18n="btn_save_house">Lưu Tòa Nhà</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Add / Edit Investor Expense (installation / repair cost for the month) -->
+  <div class="modal-backdrop" id="modal-investor-expense">
+    <div class="modal-card" style="max-width: 480px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3 id="modal-investor-expense-title"><i data-lucide="wrench" style="color: var(--tvk-orange); vertical-align: middle;"></i> <span data-i18n="modal_add_expense_title">Thêm Chi Phí Lắp Đặt / Sửa Chữa</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-investor-expense')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-investor-expense" onsubmit="submitInvestorExpense(event)">
+        <input type="hidden" id="ie-id">
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_house">Tòa Nhà</label>
+          <select id="ie-house-id" class="form-control" required></select>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_month">Tháng</label>
+          <input type="month" id="ie-month" class="form-control" required>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_desc">Mô Tả</label>
+          <input type="text" id="ie-description" class="form-control" placeholder="VD: Sửa máy bơm nước phòng 101" required>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_amount">Số Tiền (VNĐ)</label>
+          <input type="number" id="ie-amount" class="form-control" min="0" step="1000" required>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-investor-expense')" data-i18n="btn_cancel">Hủy</button>
+          <button type="submit" class="btn btn-orange" data-i18n="btn_save_expense">Lưu Chi Phí</button>
         </div>
       </form>
     </div>
