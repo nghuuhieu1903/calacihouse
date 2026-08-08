@@ -2480,15 +2480,15 @@ function renderAdminInvoices() {
   monthInvoices.forEach(inv => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><strong>${inv.id}</strong></td>
-      <td>${inv.roomName}</td>
-      <td>${inv.tenant}</td>
-      <td>${formatMonthLabel(inv.month)}</td>
-      <td style="font-weight: 800; color: var(--tvk-orange);">${formatMoney(inv.totalAmount)} đ</td>
-      <td><span class="badge badge-resolved">${statusLabel(inv.sendStatus)}</span></td>
-      <td><span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span></td>
-      <td><small style="color: var(--text-muted);">${inv.sentAt ? statusLabel(inv.sentAt) : t('just_now_label')}</small></td>
-      <td>
+      <td data-label="${t('col_inv_id')}"><strong>${inv.id}</strong></td>
+      <td data-label="${t('col_room')}">${inv.roomName}</td>
+      <td data-label="${t('col_tenant')}">${inv.tenant}</td>
+      <td data-label="${t('col_period')}">${formatMonthLabel(inv.month)}</td>
+      <td data-label="${t('col_total')}" style="font-weight: 800; color: var(--tvk-orange);">${formatMoney(inv.totalAmount)} đ</td>
+      <td data-label="${t('col_send_status')}"><span class="badge badge-resolved">${statusLabel(inv.sendStatus)}</span></td>
+      <td data-label="${t('col_pay_status')}"><span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span></td>
+      <td data-label="${t('col_sent_time')}"><small style="color: var(--text-muted);">${inv.sentAt ? statusLabel(inv.sentAt) : t('just_now_label')}</small></td>
+      <td data-label="${t('col_actions')}">
         <div style="display:flex; gap:0.5rem;">
           <button class="btn btn-secondary btn-sm" onclick="viewInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i></button>
           ${inv.status !== 'Đã thanh toán' ? `<button class="btn btn-orange btn-sm" onclick="markInvoicePaidApi('${inv.id}')"><i data-lucide="check-circle"></i> ${t('btn_mark_collected')}</button>` : ''}
