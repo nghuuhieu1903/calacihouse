@@ -11,6 +11,10 @@ Type=simple
 User=www-data
 Group=www-data
 WorkingDirectory=/opt/calacihouse
+# www-data's default home (/var/www) isn't writable by www-data itself,
+# which makes gunicorn fail to write its internal state dir — point HOME
+# at the app directory (already chowned to www-data) instead.
+Environment=HOME=/opt/calacihouse
 EnvironmentFile=/opt/calacihouse/.env
 ExecStart=/opt/calacihouse/.venv/bin/gunicorn \
     --workers 3 \
