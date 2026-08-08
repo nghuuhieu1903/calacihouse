@@ -86,6 +86,9 @@
         <button class="btn btn-orange btn-sm" onclick="openAddHouseModal()" title="Thêm Tòa Nhà Mới" data-i18n-title="title_add_new_house">
           <i data-lucide="plus"></i> <span data-i18n="btn_house_short">Tòa Nhà</span>
         </button>
+        <button class="btn btn-secondary btn-sm" onclick="openEditHouseModal()" title="Sửa Tòa Nhà" data-i18n-title="title_edit_house">
+          <i data-lucide="edit-2"></i>
+        </button>
       </div>
 
       <!-- Month Selector -->
@@ -764,7 +767,7 @@
   <div class="modal-backdrop" id="modal-add-house">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="building" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span data-i18n="modal_add_house_title">Thêm Tòa Nhà / Dãy Trọ Mới</span></h3>
+        <h3><i data-lucide="building" style="color: var(--tvk-blue); vertical-align: middle;"></i> <span id="modal-house-title" data-i18n="modal_add_house_title">Thêm Tòa Nhà / Dãy Trọ Mới</span></h3>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-add-house')"><i data-lucide="x"></i></button>
       </div>
       <form id="form-add-house" onsubmit="saveHouse(event)">

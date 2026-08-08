@@ -148,6 +148,9 @@ const I18N = {
     icon_label_package: 'Khác',
     toast_house_added_prefix: 'Đã thêm Tòa Nhà ',
     toast_house_added_suffix: ' thành công!',
+    toast_house_updated_prefix: 'Đã cập nhật Tòa Nhà ',
+    toast_house_updated_suffix: ' thành công!',
+    toast_no_house_selected: 'Vui lòng chọn một tòa nhà để sửa.',
     scope_all_houses_rooms: 'Tất Cả Tòa Nhà & Phòng (Áp dụng toàn bộ hệ thống)',
     toast_service_saved_prefix: 'Đã lưu dịch vụ ',
     toast_service_saved_suffix: '! Bảng tính & Hóa đơn đã cập nhật.',
@@ -292,6 +295,7 @@ const I18N = {
     priority_urgent: 'Khẩn cấp',
     lbl_select_house: '🏢 Chọn Tòa Nhà:',
     title_add_new_house: 'Thêm Tòa Nhà Mới',
+    title_edit_house: 'Sửa Tòa Nhà',
     btn_house_short: 'Tòa Nhà',
     title_toggle_theme: 'Đổi giao diện Sáng/Tối',
     title_logout: 'Đăng Xuất',
@@ -380,6 +384,7 @@ const I18N = {
     lbl_attach_issue_photos: '📷 Đính kèm ảnh sự cố (tùy chọn)',
     select_issue_photos: 'Nhấn để chọn ảnh (JPG, PNG, tối đa 5 ảnh)',
     modal_add_house_title: 'Thêm Tòa Nhà / Dãy Trọ Mới',
+    modal_edit_house_title: 'Sửa Tòa Nhà / Dãy Trọ',
     lbl_house_name: 'Tên Tòa Nhà / Dãy Trọ',
     lbl_address: 'Địa chỉ',
     lbl_description_note: 'Ghi chú mô tả',
@@ -587,6 +592,9 @@ const I18N = {
     icon_label_package: 'Other',
     toast_house_added_prefix: 'Added house ',
     toast_house_added_suffix: ' successfully!',
+    toast_house_updated_prefix: 'Updated house ',
+    toast_house_updated_suffix: ' successfully!',
+    toast_no_house_selected: 'Please select a house to edit.',
     scope_all_houses_rooms: 'All Houses & Rooms (applies system-wide)',
     toast_service_saved_prefix: 'Saved service ',
     toast_service_saved_suffix: '! Spreadsheet & invoices updated.',
@@ -731,6 +739,7 @@ const I18N = {
     priority_urgent: 'Urgent',
     lbl_select_house: '🏢 Select House:',
     title_add_new_house: 'Add New House',
+    title_edit_house: 'Edit House',
     btn_house_short: 'House',
     title_toggle_theme: 'Toggle Light/Dark Mode',
     title_logout: 'Log Out',
@@ -819,6 +828,7 @@ const I18N = {
     lbl_attach_issue_photos: '📷 Attach issue photos (optional)',
     select_issue_photos: 'Click to select images (JPG, PNG, up to 5)',
     modal_add_house_title: 'Add New House / Property',
+    modal_edit_house_title: 'Edit House / Property',
     lbl_house_name: 'House / Property Name',
     lbl_address: 'Address',
     lbl_description_note: 'Description note',
@@ -1583,12 +1593,28 @@ function openAddHouseModal() {
   document.getElementById('house-name').value = '';
   document.getElementById('house-address').value = '';
   document.getElementById('house-desc').value = '';
+  document.getElementById('modal-house-title').textContent = t('modal_add_house_title');
+  document.getElementById('modal-add-house').classList.add('active');
+}
+
+function openEditHouseModal() {
+  const house = state.houses.find(h => h.id === state.currentHouseId);
+  if (!house) {
+    showToast(t('toast_no_house_selected'), 'error');
+    return;
+  }
+  document.getElementById('house-id').value = house.id;
+  document.getElementById('house-name').value = house.name || '';
+  document.getElementById('house-address').value = house.address || '';
+  document.getElementById('house-desc').value = house.description || '';
+  document.getElementById('modal-house-title').textContent = t('modal_edit_house_title');
   document.getElementById('modal-add-house').classList.add('active');
 }
 
 async function saveHouse(event) {
   event.preventDefault();
   const id = document.getElementById('house-id').value;
+  const isEdit = !!id;
   const name = document.getElementById('house-name').value.trim();
   const address = document.getElementById('house-address').value.trim();
   const description = document.getElementById('house-desc').value.trim();
@@ -1610,7 +1636,11 @@ async function saveHouse(event) {
     console.warn('Saved house locally:', err);
   }
 
-  showToast(`${t('toast_house_added_prefix')}"${name}"${t('toast_house_added_suffix')}`, 'success');
+  if (isEdit) {
+    showToast(`${t('toast_house_updated_prefix')}"${name}"${t('toast_house_updated_suffix')}`, 'success');
+  } else {
+    showToast(`${t('toast_house_added_prefix')}"${name}"${t('toast_house_added_suffix')}`, 'success');
+  }
   closeModal('modal-add-house');
   renderHouseSelector();
   renderCurrentView();
