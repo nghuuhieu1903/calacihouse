@@ -283,15 +283,29 @@ class Storage:
 
     @staticmethod
     def save_houses(houses):
+        """Upserts each row by primary key. Deliberately does NOT delete
+        rows missing from `houses` first — a caller with a stale or
+        incomplete in-memory list (e.g. two admins saving near-simultaneously,
+        or a transient read glitch) must never be able to wipe out houses it
+        doesn't know about. Use delete_house() to remove a specific row."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM houses")
                 for h in houses:
                     cur.execute(
                         "REPLACE INTO houses (id, name, address, description) VALUES (%s,%s,%s,%s)",
                         (h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''))
                     )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_house(house_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM houses WHERE id=%s", (house_id,))
             conn.commit()
         finally:
             conn.close()
@@ -315,10 +329,11 @@ class Storage:
 
     @staticmethod
     def save_users(users):
+        """Upserts by primary key only — see save_houses() for why this must
+        never delete rows absent from `users` first."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM users")
                 for u in users:
                     cur.execute(
                         "REPLACE INTO users "
@@ -336,6 +351,16 @@ class Storage:
                             u.get('createdAt', '')
                         )
                     )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_user(user_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
             conn.commit()
         finally:
             conn.close()
@@ -359,10 +384,11 @@ class Storage:
 
     @staticmethod
     def save_rooms(rooms):
+        """Upserts by primary key only — see save_houses() for why this must
+        never delete rows absent from `rooms` first."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM rooms")
                 for r in rooms:
                     cur.execute(
                         "REPLACE INTO rooms "
@@ -380,6 +406,16 @@ class Storage:
                             r.get('waterFormula', '')
                         )
                     )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_room(room_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM rooms WHERE id=%s", (room_id,))
             conn.commit()
         finally:
             conn.close()
@@ -403,10 +439,11 @@ class Storage:
 
     @staticmethod
     def save_services(services):
+        """Upserts by primary key only — see save_houses() for why this must
+        never delete rows absent from `services` first."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM services")
                 for s in services:
                     cur.execute(
                         "REPLACE INTO services "
@@ -431,6 +468,16 @@ class Storage:
         finally:
             conn.close()
 
+    @staticmethod
+    def delete_service(service_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM services WHERE id=%s", (service_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
     # -- Formulas -----------------------------------------------------------
 
     @staticmethod
@@ -450,10 +497,11 @@ class Storage:
 
     @staticmethod
     def save_formulas(formulas):
+        """Upserts by primary key only — see save_houses() for why this must
+        never delete rows absent from `formulas` first."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM formulas")
                 for f in formulas:
                     cur.execute(
                         "REPLACE INTO formulas "
@@ -468,6 +516,16 @@ class Storage:
                             json.dumps(f['tiers']) if 'tiers' in f else None
                         )
                     )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_formula(formula_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM formulas WHERE id=%s", (formula_id,))
             conn.commit()
         finally:
             conn.close()
@@ -487,10 +545,11 @@ class Storage:
 
     @staticmethod
     def save_investor_expenses(expenses):
+        """Upserts by primary key only — see save_houses() for why this must
+        never delete rows absent from `expenses` first."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM investor_expenses")
                 for e in expenses:
                     cur.execute(
                         "REPLACE INTO investor_expenses "
@@ -505,6 +564,16 @@ class Storage:
                             e.get('createdAt', '')
                         )
                     )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_investor_expense(expense_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM investor_expenses WHERE id=%s", (expense_id,))
             conn.commit()
         finally:
             conn.close()
@@ -602,10 +671,11 @@ class Storage:
 
     @staticmethod
     def save_tickets(tickets):
+        """Upserts by primary key only — see save_houses() for why this must
+        never delete rows absent from `tickets` first."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("DELETE FROM tickets")
                 for t in tickets:
                     cur.execute(
                         "REPLACE INTO tickets "
@@ -627,6 +697,16 @@ class Storage:
                             json.dumps(t.get('images', []),   ensure_ascii=False)
                         )
                     )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_ticket(ticket_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM tickets WHERE id=%s", (ticket_id,))
             conn.commit()
         finally:
             conn.close()

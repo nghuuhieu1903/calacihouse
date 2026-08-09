@@ -202,9 +202,7 @@ class RentalService:
 
     @staticmethod
     def delete_house(house_id):
-        houses = Storage.get_houses()
-        houses = [h for h in houses if h['id'] != house_id]
-        Storage.save_houses(houses)
+        Storage.delete_house(house_id)
         return True
 
     @staticmethod
@@ -237,9 +235,7 @@ class RentalService:
 
     @staticmethod
     def delete_service(service_id):
-        services = Storage.get_services()
-        services = [s for s in services if s['id'] != service_id]
-        Storage.save_services(services)
+        Storage.delete_service(service_id)
         RentalService.sync_readings_with_services()
         return True
 
@@ -265,9 +261,7 @@ class RentalService:
 
     @staticmethod
     def delete_formula(formula_id):
-        formulas = Storage.get_formulas()
-        formulas = [f for f in formulas if f['id'] != formula_id]
-        Storage.save_formulas(formulas)
+        Storage.delete_formula(formula_id)
         return True
 
     @staticmethod
@@ -296,9 +290,7 @@ class RentalService:
 
     @staticmethod
     def delete_room(room_id):
-        rooms = Storage.get_rooms()
-        rooms = [r for r in rooms if r['id'] != room_id]
-        Storage.save_rooms(rooms)
+        Storage.delete_room(room_id)
         RentalService.sync_readings_with_services()
         return True
 
@@ -378,8 +370,9 @@ class RentalService:
     @staticmethod
     def delete_user(user_id):
         users = Storage.get_users()
-        users = [u for u in users if u['id'] != user_id or u['username'] == 'admin']
-        Storage.save_users(users)
+        user = next((u for u in users if u['id'] == user_id), None)
+        if user and user['username'] != 'admin':
+            Storage.delete_user(user_id)
         return True
 
     @staticmethod
@@ -510,9 +503,7 @@ class RentalService:
 
     @staticmethod
     def delete_investor_expense(expense_id):
-        expenses = Storage.get_investor_expenses()
-        expenses = [e for e in expenses if e['id'] != expense_id]
-        Storage.save_investor_expenses(expenses)
+        Storage.delete_investor_expense(expense_id)
         return True
 
     @staticmethod
@@ -567,9 +558,7 @@ class RentalService:
 
     @staticmethod
     def delete_ticket(ticket_id):
-        tickets = Storage.get_tickets()
-        tickets = [t for t in tickets if t.get('id') != ticket_id]
-        Storage.save_tickets(tickets)
+        Storage.delete_ticket(ticket_id)
         return True
 
     # -- Room Documents (contract & related images) --------------------------
