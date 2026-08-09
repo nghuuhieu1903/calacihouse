@@ -77,18 +77,14 @@
     </div>
 
     <div style="display: flex; align-items: center; gap: 1rem;">
-      <!-- MULTI-HOUSE SELECTOR -->
+      <!-- MULTI-HOUSE SELECTOR (filters the current view; add/edit/delete
+           buildings live on the dedicated "Quản Lý Tòa Nhà" page instead —
+           having those actions here too was confusing) -->
       <div style="display: flex; align-items: center; gap: 0.5rem;" id="nav-house-box">
         <label style="font-size: 0.85rem; font-weight: 700; color: white;" data-i18n="lbl_select_house">🏢 Chọn Tòa Nhà:</label>
         <select id="select-house" class="form-control" style="width: 185px; padding: 0.4rem 0.6rem; font-weight: 800;" onchange="handleHouseChange()">
           <!-- Houses populated dynamically -->
         </select>
-        <button class="btn btn-orange btn-sm" onclick="openAddHouseModal()" title="Thêm Tòa Nhà Mới" data-i18n-title="title_add_new_house">
-          <i data-lucide="plus"></i> <span data-i18n="btn_house_short">Tòa Nhà</span>
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick="openEditHouseModal()" title="Sửa Tòa Nhà" data-i18n-title="title_edit_house">
-          <i data-lucide="edit-2"></i>
-        </button>
       </div>
 
       <!-- Month Selector -->
@@ -129,6 +125,10 @@
         <a class="nav-item active" data-view="admin-dashboard">
           <i data-lucide="layout-dashboard"></i>
           <span data-i18n="nav_dashboard">Tổng Quan</span>
+        </a>
+        <a class="nav-item" data-view="admin-houses">
+          <i data-lucide="building-2"></i>
+          <span data-i18n="nav_houses">Quản Lý Tòa Nhà</span>
         </a>
         <a class="nav-item" data-view="admin-services">
           <i data-lucide="sliders"></i>
@@ -519,6 +519,20 @@
           </div>
 
           <div id="investor-report-breakdown-container"></div>
+        </div>
+
+        <!-- HOUSE / BUILDING MANAGEMENT VIEW -->
+        <div id="view-admin-houses" class="view-panel" style="display: none;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <div>
+              <h3 data-i18n="houses_mgmt_title">🏢 Quản Lý Tòa Nhà</h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="houses_mgmt_desc">Thêm, sửa tên và địa chỉ các tòa nhà / dãy trọ trong hệ thống.</p>
+            </div>
+            <button class="btn btn-orange" onclick="openAddHouseModal()">
+              <i data-lucide="plus-circle"></i> <span data-i18n="btn_add_house">Thêm Tòa Nhà Mới</span>
+            </button>
+          </div>
+          <div id="houses-management-container"></div>
         </div>
 
         <!-- ROOM MANAGEMENT VIEW -->

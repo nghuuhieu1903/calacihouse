@@ -234,11 +234,6 @@ body {
   #nav-house-box select,
   .tvk-navbar select.form-control { width: auto; flex: 1; min-width: 130px; }
 
-  /* "+ Tòa Nhà" spelled out plus the edit icon plus the select add up to the
-     widest single control in the bar — enough on its own to push logout onto
-     a lonely trailing row. Icon-only here matches the edit button beside it. */
-  #nav-house-box .btn-orange span { display: none; }
-
   /* Explicit 2 columns reads better than auto-fit here, which can strand a lone
      4th card on its own row once the sidebar is gone and content is full-width. */
   .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }

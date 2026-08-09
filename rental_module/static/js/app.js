@@ -102,6 +102,8 @@ const I18N = {
     view_admin_dashboard_subtitle: 'Thống kê hoạt động và hóa đơn tháng hiện tại',
     view_admin_services_subtitle: 'Cấu hình từng loại dịch vụ và quy tắc tính tiền',
     view_admin_invoices_subtitle: 'Xem danh sách và kiểm tra trạng thái thanh toán',
+    view_admin_houses_title: 'Quản Lý Tòa Nhà',
+    view_admin_houses_subtitle: 'Thêm, sửa tên và địa chỉ các tòa nhà / dãy trọ',
     view_admin_rooms_title: 'Quản Lý Phòng Trọ',
     view_admin_rooms_subtitle: 'Thêm, sửa, xóa phòng và cấu hình giá thuê',
     view_admin_permissions_title: 'Cấu Hình Phân Quyền Hạn',
@@ -267,6 +269,8 @@ const I18N = {
     toast_ticket_sent: 'Đã gửi báo lỗi thành công đến Admin!',
     confirm_delete_room: 'Bạn chắc chắn muốn xóa phòng này?',
     toast_room_deleted: 'Đã xóa phòng',
+    confirm_delete_house: 'Bạn chắc chắn muốn xóa tòa nhà này? Các phòng thuộc tòa nhà này sẽ không còn hiển thị đúng.',
+    toast_house_deleted: 'Đã xóa tòa nhà',
     toast_room_saved_prefix: 'Đã lưu thông tin phòng ',
     toast_room_saved_suffix: ' thành công!',
     request_content_label: 'Nội dung yêu cầu:',
@@ -299,6 +303,7 @@ const I18N = {
     btn_house_short: 'Tòa Nhà',
     title_toggle_theme: 'Đổi giao diện Sáng/Tối',
     title_logout: 'Đăng Xuất',
+    nav_houses: 'Quản Lý Tòa Nhà',
     nav_rooms: 'Quản Lý Phòng',
     nav_permissions: 'Phân Quyền Hệ Thống',
     nav_investor_report: 'Báo Cáo Chủ Đầu Tư',
@@ -354,6 +359,11 @@ const I18N = {
     rooms_mgmt_title: '🚪 Quản Lý Phòng Trọ',
     rooms_mgmt_desc: 'Thêm, sửa, xóa phòng trong các tòa nhà. Cấu hình giá thuê và công thức tính tiền.',
     btn_add_room: 'Thêm Phòng Mới',
+    houses_mgmt_title: '🏢 Quản Lý Tòa Nhà',
+    houses_mgmt_desc: 'Thêm, sửa tên và địa chỉ các tòa nhà / dãy trọ trong hệ thống.',
+    btn_add_house: 'Thêm Tòa Nhà Mới',
+    lbl_house_address_short: 'Địa chỉ:',
+    houses_empty_state: 'Chưa có tòa nhà nào. Bấm "Thêm Tòa Nhà Mới" để bắt đầu.',
     col_images: 'Ảnh',
     ticket_info_title: '📋 Thông Tin Báo Lỗi',
     attached_images_title: '📷 Ảnh Đính Kèm',
@@ -546,6 +556,8 @@ const I18N = {
     view_admin_dashboard_subtitle: 'Activity and current month invoice statistics',
     view_admin_services_subtitle: 'Configure each service type and its pricing rules',
     view_admin_invoices_subtitle: 'View the list and check payment status',
+    view_admin_houses_title: 'Building Management',
+    view_admin_houses_subtitle: 'Add and edit building names and addresses',
     view_admin_rooms_title: 'Room Management',
     view_admin_rooms_subtitle: 'Add, edit, delete rooms and configure rent prices',
     view_admin_permissions_title: 'Permissions Configuration',
@@ -711,6 +723,8 @@ const I18N = {
     toast_ticket_sent: 'Report sent to Admin successfully!',
     confirm_delete_room: 'Are you sure you want to delete this room?',
     toast_room_deleted: 'Room deleted',
+    confirm_delete_house: 'Are you sure you want to delete this building? Rooms in it will no longer display correctly.',
+    toast_house_deleted: 'Building deleted',
     toast_room_saved_prefix: 'Room information saved for ',
     toast_room_saved_suffix: ' successfully!',
     request_content_label: 'Request details:',
@@ -743,6 +757,7 @@ const I18N = {
     btn_house_short: 'House',
     title_toggle_theme: 'Toggle Light/Dark Mode',
     title_logout: 'Log Out',
+    nav_houses: 'Building Management',
     nav_rooms: 'Room Management',
     nav_permissions: 'System Permissions',
     nav_investor_report: 'Investor Report',
@@ -798,6 +813,11 @@ const I18N = {
     rooms_mgmt_title: '🚪 Room Management',
     rooms_mgmt_desc: 'Add, edit, and delete rooms across houses. Configure rent prices and calculation formulas.',
     btn_add_room: 'Add New Room',
+    houses_mgmt_title: '🏢 Building Management',
+    houses_mgmt_desc: 'Add and edit the name and address of each building / boarding house.',
+    btn_add_house: 'Add New Building',
+    lbl_house_address_short: 'Address:',
+    houses_empty_state: 'No buildings yet. Click "Add New Building" to start.',
     col_images: 'Images',
     ticket_info_title: '📋 Report Information',
     attached_images_title: '📷 Attached Images',
@@ -1334,6 +1354,11 @@ function switchView(viewId) {
       subtitleEl.innerText = dict.view_admin_investor_report_subtitle;
       renderInvestorReport();
       break;
+    case 'admin-houses':
+      titleEl.innerText = dict.view_admin_houses_title;
+      subtitleEl.innerText = dict.view_admin_houses_subtitle;
+      renderHousesManagement();
+      break;
     case 'admin-rooms':
       titleEl.innerText = dict.view_admin_rooms_title;
       subtitleEl.innerText = dict.view_admin_rooms_subtitle;
@@ -1597,8 +1622,8 @@ function openAddHouseModal() {
   document.getElementById('modal-add-house').classList.add('active');
 }
 
-function openEditHouseModal() {
-  const house = state.houses.find(h => h.id === state.currentHouseId);
+function openEditHouseModal(houseId) {
+  const house = state.houses.find(h => h.id === (houseId || state.currentHouseId));
   if (!house) {
     showToast(t('toast_no_house_selected'), 'error');
     return;
@@ -1643,6 +1668,63 @@ async function saveHouse(event) {
   }
   closeModal('modal-add-house');
   renderHouseSelector();
+  renderHousesManagement();
+  renderCurrentView();
+}
+
+function renderHousesManagement() {
+  const container = document.getElementById('houses-management-container');
+  if (!container) return;
+
+  if (state.houses.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-secondary);">${t('houses_empty_state')}</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+      ${state.houses.map(h => {
+        const roomCount = state.rooms.filter(r => r.houseId === h.id).length;
+        return `
+          <div class="tvk-card" style="padding: 1.1rem 1.25rem;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
+              <div>
+                <div style="font-weight:800; font-size:1rem;">${h.name}</div>
+                <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">${t('lbl_house_address_short')} ${h.address || '—'}</div>
+              </div>
+              <span class="badge badge-resolved" style="font-size:0.7rem; flex-shrink:0;">${roomCount} ${t('rooms_unit_label')}</span>
+            </div>
+            ${h.description ? `<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.75rem;">${h.description}</div>` : ''}
+            <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+              <button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditHouseModal('${h.id}')">
+                <i data-lucide="edit-2"></i> ${t('btn_edit')}
+              </button>
+              <button class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteHouseConfirm('${h.id}')">
+                <i data-lucide="trash-2"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  lucide.createIcons();
+}
+
+function deleteHouseConfirm(houseId) {
+  if (!confirm(t('confirm_delete_house'))) return;
+  state.houses = state.houses.filter(h => h.id !== houseId);
+  if (state.currentHouseId === houseId) state.currentHouseId = 'all';
+
+  fetch(`${API_BASE}/houses/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: houseId })
+  }).catch(err => console.warn('Deleted house locally:', err));
+
+  showToast(t('toast_house_deleted'), 'success');
+  renderHouseSelector();
+  renderHousesManagement();
   renderCurrentView();
 }
 
