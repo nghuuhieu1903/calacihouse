@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TRAVELOKA DESIGN SYSTEM (SKY BLUE #0194f3 & TRAVELOKA ORANGE #ff5e1f)
+   CALACIHOUSE DESIGN SYSTEM (SKY BLUE #0194f3 & ORANGE #ff5e1f)
    ========================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
@@ -54,7 +54,7 @@ body {
   overflow-x: hidden;
 }
 
-/* TRAVELOKA AUTH SCREEN */
+/* AUTH SCREEN */
 .auth-screen {
   position: fixed; inset: 0;
   background: linear-gradient(135deg, #0194f3 0%, #0178d2 50%, #005bb5 100%);
@@ -80,7 +80,7 @@ body {
 }
 .auth-tab.active { background: var(--tvk-blue); color: #ffffff; box-shadow: var(--shadow-sm); }
 
-/* TRAVELOKA TOP NAVBAR */
+/* TOP NAVBAR */
 .tvk-navbar {
   background: var(--tvk-blue);
   color: #ffffff;
