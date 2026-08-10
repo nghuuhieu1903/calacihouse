@@ -166,8 +166,26 @@ body {
 .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.35rem; display: flex; align-items: center; justify-content: space-between; }
 .stat-val { font-size: 1.6rem; font-weight: 800; color: var(--tvk-blue); margin-top: 0.25rem; }
 
-/* EXCEL SPREADSHEET TABLE */
-.excel-table-wrapper { overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border-color); background: var(--bg-surface); }
+/* EXCEL SPREADSHEET TABLE
+   Wide tables (spreadsheet, tickets, users, investor report, ...) scroll
+   horizontally inside this wrapper rather than getting clipped, but on
+   mobile there's no visible scrollbar to hint that — it just looks cut off.
+   The two "local"-attached gradients scroll with the content and slide out
+   of the way as you reach each edge, uncovering the matching "scroll"-
+   attached shadow underneath; net effect is a shadow that appears only on
+   the side(s) that still have more content to reveal, no JS needed. */
+.excel-table-wrapper {
+  position: relative; overflow-x: auto; border-radius: var(--radius-lg); border: 1px solid var(--border-color);
+  background:
+    linear-gradient(to right, var(--bg-surface) 30%, rgba(255, 255, 255, 0)) left,
+    linear-gradient(to right, rgba(255, 255, 255, 0), var(--bg-surface) 70%) right,
+    linear-gradient(to right, rgba(3, 18, 26, 0.16), rgba(3, 18, 26, 0)) left,
+    linear-gradient(to left, rgba(3, 18, 26, 0.16), rgba(3, 18, 26, 0)) right;
+  background-repeat: no-repeat;
+  background-color: var(--bg-surface);
+  background-size: 24px 100%, 24px 100%, 10px 100%, 10px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
 .excel-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .excel-table th { background: #f7f9fa; color: #43494d; padding: 1rem; text-align: left; font-weight: 800; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
 [data-theme="dark"] .excel-table th { background: #0f172a; color: #94a3b8; }
@@ -221,6 +239,12 @@ body {
   .sidebar.open { transform: translateX(0); }
 
   .btn-menu-toggle { display: inline-flex; }
+
+  /* Sidebar's z-index (150) otherwise sits above the sticky navbar (100),
+     so once open it visually covers the hamburger button and swallows taps
+     meant to close it — the only way out was tapping the dim overlay.
+     Keeping the navbar on top lets the same button open AND close it. */
+  .tvk-navbar { position: sticky; z-index: 160; }
 
   .main-content { padding: 1.5rem; }
 
