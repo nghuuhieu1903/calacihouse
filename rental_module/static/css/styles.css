@@ -5,14 +5,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --tvk-blue: #0194f3;
-  --tvk-blue-dark: #0178d2;
-  --tvk-blue-light: #e6f4fe;
-  --tvk-orange: #ff5e1f;
-  --tvk-orange-hover: #e54e12;
-  --tvk-emerald: #00b67a;
-  --tvk-amber: #f99d1c;
-  --tvk-red: #f53157;
+  --cala-blue: #0194f3;
+  --cala-blue-dark: #0178d2;
+  --cala-blue-light: #e6f4fe;
+  --cala-orange: #ff5e1f;
+  --cala-orange-hover: #e54e12;
+  --cala-emerald: #00b67a;
+  --cala-amber: #f99d1c;
+  --cala-red: #f53157;
 
   --bg-base: #f2f4f7;
   --bg-surface: #ffffff;
@@ -78,11 +78,11 @@ body {
   flex: 1; padding: 10px; border: none; background: transparent;
   color: var(--text-secondary); font-weight: 700; font-size: 0.9rem; border-radius: var(--radius-sm); cursor: pointer;
 }
-.auth-tab.active { background: var(--tvk-blue); color: #ffffff; box-shadow: var(--shadow-sm); }
+.auth-tab.active { background: var(--cala-blue); color: #ffffff; box-shadow: var(--shadow-sm); }
 
 /* TOP NAVBAR */
-.tvk-navbar {
-  background: var(--tvk-blue);
+.cala-navbar {
+  background: var(--cala-blue);
   color: #ffffff;
   padding: 0.85rem 2rem;
   display: flex; align-items: center; justify-content: space-between;
@@ -90,12 +90,12 @@ body {
   position: sticky; top: 0; z-index: 100;
 }
 
-.tvk-brand {
+.cala-brand {
   display: flex; align-items: center; gap: 0.75rem; color: #ffffff; text-decoration: none; font-size: 1.35rem; font-weight: 800;
 }
 
-.tvk-brand-badge {
-  background: var(--tvk-orange); padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+.cala-brand-badge {
+  background: var(--cala-orange); padding: 2px 8px; border-radius: var(--radius-full); font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
 }
 
 /* CONTAINER & SIDEBAR */
@@ -113,9 +113,9 @@ body {
   color: var(--text-secondary); text-decoration: none; border-radius: var(--radius-md); font-weight: 700; font-size: 0.875rem; cursor: pointer; transition: all 0.2s ease;
 }
 .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
-.nav-item:hover { background: var(--tvk-blue-light); color: var(--tvk-blue); }
+.nav-item:hover { background: var(--cala-blue-light); color: var(--cala-blue); }
 [data-theme="dark"] .nav-item:hover { background: rgba(1, 148, 243, 0.15); }
-.nav-item.active { background: var(--tvk-blue); color: #ffffff; box-shadow: 0 4px 12px rgba(1, 148, 243, 0.3); }
+.nav-item.active { background: var(--cala-blue); color: #ffffff; box-shadow: 0 4px 12px rgba(1, 148, 243, 0.3); }
 
 /* MAIN CONTENT */
 /* min-width: 0 overrides the flex-item default of min-width: auto, which
@@ -123,11 +123,11 @@ body {
    table header) instead of the viewport — the classic flexbox overflow bug. */
 .main-content { flex: 1; min-width: 0; padding: 2rem; overflow-y: auto; }
 
-.tvk-card {
+.cala-card {
   background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-color);
   padding: 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1.5rem;
 }
-.tvk-card:hover { box-shadow: var(--shadow-md); }
+.cala-card:hover { box-shadow: var(--shadow-md); }
 
 /* BUTTONS */
 .btn {
@@ -136,10 +136,10 @@ body {
   line-height: 1.2;
 }
 .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
-.btn-orange { background: var(--tvk-orange); color: #ffffff; box-shadow: 0 4px 12px rgba(255, 94, 31, 0.3); }
-.btn-orange:hover { background: var(--tvk-orange-hover); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255, 94, 31, 0.4); }
-.btn-blue { background: var(--tvk-blue); color: #ffffff; box-shadow: 0 4px 12px rgba(1, 148, 243, 0.3); }
-.btn-blue:hover { background: var(--tvk-blue-dark); transform: translateY(-1px); }
+.btn-orange { background: var(--cala-orange); color: #ffffff; box-shadow: 0 4px 12px rgba(255, 94, 31, 0.3); }
+.btn-orange:hover { background: var(--cala-orange-hover); transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255, 94, 31, 0.4); }
+.btn-blue { background: var(--cala-blue); color: #ffffff; box-shadow: 0 4px 12px rgba(1, 148, 243, 0.3); }
+.btn-blue:hover { background: var(--cala-blue-dark); transform: translateY(-1px); }
 .btn-secondary { background: var(--bg-base); color: var(--text-primary); border: 1px solid var(--border-color); }
 .btn-secondary:hover { background: var(--border-color); }
 .btn-sm { padding: 0.32rem 0.7rem; font-size: 0.78rem; gap: 0.3rem; }
@@ -149,7 +149,7 @@ body {
   width: 100%; padding: 0.7rem 0.95rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);
   background: var(--bg-surface); color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
 }
-.form-control:focus { outline: none; border-color: var(--tvk-blue); box-shadow: 0 0 0 3px rgba(1, 148, 243, 0.2); }
+.form-control:focus { outline: none; border-color: var(--cala-blue); box-shadow: 0 0 0 3px rgba(1, 148, 243, 0.2); }
 
 /* ICON PICKER (service config modal) */
 .icon-picker-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
@@ -158,13 +158,13 @@ body {
   padding: 0.65rem 0.4rem; border: 1px solid var(--border-color); border-radius: var(--radius-md);
   background: var(--bg-surface); cursor: pointer; transition: all 0.15s ease; text-align: center;
 }
-.icon-picker-option:hover { border-color: var(--tvk-blue); background: var(--tvk-blue-light); }
-.icon-picker-option.selected { border-color: var(--tvk-blue); background: var(--tvk-blue-light); box-shadow: 0 0 0 2px rgba(1, 148, 243, 0.2); }
+.icon-picker-option:hover { border-color: var(--cala-blue); background: var(--cala-blue-light); }
+.icon-picker-option.selected { border-color: var(--cala-blue); background: var(--cala-blue-light); box-shadow: 0 0 0 2px rgba(1, 148, 243, 0.2); }
 
 /* STATS GRID */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }
 .stat-card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 1.35rem; display: flex; align-items: center; justify-content: space-between; }
-.stat-val { font-size: 1.6rem; font-weight: 800; color: var(--tvk-blue); margin-top: 0.25rem; }
+.stat-val { font-size: 1.6rem; font-weight: 800; color: var(--cala-blue); margin-top: 0.25rem; }
 
 /* EXCEL SPREADSHEET TABLE
    Wide tables (spreadsheet, tickets, users, investor report, ...) scroll
@@ -194,10 +194,10 @@ body {
 
 /* BADGES */
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 0.3rem 0.75rem; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
-.badge-paid { background: #e6f9f2; color: var(--tvk-emerald); border: 1px solid #b3f2db; }
-.badge-pending { background: #fff2ec; color: var(--tvk-orange); border: 1px solid #ffd4c2; }
-.badge-open { background: #ffecee; color: var(--tvk-red); border: 1px solid #ffc2c9; }
-.badge-resolved { background: var(--tvk-blue-light); color: var(--tvk-blue); border: 1px solid #bce2fd; }
+.badge-paid { background: #e6f9f2; color: var(--cala-emerald); border: 1px solid #b3f2db; }
+.badge-pending { background: #fff2ec; color: var(--cala-orange); border: 1px solid #ffd4c2; }
+.badge-open { background: #ffecee; color: var(--cala-red); border: 1px solid #ffc2c9; }
+.badge-resolved { background: var(--cala-blue-light); color: var(--cala-blue); border: 1px solid #bce2fd; }
 
 /* MODAL */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(3, 18, 26, 0.65); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: all 0.25s ease; }
@@ -250,19 +250,19 @@ body {
      so once open it visually covers the hamburger button and swallows taps
      meant to close it — the only way out was tapping the dim overlay.
      Keeping the navbar on top lets the same button open AND close it. */
-  .tvk-navbar { position: sticky; z-index: 160; }
+  .cala-navbar { position: sticky; z-index: 160; }
 
   .main-content { padding: 1.5rem; }
 
   /* Sidebar is off-canvas here, so the navbar owns the full width — but it still
      carries a lot of controls, so let it wrap and drop verbose labels. */
-  .tvk-navbar { padding: 0.65rem 1.25rem; flex-wrap: wrap; gap: 0.5rem; row-gap: 0.5rem; }
-  .tvk-navbar > div:last-child { flex-wrap: wrap; gap: 0.5rem; justify-content: flex-start; }
+  .cala-navbar { padding: 0.65rem 1.25rem; flex-wrap: wrap; gap: 0.5rem; row-gap: 0.5rem; }
+  .cala-navbar > div:last-child { flex-wrap: wrap; gap: 0.5rem; justify-content: flex-start; }
 
   #nav-house-box label,
-  .tvk-navbar label { display: none; }
+  .cala-navbar label { display: none; }
   #nav-house-box select,
-  .tvk-navbar select.form-control { width: auto; flex: 1; min-width: 130px; }
+  .cala-navbar select.form-control { width: auto; flex: 1; min-width: 130px; }
 
   /* Explicit 2 columns reads better than auto-fit here, which can strand a lone
      4th card on its own row once the sidebar is gone and content is full-width. */
@@ -314,10 +314,10 @@ body {
 
 /* ---------- MOBILE ---------- */
 @media (max-width: 576px) {
-  .tvk-navbar { padding: 0.6rem 0.85rem; gap: 0.4rem; row-gap: 0.4rem; }
-  .tvk-navbar > div { gap: 0.4rem !important; }
-  .tvk-brand { font-size: 1.05rem; gap: 0.5rem; }
-  .tvk-brand-badge { display: none; }
+  .cala-navbar { padding: 0.6rem 0.85rem; gap: 0.4rem; row-gap: 0.4rem; }
+  .cala-navbar > div { gap: 0.4rem !important; }
+  .cala-brand { font-size: 1.05rem; gap: 0.5rem; }
+  .cala-brand-badge { display: none; }
 
   /* Section/card headers pair a heading with an action button via inline
      `justify-content: space-between; align-items: center` flex rows. On
@@ -332,7 +332,7 @@ body {
 
   .main-content { padding: 1rem; }
 
-  .tvk-card { padding: 1.1rem; }
+  .cala-card { padding: 1.1rem; }
 
   h1#page-title { font-size: 1.4rem !important; }
 

@@ -1037,7 +1037,7 @@ async function handleLogin(event) {
         state.currentUser = data.user;
         showToast(`${t('toast_login_greeting')}${data.user.fullName}!`, 'success');
         document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('tvk-navbar').style.display = 'flex';
+        document.getElementById('cala-navbar').style.display = 'flex';
         document.getElementById('app-container').style.display = 'flex';
         setupUserRoleUI();
         await fetchState();
@@ -1063,7 +1063,7 @@ async function handleLogin(event) {
     state.currentUser = foundUser;
     showToast(`${t('toast_login_greeting')}${foundUser.fullName}!`, 'success');
     document.getElementById('auth-screen').style.display = 'none';
-    document.getElementById('tvk-navbar').style.display = 'flex';
+    document.getElementById('cala-navbar').style.display = 'flex';
     document.getElementById('app-container').style.display = 'flex';
     setupUserRoleUI();
     renderCurrentView();
@@ -1082,7 +1082,7 @@ async function handleLogout() {
   if (document.getElementById('login-username')) document.getElementById('login-username').value = '';
   if (document.getElementById('login-password')) document.getElementById('login-password').value = '';
   document.getElementById('auth-screen').style.display = 'flex';
-  document.getElementById('tvk-navbar').style.display = 'none';
+  document.getElementById('cala-navbar').style.display = 'none';
   document.getElementById('app-container').style.display = 'none';
   showToast(t('toast_logout_success'), 'info');
 }
@@ -1095,7 +1095,7 @@ async function restoreSession() {
       if (data.success) {
         state.currentUser = data.user;
         document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('tvk-navbar').style.display = 'flex';
+        document.getElementById('cala-navbar').style.display = 'flex';
         document.getElementById('app-container').style.display = 'flex';
         setupUserRoleUI();
         await fetchState();
@@ -1249,9 +1249,9 @@ function setLanguage(lang) {
 
   const authVi = document.getElementById('auth-btn-lang-vi');
   const authEn = document.getElementById('auth-btn-lang-en');
-  if (authVi) authVi.style.background = lang === 'vi' ? 'var(--tvk-blue)' : 'transparent';
+  if (authVi) authVi.style.background = lang === 'vi' ? 'var(--cala-blue)' : 'transparent';
   if (authVi) authVi.style.color = lang === 'vi' ? '#ffffff' : 'var(--text-primary)';
-  if (authEn) authEn.style.background = lang === 'en' ? 'var(--tvk-blue)' : 'transparent';
+  if (authEn) authEn.style.background = lang === 'en' ? 'var(--cala-blue)' : 'transparent';
   if (authEn) authEn.style.color = lang === 'en' ? '#ffffff' : 'var(--text-primary)';
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -1531,13 +1531,13 @@ function renderServicesConfig() {
         const f = state.formulas.find(x => x.id === s.formulaId);
         calcTypeHtml = `
           <span class="badge badge-pending">🧮 ${t('calc_type_formula')}</span><br>
-          <strong style="color:var(--tvk-blue); font-size:0.85rem;">${f ? f.name : (s.formulaId || t('evn_tiered_default_label'))}</strong>
+          <strong style="color:var(--cala-blue); font-size:0.85rem;">${f ? f.name : (s.formulaId || t('evn_tiered_default_label'))}</strong>
         `;
         ruleHtml = `<span class="badge badge-resolved" style="background:#e6f4fe; color:#0178d2;">${t('rule_creates_reading_columns')}</span>`;
       } else {
         calcTypeHtml = `
           <span class="badge badge-paid">💰 ${t('calc_type_fixed')}</span><br>
-          <strong style="color:var(--tvk-blue); font-size:0.95rem;">${formatMoney(s.price)} đ</strong>
+          <strong style="color:var(--cala-blue); font-size:0.95rem;">${formatMoney(s.price)} đ</strong>
         `;
         ruleHtml = `<span class="badge badge-paid">${t('rule_creates_amount_column')}</span>`;
       }
@@ -1548,7 +1548,7 @@ function renderServicesConfig() {
       tr.innerHTML = `
         <td>
           <div style="display:flex; align-items:center; gap:0.6rem;">
-            <div style="width:36px; height:36px; border-radius:50%; background:var(--tvk-blue-light); color:var(--tvk-blue); display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:bold;">
+            <div style="width:36px; height:36px; border-radius:50%; background:var(--cala-blue-light); color:var(--cala-blue); display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:bold;">
               ${iconSymbol}
             </div>
             <div>
@@ -1560,7 +1560,7 @@ function renderServicesConfig() {
         <td>${ruleHtml}</td>
         <td style="text-align: right;">
           <button class="btn btn-secondary btn-sm" onclick="editService('${s.id}')" title="${t('title_edit_service_icon')}"><i data-lucide="edit"></i> ${t('btn_edit')}</button>
-          <button class="btn btn-secondary btn-sm" onclick="deleteServiceApi('${s.id}')" style="color: var(--tvk-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>
+          <button class="btn btn-secondary btn-sm" onclick="deleteServiceApi('${s.id}')" style="color: var(--cala-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>
         </td>
       `;
       sBody.appendChild(tr);
@@ -1574,14 +1574,14 @@ function renderServicesConfig() {
     card.style.cssText = 'padding: 0.85rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-base); display: flex; justify-content: space-between; align-items: center;';
     card.innerHTML = `
       <div>
-        <div style="font-weight: 800; color: var(--tvk-blue);">${f.name}</div>
+        <div style="font-weight: 800; color: var(--cala-blue);">${f.name}</div>
         <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
           ${f.type === 'flat' ? `${t('formula_rate_label')}${formatMoney(f.rate)} đ` : (f.type === 'headcount' ? `${t('formula_headcount_label')}${formatMoney(f.rate)} đ / ${t('formula_per_person_label')}` : t('formula_evn_tiered_label'))}
         </div>
       </div>
       <div style="display: flex; gap: 0.5rem; align-items: center;">
         <span class="badge ${f.category === 'elec' ? 'badge-resolved' : 'badge-paid'}">${f.category === 'elec' ? t('category_elec') : t('category_water')}</span>
-        <button class="btn btn-secondary btn-sm" onclick="deleteFormulaApi('${f.id}')" style="color: var(--tvk-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>
+        <button class="btn btn-secondary btn-sm" onclick="deleteFormulaApi('${f.id}')" style="color: var(--cala-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>
       </div>
     `;
     fGrid.appendChild(card);
@@ -1686,7 +1686,7 @@ function renderHousesManagement() {
       ${state.houses.map(h => {
         const roomCount = state.rooms.filter(r => r.houseId === h.id).length;
         return `
-          <div class="tvk-card" style="padding: 1.1rem 1.25rem;">
+          <div class="cala-card" style="padding: 1.1rem 1.25rem;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
               <div>
                 <div style="font-weight:800; font-size:1rem;">${h.name}</div>
@@ -1740,7 +1740,7 @@ function renderServiceScopeTree(selectedHouseIds = ['all'], selectedRoomIds = ['
     <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.25rem;">
       <label class="checkbox-item" style="margin: 0; padding: 0;">
         <input type="checkbox" id="chk-scope-all" value="all" ${isAllMasterChecked ? 'checked' : ''} onchange="toggleAllScopeMaster(this)">
-        <span style="font-weight: 800; color: var(--tvk-blue);">🌐 ${t('scope_all_houses_rooms')}</span>
+        <span style="font-weight: 800; color: var(--cala-blue);">🌐 ${t('scope_all_houses_rooms')}</span>
       </label>
     </div>
   `;
@@ -2173,10 +2173,10 @@ function renderInvestorDashboard() {
   const breakdownEl = document.getElementById('investor-revenue-breakdown');
   if (breakdownEl) {
     const parts = [
-      { label: t('line_room_rent_short'), value: totalRent, color: 'var(--tvk-blue)' },
-      { label: t('line_electricity_short'), value: totalElec, color: 'var(--tvk-amber)' },
+      { label: t('line_room_rent_short'), value: totalRent, color: 'var(--cala-blue)' },
+      { label: t('line_electricity_short'), value: totalElec, color: 'var(--cala-amber)' },
       { label: t('line_water_short'), value: totalWater, color: '#38bdf8' },
-      { label: t('nav_services'), value: totalService, color: 'var(--tvk-emerald)' }
+      { label: t('nav_services'), value: totalService, color: 'var(--cala-emerald)' }
     ];
     const sum = parts.reduce((s, p) => s + p.value, 0) || 1;
     breakdownEl.innerHTML = `
@@ -2212,7 +2212,7 @@ function renderInvestorDashboard() {
             <td>${r.tenant || `<em>${t('empty_tenant_label')}</em>`}</td>
             <td>${r.headcount}</td>
             <td>${formatMoney(r.baseRent)} đ</td>
-            <td style="font-weight:800; color:var(--tvk-orange);">${formatMoney(total)} đ</td>
+            <td style="font-weight:800; color:var(--cala-orange);">${formatMoney(total)} đ</td>
             <td>${statusBadge}</td>
           </tr>
         `;
@@ -2234,7 +2234,7 @@ function renderInvestorDashboard() {
           <tr>
             <td><strong>${h.name}</strong></td>
             <td>${houseOccupied}/${houseRooms.length}</td>
-            <td style="font-weight:800; color:var(--tvk-orange);">${formatMoney(houseTotal)} đ</td>
+            <td style="font-weight:800; color:var(--cala-orange);">${formatMoney(houseTotal)} đ</td>
           </tr>
         `;
       }).join('');
@@ -2338,8 +2338,8 @@ function renderSpreadsheet() {
               <input type="number" class="excel-input" value="${newVal || 0}" onchange="updateReadingApi('${r.id}', '${newField}', this.value)">
               ${meterPhotoButtonHtml(r.id, newField, newPhoto)}
             </td>
-            <td style="text-align: right; font-weight: 800; color: var(--tvk-blue);">${usage}</td>
-            <td style="text-align: right; font-weight: 700; color: var(--tvk-blue);">${s.symbol || '🧮'} ${formatMoney(cost)} đ</td>
+            <td style="text-align: right; font-weight: 800; color: var(--cala-blue);">${usage}</td>
+            <td style="text-align: right; font-weight: 700; color: var(--cala-blue);">${s.symbol || '🧮'} ${formatMoney(cost)} đ</td>
           `;
         } else {
           rowHtml += `<td colspan="4" style="text-align:center; color:var(--text-muted);">${t('not_applicable_label')}</td>`;
@@ -2350,7 +2350,7 @@ function renderSpreadsheet() {
 
         if (isServiceApplicable) {
           rowHtml += `
-            <td style="text-align: right; font-weight: 700; color: var(--tvk-blue);">
+            <td style="text-align: right; font-weight: 700; color: var(--cala-blue);">
               ${s.symbol || '📦'} ${formatMoney(cost)} đ
             </td>
           `;
@@ -2361,7 +2361,7 @@ function renderSpreadsheet() {
     });
 
     rowHtml += `
-      <td style="text-align: right; font-weight: 800; color: var(--tvk-orange); font-size: 0.95rem;">💰 ${formatMoney(grandTotal)} đ</td>
+      <td style="text-align: right; font-weight: 800; color: var(--cala-orange); font-size: 0.95rem;">💰 ${formatMoney(grandTotal)} đ</td>
       <td>
         <div style="display:flex; gap:0.4rem;">
           <button class="btn btn-secondary btn-sm" onclick="openEditRoomModal('${r.id}')" title="${t('title_edit_room_price')}">
@@ -2397,7 +2397,7 @@ function meterPhotoButtonHtml(roomId, field, photoDataUrl) {
   return `
     <input type="file" accept="image/*" id="${inputId}" style="display:none" onchange="handleMeterPhotoUpload(event, '${roomId}', '${field}')">
     <button type="button" class="btn btn-sm" title="${hasPhoto ? t('btn_meter_photo_view') : t('btn_meter_photo_upload')}"
-      style="padding:2px 5px; margin-top:2px; ${hasPhoto ? 'color:var(--tvk-blue); border-color:var(--tvk-blue);' : ''}"
+      style="padding:2px 5px; margin-top:2px; ${hasPhoto ? 'color:var(--cala-blue); border-color:var(--cala-blue);' : ''}"
       onclick="${hasPhoto ? `viewMeterPhoto('${roomId}', '${field}')` : `document.getElementById('${inputId}').click()`}">
       <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
     </button>
@@ -2566,7 +2566,7 @@ function renderAdminInvoices() {
       <td data-label="${t('col_room')}">${inv.roomName}</td>
       <td data-label="${t('col_tenant')}">${inv.tenant}</td>
       <td data-label="${t('col_period')}">${formatMonthLabel(inv.month)}</td>
-      <td data-label="${t('col_total')}" style="font-weight: 800; color: var(--tvk-orange);">${formatMoney(inv.totalAmount)} đ</td>
+      <td data-label="${t('col_total')}" style="font-weight: 800; color: var(--cala-orange);">${formatMoney(inv.totalAmount)} đ</td>
       <td data-label="${t('col_send_status')}"><span class="badge badge-resolved">${statusLabel(inv.sendStatus)}</span></td>
       <td data-label="${t('col_pay_status')}"><span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span></td>
       <td data-label="${t('col_sent_time')}"><small style="color: var(--text-muted);">${inv.sentAt ? statusLabel(inv.sentAt) : t('just_now_label')}</small></td>
@@ -2641,7 +2641,7 @@ function renderInvestorReportCard(house, d) {
     </div>
   `;
   return `
-    <div class="tvk-card">
+    <div class="cala-card">
       <div style="margin-bottom:1.25rem;">
         <h3 style="margin-bottom:0.25rem;">📊 ${house.name}</h3>
         <p style="font-size:0.85rem; color:var(--text-secondary);">${d.invoiceCount} ${t('ir_invoices_counted_label')}</p>
@@ -2655,15 +2655,15 @@ function renderInvestorReportCard(house, d) {
           <span>⚡ ${t('ir_line_elec_excluded')} (${formatMoney(d.elec)}đ)</span>
           <strong>${t('ir_not_counted_label')}</strong>
         </div>
-        ${line('🔧 ' + t('ir_line_expenses'), d.expenses, { prefix: '−', style: 'color:var(--tvk-red);' })}
+        ${line('🔧 ' + t('ir_line_expenses'), d.expenses, { prefix: '−', style: 'color:var(--cala-red);' })}
         <hr style="border-color:var(--border-color); width:100%;">
         ${line(t('ir_line_net_revenue'), d.sharedRevenue, { style: 'font-size:1.05rem; font-weight:800;' })}
         ${line(`${t('ir_line_manager_share')} (${d.feePercent}%)`, d.managerShare)}
       </div>
 
-      <div style="margin-top:1.25rem; padding:1.25rem; border-radius:var(--radius-lg); background:linear-gradient(135deg, var(--tvk-blue-light) 0%, #ffffff 100%); border:1px solid #bce2fd; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-        <div style="font-weight:800; color:var(--tvk-blue-dark);">${t('ir_line_investor_share')} (${100 - d.feePercent}%)</div>
-        <div style="font-size:1.6rem; font-weight:800; color:var(--tvk-blue);">${formatMoney(d.investorShare)} đ</div>
+      <div style="margin-top:1.25rem; padding:1.25rem; border-radius:var(--radius-lg); background:linear-gradient(135deg, var(--cala-blue-light) 0%, #ffffff 100%); border:1px solid #bce2fd; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+        <div style="font-weight:800; color:var(--cala-blue-dark);">${t('ir_line_investor_share')} (${100 - d.feePercent}%)</div>
+        <div style="font-size:1.6rem; font-weight:800; color:var(--cala-blue);">${formatMoney(d.investorShare)} đ</div>
       </div>
     </div>
   `;
@@ -2681,13 +2681,13 @@ function renderInvestorReportSummaryTable(houses, month) {
         <td><strong>${h.name}</strong></td>
         <td style="text-align:right;">${formatMoney(d.sharedRevenue)} đ</td>
         <td style="text-align:right;">${formatMoney(d.expenses)} đ</td>
-        <td style="text-align:right; font-weight:800; color:var(--tvk-blue);">${formatMoney(d.investorShare)} đ</td>
+        <td style="text-align:right; font-weight:800; color:var(--cala-blue);">${formatMoney(d.investorShare)} đ</td>
       </tr>
     `;
   }).join('');
 
   return `
-    <div class="tvk-card">
+    <div class="cala-card">
       <h3 style="margin-bottom:1rem;">${t('ir_summary_title')} — ${formatMonthLabel(month)}</h3>
       <div class="excel-table-wrapper">
         <table class="excel-table">
@@ -2705,7 +2705,7 @@ function renderInvestorReportSummaryTable(houses, month) {
               <td>${t('total_label')}</td>
               <td style="text-align:right;">${formatMoney(totalShared)} đ</td>
               <td style="text-align:right;">${formatMoney(totalExpenses)} đ</td>
-              <td style="text-align:right; color:var(--tvk-blue);">${formatMoney(totalInvestor)} đ</td>
+              <td style="text-align:right; color:var(--cala-blue);">${formatMoney(totalInvestor)} đ</td>
             </tr>
           </tbody>
         </table>
@@ -2727,7 +2727,7 @@ function renderInvestorReport() {
   if (!container) return;
 
   if (state.houses.length === 0) {
-    container.innerHTML = `<div class="tvk-card" style="text-align:center; color:var(--text-secondary);">${t('ir_no_house_hint')}</div>`;
+    container.innerHTML = `<div class="cala-card" style="text-align:center; color:var(--text-secondary);">${t('ir_no_house_hint')}</div>`;
     return;
   }
 
@@ -2766,11 +2766,11 @@ function renderInvestorExpensesTable() {
       <tr>
         <td>${e.description}</td>
         <td>${house ? house.name : e.houseId}</td>
-        <td style="text-align:right; font-weight:700; color:var(--tvk-red);">${formatMoney(e.amount)} đ</td>
+        <td style="text-align:right; font-weight:700; color:var(--cala-red);">${formatMoney(e.amount)} đ</td>
         <td style="text-align:right;">
           <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
             <button class="btn btn-secondary btn-sm" onclick="openEditInvestorExpenseModal('${e.id}')"><i data-lucide="edit-2"></i></button>
-            <button class="btn btn-secondary btn-sm" onclick="deleteInvestorExpenseApi('${e.id}')" style="color:var(--tvk-red);"><i data-lucide="trash-2"></i></button>
+            <button class="btn btn-secondary btn-sm" onclick="deleteInvestorExpenseApi('${e.id}')" style="color:var(--cala-red);"><i data-lucide="trash-2"></i></button>
           </div>
         </td>
       </tr>
@@ -2787,7 +2787,7 @@ function openAddInvestorExpenseModal() {
   document.getElementById('ie-month').value = state.currentMonth;
   document.getElementById('ie-description').value = '';
   document.getElementById('ie-amount').value = '';
-  document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--tvk-orange); vertical-align: middle;"></i> ${t('modal_add_expense_title')}`;
+  document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--cala-orange); vertical-align: middle;"></i> ${t('modal_add_expense_title')}`;
   document.getElementById('modal-investor-expense').classList.add('active');
   lucide.createIcons();
 }
@@ -2801,7 +2801,7 @@ function openEditInvestorExpenseModal(expenseId) {
   document.getElementById('ie-month').value = e.month;
   document.getElementById('ie-description').value = e.description;
   document.getElementById('ie-amount').value = e.amount;
-  document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--tvk-orange); vertical-align: middle;"></i> ${t('modal_edit_expense_title')}`;
+  document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--cala-orange); vertical-align: middle;"></i> ${t('modal_edit_expense_title')}`;
   document.getElementById('modal-investor-expense').classList.add('active');
   lucide.createIcons();
 }
@@ -2895,7 +2895,7 @@ function renderAdminUsers() {
             <i data-lucide="edit-2"></i> ${t('btn_edit')}
           </button>
           ${u.username !== 'admin' ? `
-            <button class="btn btn-secondary btn-sm" onclick="deleteUserApi('${u.id}')" style="color:var(--tvk-red);">
+            <button class="btn btn-secondary btn-sm" onclick="deleteUserApi('${u.id}')" style="color:var(--cala-red);">
               <i data-lucide="trash-2"></i> ${dict.btn_delete}
             </button>
           ` : ''}
@@ -3122,8 +3122,8 @@ function renderTenantContractView() {
 
   if (docs.length === 0) {
     container.innerHTML = `
-      <div class="tvk-card" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
-        <i data-lucide="file-image" style="width: 48px; height: 48px; color: var(--tvk-amber); margin-bottom: 1rem;"></i>
+      <div class="cala-card" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+        <i data-lucide="file-image" style="width: 48px; height: 48px; color: var(--cala-amber); margin-bottom: 1rem;"></i>
         <h3>${t('contract_empty_title')}</h3>
         <p style="margin-top: 0.5rem;">${t('contract_empty_desc')}</p>
       </div>
@@ -3135,7 +3135,7 @@ function renderTenantContractView() {
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;">
       ${docs.map(d => `
-        <div class="tvk-card" style="padding: 0.85rem; cursor: pointer;" onclick="viewDocumentFullSize('${d.dataUrl}')">
+        <div class="cala-card" style="padding: 0.85rem; cursor: pointer;" onclick="viewDocumentFullSize('${d.dataUrl}')">
           <img src="${d.dataUrl}" style="width: 100%; height: 160px; object-fit: cover; border-radius: var(--radius-md); margin-bottom: 0.6rem;">
           <div style="font-weight: 700; font-size: 0.9rem;">${d.label}</div>
           <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">${d.uploadedAt}</div>
@@ -3155,8 +3155,8 @@ function renderTenantInvoiceView() {
 
   if (!invoice) {
     container.innerHTML = `
-      <div class="tvk-card" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
-        <i data-lucide="file-question" style="width: 48px; height: 48px; color: var(--tvk-amber); margin-bottom: 1rem;"></i>
+      <div class="cala-card" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
+        <i data-lucide="file-question" style="width: 48px; height: 48px; color: var(--cala-amber); margin-bottom: 1rem;"></i>
         <h3>${t('invoice_empty_title_prefix')}${formatMonthLabel(state.currentMonth)}</h3>
         <p style="margin-top: 0.5rem;">${t('invoice_empty_desc')}</p>
       </div>
@@ -3235,7 +3235,7 @@ function renderTenantInvoiceView() {
               </button>
             </td>
             <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, room ? room.headcount : 1)}</small></td>
-            <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--tvk-blue);">${formatMoney(invoice.elecCost)} đ</td>
+            <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(invoice.elecCost)} đ</td>
           </tr>
           <tr>
             <td style="padding:0.75rem; font-weight:bold;">3. 💧 ${t('line_water')}
@@ -3244,7 +3244,7 @@ function renderTenantInvoiceView() {
               </button>
             </td>
             <td style="padding:0.75rem;">${t('reading_label')} ${invoice.waterOld} ➔ ${invoice.waterNew} (${invoice.waterUsage} m³)<br><small style="color:#687176;">${getFormulaDescription(invoice.waterFormula, invoice.waterUsage, room ? room.headcount : 1)}</small></td>
-            <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--tvk-blue);">${formatMoney(invoice.waterCost)} đ</td>
+            <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(invoice.waterCost)} đ</td>
           </tr>
           ${serviceRowsHtml}
         </tbody>
@@ -3337,14 +3337,14 @@ function renderRoomsManagement() {
     const rooms = byHouse[hid];
     html += `
       <div style="margin-bottom: 1.5rem;">
-        <div style="font-size: 1rem; font-weight: 800; color: var(--tvk-blue); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+        <div style="font-size: 1rem; font-weight: 800; color: var(--cala-blue); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
           <i data-lucide="building-2" style="width:18px;height:18px;"></i>
           ${house ? house.name : hid}
           <span class="badge badge-resolved" style="font-size:0.7rem;">${rooms.length} ${t('rooms_unit_label')}</span>
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
           ${rooms.map(r => `
-            <div class="tvk-card" style="position:relative; padding: 1.1rem 1.25rem;">
+            <div class="cala-card" style="position:relative; padding: 1.1rem 1.25rem;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
                 <div>
                   <div style="font-weight:800; font-size:1rem;">${r.name}</div>
@@ -3409,7 +3409,7 @@ async function handleRoomDocumentSelect(event) {
     _pendingDocDataUrl = await compressImageFile(file);
     const previewEl = document.getElementById('room-document-pending-preview');
     if (previewEl) {
-      previewEl.innerHTML = `<img src="${_pendingDocDataUrl}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--tvk-blue);">`;
+      previewEl.innerHTML = `<img src="${_pendingDocDataUrl}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--cala-blue);">`;
     }
   } catch (err) {
     showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
@@ -3481,7 +3481,7 @@ function renderRoomDocumentsList() {
   }
 
   container.innerHTML = docs.map(d => `
-    <div class="tvk-card" style="padding:0.75rem; display:flex; align-items:center; gap:0.75rem; margin-bottom:0.6rem;">
+    <div class="cala-card" style="padding:0.75rem; display:flex; align-items:center; gap:0.75rem; margin-bottom:0.6rem;">
       <img src="${d.dataUrl}" onclick="viewDocumentFullSize('${d.dataUrl}')" style="width:56px; height:56px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">
       <div style="flex:1; min-width:0;">
         <div style="font-weight:700; font-size:0.9rem;">${d.label}</div>
@@ -3634,7 +3634,7 @@ function renderTicketComments(ticket) {
     const isAdmin = c.role === 'admin';
     return `
       <div style="display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-end' : 'flex-start'};">
-        <div style="max-width:85%; background:${isAdmin ? 'var(--tvk-blue)' : 'var(--bg-base)'}; color:${isAdmin ? 'white' : 'var(--text-primary)'};
+        <div style="max-width:85%; background:${isAdmin ? 'var(--cala-blue)' : 'var(--bg-base)'}; color:${isAdmin ? 'white' : 'var(--text-primary)'};
              border-radius: ${isAdmin ? '14px 14px 4px 14px' : '14px 14px 14px 4px'}; padding:0.65rem 1rem; font-size:0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
           <div style="font-weight:700; font-size:0.75rem; margin-bottom:0.3rem; opacity:0.85;">${isAdmin ? '👤 Admin' : '🏠 ' + (c.author || t('default_tenant_label'))}</div>
           ${c.statusChange ? `<div style="font-size:0.72rem; opacity:0.8; margin-bottom:0.2rem;">📋 ${t('status_colon_label')} <strong>${statusLabel(c.statusChange)}</strong></div>` : ''}
@@ -3771,7 +3771,7 @@ function renderAdminTickets() {
             <i data-lucide="eye"></i> ${window.t('btn_view_details')}
           </button>
           ${state.currentUser && state.currentUser.role === 'admin' ? `
-          <button class="btn btn-secondary btn-sm" style="color:var(--tvk-red);" onclick="deleteTicketApi('${t.id}')">
+          <button class="btn btn-secondary btn-sm" style="color:var(--cala-red);" onclick="deleteTicketApi('${t.id}')">
             <i data-lucide="trash-2"></i>
           </button>` : ''}
         </div>
@@ -3856,7 +3856,7 @@ function renderTenantReportsView() {
       <td>${t.description}</td>
       <td><span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${statusLabel(t.priority)}</span></td>
       <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${statusLabel(t.status)}</span></td>
-      <td style="color:var(--tvk-blue); font-weight:600;">${t.response || `<em>${window.t('waiting_admin_reply')}</em>`}</td>
+      <td style="color:var(--cala-blue); font-weight:600;">${t.response || `<em>${window.t('waiting_admin_reply')}</em>`}</td>
       <td>
         <button class="btn btn-blue btn-sm" onclick="openTenantTicketDetail('${t.id}')">
           <i data-lucide="message-square"></i> ${window.t('btn_view_and_discuss')}
@@ -4146,7 +4146,7 @@ function showToast(message, type = 'info') {
   const toast = document.createElement('div');
   toast.className = 'toast';
   toast.innerHTML = `
-    <i data-lucide="${type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-circle' : 'info')}" style="color:${type === 'success' ? 'var(--tvk-emerald)' : (type === 'error' ? 'var(--tvk-red)' : 'var(--tvk-blue)')};"></i>
+    <i data-lucide="${type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-circle' : 'info')}" style="color:${type === 'success' ? 'var(--cala-emerald)' : (type === 'error' ? 'var(--cala-red)' : 'var(--cala-blue)')};"></i>
     <span>${message}</span>
   `;
   container.appendChild(toast);
@@ -4234,7 +4234,7 @@ function renderTenantTicketComments(ticket) {
     const isAdmin = c.role === 'admin';
     return `
       <div style="display:flex; flex-direction:column; align-items:${isAdmin ? 'flex-start' : 'flex-end'};">
-        <div style="max-width:85%; background:${isAdmin ? 'var(--bg-base)' : 'var(--tvk-blue)'}; color:${isAdmin ? 'var(--text-primary)' : 'white'};
+        <div style="max-width:85%; background:${isAdmin ? 'var(--bg-base)' : 'var(--cala-blue)'}; color:${isAdmin ? 'var(--text-primary)' : 'white'};
              border-radius: ${isAdmin ? '14px 14px 14px 4px' : '14px 14px 4px 14px'}; padding:0.5rem 0.85rem; font-size:0.8rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
           <div style="font-weight:700; font-size:0.7rem; margin-bottom:0.25rem; opacity:0.85;">${isAdmin ? '👤 Admin' : '🏠 ' + t('default_tenant_label')}</div>
           ${c.statusChange ? `<div style="font-size:0.68rem; opacity:0.8; margin-bottom:0.15rem;">📋 ${t('status_colon_label')} <strong>${statusLabel(c.statusChange)}</strong></div>` : ''}
@@ -4360,7 +4360,7 @@ function closeSidebar() {
 // in sync via ResizeObserver so it's correct after login, language switch,
 // house-list load, or just rotating the phone.
 function syncNavbarHeight() {
-  const navbar = document.querySelector('.tvk-navbar');
+  const navbar = document.querySelector('.cala-navbar');
   if (navbar) document.documentElement.style.setProperty('--navbar-height', navbar.offsetHeight + 'px');
 }
 
@@ -4377,7 +4377,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  const navbarEl = document.querySelector('.tvk-navbar');
+  const navbarEl = document.querySelector('.cala-navbar');
   if (navbarEl) {
     syncNavbarHeight();
     new ResizeObserver(syncNavbarHeight).observe(navbarEl);
