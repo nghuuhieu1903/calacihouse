@@ -4354,6 +4354,16 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay')?.classList.remove('active');
 }
 
+// The top navbar wraps to 2-3 rows on narrow screens (house/month selectors,
+// language/theme/logout controls), so its real height isn't a fixed number.
+// The off-canvas sidebar needs to start right below it — keep --navbar-height
+// in sync via ResizeObserver so it's correct after login, language switch,
+// house-list load, or just rotating the phone.
+function syncNavbarHeight() {
+  const navbar = document.querySelector('.tvk-navbar');
+  if (navbar) document.documentElement.style.setProperty('--navbar-height', navbar.offsetHeight + 'px');
+}
+
 // App DOM Initializer
 document.addEventListener('DOMContentLoaded', () => {
   setLanguage('vi');
@@ -4366,6 +4376,12 @@ document.addEventListener('DOMContentLoaded', () => {
       closeSidebar();
     });
   });
+
+  const navbarEl = document.querySelector('.tvk-navbar');
+  if (navbarEl) {
+    syncNavbarHeight();
+    new ResizeObserver(syncNavbarHeight).observe(navbarEl);
+  }
 
   restoreSession();
 });

@@ -234,7 +234,13 @@ body {
   .sidebar {
     position: fixed; top: 0; left: 0; bottom: 0; z-index: 150; width: 280px; max-width: 82vw;
     transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: var(--shadow-lg);
-    padding-top: 64px;
+    /* Navbar wraps to 2-3 rows on narrow screens, so its real height varies —
+       a hardcoded offset here used to get hidden under the sidebar (which sat
+       on top), but now that the navbar stays above the sidebar (so its
+       toggle button remains tappable to close), a wrong offset shows as the
+       navbar slicing across the sidebar's first nav item. --navbar-height is
+       measured live in app.js and kept in sync on load/resize. */
+    padding-top: var(--navbar-height, 64px);
   }
   .sidebar.open { transform: translateX(0); }
 
