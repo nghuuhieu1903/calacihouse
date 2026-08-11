@@ -150,6 +150,11 @@ body {
   background: var(--bg-surface); color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
 }
 .form-control:focus { outline: none; border-color: var(--cala-blue); box-shadow: 0 0 0 3px rgba(1, 148, 243, 0.2); }
+/* Native <select> reserves screen space for its own dropdown arrow on top of
+   whatever padding we set — without slack here, a long-enough value's last
+   character sits under that arrow (only noticeable once text is close to
+   the edge, e.g. at the larger mobile font-size below). */
+select.form-control { padding-right: 2.25rem; }
 
 /* ICON PICKER (service config modal) */
 .icon-picker-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
@@ -364,6 +369,13 @@ body {
 
 /* ---------- MOBILE ---------- */
 @media (max-width: 576px) {
+  /* iOS Safari auto-zooms the whole page in on focus/tap whenever a form
+     control's computed font-size is under 16px — that's the "trang bị tràn
+     ra 2 viền, xấu khi bấm vào ô chọn" glitch: it's not a layout bug, it's
+     iOS zooming into an under-16px <select>/<input>/<textarea>. Desktop
+     keeps the smaller 0.9rem (~14.4px) for a denser admin UI. */
+  .form-control { font-size: 16px; }
+
   .cala-navbar { padding: 0.6rem 0.85rem; gap: 0.4rem; row-gap: 0.4rem; }
   .cala-navbar > div { gap: 0.4rem !important; }
   .cala-brand { font-size: 1.05rem; gap: 0.5rem; }
