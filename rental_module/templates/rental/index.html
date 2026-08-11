@@ -555,7 +555,7 @@
               <h3 data-i18n="tickets_title">Danh Sách Báo Lỗi Từ Khách Thuê</h3>
               <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="tickets_subtitle">Tiếp nhận sự cố, cập nhật trạng thái và phản hồi khách thuê</p>
             </div>
-            <div class="excel-table-wrapper">
+            <div class="excel-table-wrapper tickets-desktop-table">
               <table class="excel-table">
                 <thead>
                   <tr>
@@ -574,6 +574,11 @@
                 <tbody id="admin-tickets-tbody"></tbody>
               </table>
             </div>
+
+            <!-- Mobile/tablet-portrait only: compact tappable summary cards
+                 instead of the 10-column table above — tap a card to open
+                 the same detail view the "Xem" button opens on desktop. -->
+            <div id="admin-tickets-cards" class="tickets-mobile-cards"></div>
           </div>
 
           <!-- TICKET DETAIL VIEW (inline) -->

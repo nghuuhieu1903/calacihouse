@@ -199,6 +199,31 @@ body {
 .badge-open { background: #ffecee; color: var(--cala-red); border: 1px solid #ffc2c9; }
 .badge-resolved { background: var(--cala-blue-light); color: var(--cala-blue); border: 1px solid #bce2fd; }
 
+/* TICKET SUMMARY CARD (mobile/tablet-portrait ticket list — see the
+   .tickets-mobile-cards toggle above) */
+.tickets-mobile-cards { display: none; }
+.ticket-card {
+  background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem; cursor: pointer; transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.ticket-card:active { box-shadow: var(--shadow-sm); border-color: var(--cala-blue); }
+.ticket-card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.4rem; }
+.ticket-card-top strong { font-size: 0.95rem; color: var(--text-primary); }
+.ticket-card-room { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.6rem; }
+.ticket-card-tags { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+.ticket-card-desc {
+  font-size: 0.85rem; color: var(--text-primary); line-height: 1.4; margin-bottom: 0.65rem;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.ticket-card-meta { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+.ticket-card-meta small { font-size: 0.75rem; color: var(--text-muted); }
+.ticket-card-meta-right { display: flex; align-items: center; gap: 0.6rem; font-size: 0.75rem; color: var(--text-muted); }
+.ticket-card-delete {
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--border-color);
+  background: var(--bg-base); color: var(--cala-red); display: flex; align-items: center; justify-content: center;
+}
+.ticket-card-delete svg { width: 13px; height: 13px; }
+
 /* MODAL */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(3, 18, 26, 0.65); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: all 0.25s ease; }
 .modal-backdrop.active { opacity: 1; pointer-events: auto; }
@@ -310,6 +335,14 @@ body {
     content: attr(data-label); font-weight: 700; color: var(--text-secondary);
     font-size: 0.78rem; text-align: left; flex-shrink: 0;
   }
+
+  /* TICKETS — 10 columns is too dense to browse on a phone even with the
+     scroll-shadow hint, and most of it (description, image count, actions)
+     only matters once you've picked a specific ticket. Swap the table for a
+     tappable summary-card list; the existing detail view (already a single
+     column here via the grid-collapse rule above) opens on tap. */
+  .tickets-desktop-table { display: none; }
+  .tickets-mobile-cards { display: flex; flex-direction: column; gap: 0.75rem; }
 }
 
 /* ---------- MOBILE ---------- */

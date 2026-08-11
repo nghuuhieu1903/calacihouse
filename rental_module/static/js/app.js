@@ -3743,14 +3743,24 @@ async function submitAdminTicketComment() {
   showToast(`${t('toast_ticket_reply_sent_prefix')}${ticket.id}!`, 'success');
 }
 
+function ticketStatusBadgeClass(status) {
+  return status === 'Đã hoàn thành' ? 'badge-paid' : (status === 'Đang sửa chữa' || status === 'Đang xử lý' ? 'badge-pending' : 'badge-open');
+}
+
 function renderAdminTickets() {
   const tbody = document.getElementById('admin-tickets-tbody');
+  const cardsBox = document.getElementById('admin-tickets-cards');
   if (!tbody) return;
   tbody.innerHTML = '';
+  if (cardsBox) cardsBox.innerHTML = '';
+
   if (state.tickets.length === 0) {
     tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('tickets_empty_state')}</td></tr>`;
+    if (cardsBox) cardsBox.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('tickets_empty_state')}</div>`;
     return;
   }
+
+  const isAdmin = state.currentUser && state.currentUser.role === 'admin';
 
   state.tickets.forEach(t => {
     const imgCount = t.imagesCount != null ? t.imagesCount : (t.images || []).length;
@@ -3764,13 +3774,13 @@ function renderAdminTickets() {
       <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${t.description}">${t.description}</td>
       <td>${imgCount > 0 ? `<span class="badge badge-resolved" style="cursor:pointer;" onclick="openTicketDetail('${t.id}')">📷 ${imgCount} ${window.t('images_unit_label')}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
       <td><small style="color:var(--text-muted);">${t.timestamp}</small></td>
-      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${statusLabel(t.status)}</span></td>
+      <td><span class="badge ${ticketStatusBadgeClass(t.status)}">${statusLabel(t.status)}</span></td>
       <td>
         <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
           <button class="btn btn-blue btn-sm" onclick="openTicketDetail('${t.id}')">
             <i data-lucide="eye"></i> ${window.t('btn_view_details')}
           </button>
-          ${state.currentUser && state.currentUser.role === 'admin' ? `
+          ${isAdmin ? `
           <button class="btn btn-secondary btn-sm" style="color:var(--cala-red);" onclick="deleteTicketApi('${t.id}')">
             <i data-lucide="trash-2"></i>
           </button>` : ''}
@@ -3778,7 +3788,35 @@ function renderAdminTickets() {
       </td>
     `;
     tbody.appendChild(tr);
+
+    if (cardsBox) {
+      const card = document.createElement('div');
+      card.className = 'ticket-card';
+      card.onclick = () => openTicketDetail(t.id);
+      card.innerHTML = `
+        <div class="ticket-card-top">
+          <strong>${t.id}</strong>
+          <span class="badge ${ticketStatusBadgeClass(t.status)}">${statusLabel(t.status)}</span>
+        </div>
+        <div class="ticket-card-room">${t.roomName || t.roomId} · ${t.tenant}</div>
+        <div class="ticket-card-tags">
+          <span class="badge badge-resolved">${statusLabel(t.category)}</span>
+          <span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${statusLabel(t.priority)}</span>
+        </div>
+        <p class="ticket-card-desc">${t.description || ''}</p>
+        <div class="ticket-card-meta">
+          <small>${t.timestamp}</small>
+          <div class="ticket-card-meta-right">
+            ${imgCount > 0 ? `<span>📷 ${imgCount}</span>` : ''}
+            ${isAdmin ? `<button class="ticket-card-delete" onclick="event.stopPropagation(); deleteTicketApi('${t.id}')"><i data-lucide="trash-2"></i></button>` : ''}
+          </div>
+        </div>
+      `;
+      cardsBox.appendChild(card);
+    }
   });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 async function deleteTicketApi(ticketId) {
