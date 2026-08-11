@@ -83,7 +83,7 @@ const I18N = {
     formulas_subtitle: 'Bạn có thể tự quyết định đơn giá cố định hoặc định nghĩa các bậc thang tính toán',
     btn_add_formula: 'Tạo Công Thức Mới',
     my_invoice_title: 'Hóa Đơn Tháng Của Tôi',
-    my_invoice_subtitle: 'Xem chi tiết bảng kê diễn giải chỉ số và mã QR thanh toán',
+    my_invoice_subtitle: 'Xem chi tiết bảng kê diễn giải chỉ số và trạng thái thanh toán',
     form_ticket_title: 'Gửi Báo Lỗi / Khiếu Nại',
     lbl_category: 'Loại sự cố',
     lbl_priority: 'Mức độ ưu tiên',
@@ -539,7 +539,7 @@ const I18N = {
     formulas_subtitle: 'Configure flat rates or EVN tiered rate calculation rules',
     btn_add_formula: 'Create New Formula',
     my_invoice_title: 'My Monthly Invoice',
-    my_invoice_subtitle: 'View itemized breakdown, calculation rules, and payment QR',
+    my_invoice_subtitle: 'View itemized breakdown, calculation rules, and payment status',
     form_ticket_title: 'Submit Incident / Issue Report',
     lbl_category: 'Issue Category',
     lbl_priority: 'Priority Level',
@@ -3259,15 +3259,9 @@ function renderTenantInvoiceView() {
       </table>
       </div>
 
-      <div style="background:#f7f9fa; padding:1.25rem; border-radius:12px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e5e9f0; margin-top:1.5rem;">
-        <div>
-          <div style="font-size: 0.85rem; color: #687176;">${t('grand_total_label')}</div>
-          <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f;">${formatMoney(invoice.totalAmount)} VNĐ</div>
-        </div>
-        <div style="display:flex; align-items:center; gap:0.75rem; background:white; padding:0.5rem 0.75rem; border-radius:8px; border:1px solid #cbd5e1;">
-          <div style="width:48px; height:48px; background:#0194f3; color:white; font-weight:bold; font-size:0.7rem; border-radius:4px; display:flex; align-items:center; justify-content:center; text-align:center;">VIETQR<br>PAY</div>
-          <div style="font-size:0.75rem; color:#334155;">${t('bank_account_label')} <strong>9999-8888-6666</strong><br>MBBank (${t('landlord_label')})</div>
-        </div>
+      <div style="background:#f7f9fa; padding:1.25rem; border-radius:12px; text-align:right; border:1px solid #e5e9f0; margin-top:1.5rem;">
+        <div style="font-size: 0.85rem; color: #687176;">${t('grand_total_label')}</div>
+        <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f;">${formatMoney(invoice.totalAmount)} VNĐ</div>
       </div>
     </div>
   `;
