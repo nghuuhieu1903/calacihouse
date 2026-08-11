@@ -286,11 +286,17 @@ select.form-control { padding-right: 2.25rem; }
 
   .btn-menu-toggle { display: inline-flex; }
 
-  /* Sidebar's z-index (150) otherwise sits above the sticky navbar (100),
-     so once open it visually covers the hamburger button and swallows taps
-     meant to close it — the only way out was tapping the dim overlay.
-     Keeping the navbar on top lets the same button open AND close it. */
-  .cala-navbar { position: sticky; z-index: 160; }
+  /* Sidebar's z-index (150) otherwise sits above the navbar (100), so once
+     open it visually covers the hamburger button and swallows taps meant
+     to close it — the only way out was tapping the dim overlay. Keeping
+     the navbar on top lets the same button open AND close it.
+     position: fixed instead of sticky: iOS Safari's collapsing address bar
+     visibly glitches sticky headers mid-scroll (briefly clips or offsets
+     them) — fixed pins it to the actual viewport instead of the document's
+     scroll position, so it doesn't move at all. .app-container below makes
+     up the space this takes out of normal flow via --navbar-height. */
+  .cala-navbar { position: fixed; top: 0; left: 0; right: 0; z-index: 160; }
+  .app-container { margin-top: var(--navbar-height, 64px); }
 
   .main-content { padding: 1.5rem; }
 
