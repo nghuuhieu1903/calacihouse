@@ -229,15 +229,30 @@ select.form-control { padding-right: 2.25rem; }
 }
 .ticket-card-delete svg { width: 13px; height: 13px; }
 
-/* TENANT TICKET CARD — deliberately minimal, see the toggle above */
+/* TENANT TICKET ROW — modern tappable list-row (icon avatar + title/status
+   + timestamp + chevron) instead of a boxy card with badges stacked above
+   a full-width button; the whole row is the tap target. */
 .tenant-tickets-mobile-cards { display: none; }
-.tenant-ticket-card {
+.tenant-ticket-row {
+  display: flex; align-items: center; gap: 0.85rem;
   background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);
-  padding: 1rem 1.1rem;
+  padding: 0.85rem 1rem; cursor: pointer; transition: transform 0.1s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.tenant-ticket-card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.5rem; }
-.tenant-ticket-card-time { display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; }
-.tenant-ticket-card .btn { width: 100%; justify-content: center; }
+.tenant-ticket-row:active { transform: scale(0.98); box-shadow: var(--shadow-sm); border-color: var(--cala-blue); }
+.tenant-ticket-row-icon {
+  width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.tenant-ticket-row-icon.status-open { background: #ffecee; color: var(--cala-red); }
+.tenant-ticket-row-icon.status-pending { background: #fff2ec; color: var(--cala-orange); }
+.tenant-ticket-row-icon.status-paid { background: #e6f9f2; color: var(--cala-emerald); }
+.tenant-ticket-row-icon svg { width: 20px; height: 20px; }
+.tenant-ticket-row-main { flex: 1; min-width: 0; }
+.tenant-ticket-row-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
+.tenant-ticket-row-top strong { font-size: 0.92rem; color: var(--text-primary); }
+.tenant-ticket-row-time { display: block; font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+.tenant-ticket-row-chevron { color: var(--text-muted); flex-shrink: 0; }
+.tenant-ticket-row-chevron svg { width: 18px; height: 18px; display: block; }
 
 /* MODAL */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(3, 18, 26, 0.65); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: all 0.25s ease; }

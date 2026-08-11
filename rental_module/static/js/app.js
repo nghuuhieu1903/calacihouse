@@ -3747,6 +3747,17 @@ function ticketStatusBadgeClass(status) {
   return status === 'Đã hoàn thành' ? 'badge-paid' : (status === 'Đang sửa chữa' || status === 'Đang xử lý' ? 'badge-pending' : 'badge-open');
 }
 
+// Same tri-state as ticketStatusBadgeClass, as a suffix for the row icon's
+// tinted background instead of a badge color.
+function ticketStatusIconClass(status) {
+  return status === 'Đã hoàn thành' ? 'status-paid' : (status === 'Đang sửa chữa' || status === 'Đang xử lý' ? 'status-pending' : 'status-open');
+}
+
+function ticketCategoryIcon(category) {
+  const map = { 'Hóa đơn': 'receipt', 'Điện': 'zap', 'Nước': 'droplet', 'Nội thất': 'armchair', 'Khác': 'circle-help' };
+  return map[category] || 'wrench';
+}
+
 function renderAdminTickets() {
   const tbody = document.getElementById('admin-tickets-tbody');
   const cardsBox = document.getElementById('admin-tickets-cards');
@@ -3908,16 +3919,20 @@ function renderTenantReportsView() {
 
     if (cardsBox) {
       const card = document.createElement('div');
-      card.className = 'tenant-ticket-card';
+      card.className = 'tenant-ticket-row';
+      card.onclick = () => openTenantTicketDetail(t.id);
       card.innerHTML = `
-        <div class="tenant-ticket-card-top">
-          <span class="badge badge-resolved">${statusLabel(t.category)}</span>
-          <span class="badge ${ticketStatusBadgeClass(t.status)}">${statusLabel(t.status)}</span>
+        <div class="tenant-ticket-row-icon ${ticketStatusIconClass(t.status)}">
+          <i data-lucide="${ticketCategoryIcon(t.category)}"></i>
         </div>
-        <small class="tenant-ticket-card-time">${t.timestamp}</small>
-        <button class="btn btn-blue btn-sm" onclick="openTenantTicketDetail('${t.id}')">
-          <i data-lucide="message-square"></i> ${window.t('btn_view_and_discuss')}
-        </button>
+        <div class="tenant-ticket-row-main">
+          <div class="tenant-ticket-row-top">
+            <strong>${statusLabel(t.category)}</strong>
+            <span class="badge ${ticketStatusBadgeClass(t.status)}">${statusLabel(t.status)}</span>
+          </div>
+          <small class="tenant-ticket-row-time">${t.timestamp}</small>
+        </div>
+        <span class="tenant-ticket-row-chevron"><i data-lucide="chevron-right"></i></span>
       `;
       cardsBox.appendChild(card);
     }
