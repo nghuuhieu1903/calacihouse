@@ -3200,12 +3200,12 @@ function renderTenantInvoiceView() {
     </div>
 
     <div class="invoice-paper">
-      <div style="display:flex; justify-content:space-between; border-bottom:2px solid #e5e9f0; padding-bottom:1.25rem; margin-bottom:1.25rem;">
+      <div class="invoice-header-row" style="display:flex; justify-content:space-between; border-bottom:2px solid #e5e9f0; padding-bottom:1.25rem; margin-bottom:1.25rem;">
         <div>
-          <h2 style="font-size: 1.75rem; color: #03121a; font-weight:800;">${t('invoice_paper_title')}</h2>
+          <h2 class="invoice-header-title" style="font-size: 1.75rem; color: #03121a; font-weight:800;">${t('invoice_paper_title')}</h2>
           <div style="color: #687176;">${t('invoice_id_label')} <strong>${invoice.id}</strong> | ${t('invoice_period_label')} ${formatMonthLabel(invoice.month)}</div>
         </div>
-        <div style="text-align: right;">
+        <div class="invoice-header-meta" style="text-align: right;">
           <div style="font-weight: 800; font-size: 1.1rem; color: #0194f3;">${houseName}</div>
           <div style="font-size: 0.85rem; color: #687176;">📍 ${houseAddr}</div>
         </div>

@@ -435,6 +435,16 @@ select.form-control { padding-right: 2.25rem; }
 
   .invoice-paper { padding: 1.25rem; }
 
+  /* Invoice header: title block (left) + house name/address (right) fight
+     for the same line on a phone — the title wrapped to 2 lines while the
+     meta block stayed pinned top-right, so the two ended up interleaved
+     instead of stacked. Let the row wrap and drop the title's desktop size
+     so it actually fits; the meta block reads better left-aligned once
+     it's on its own line rather than floating at the right edge. */
+  .invoice-header-row { flex-wrap: wrap; gap: 0.5rem; }
+  .invoice-header-title { font-size: 1.3rem !important; }
+  .invoice-header-meta { text-align: left !important; }
+
   .excel-table th, .excel-table td { padding: 0.6rem 0.7rem; }
 
   /* TENANT'S OWN INVOICE — 3 columns (item, formula/meter-reading
