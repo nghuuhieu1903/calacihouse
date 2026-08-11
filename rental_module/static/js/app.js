@@ -3877,12 +3877,15 @@ function removeTenantImage(idx) {
 
 function renderTenantReportsView() {
   const tbody = document.getElementById('tenant-tickets-tbody');
+  const cardsBox = document.getElementById('tenant-tickets-cards');
   tbody.innerHTML = '';
+  if (cardsBox) cardsBox.innerHTML = '';
   const user = state.currentUser;
   const myTickets = user ? state.tickets.filter(t => t.roomId === user.roomId || t.tenant === user.fullName) : state.tickets;
 
   if (myTickets.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('my_tickets_empty_state')}</td></tr>`;
+    if (cardsBox) cardsBox.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('my_tickets_empty_state')}</div>`;
     return;
   }
 
@@ -3893,7 +3896,7 @@ function renderTenantReportsView() {
       <td><span class="badge badge-resolved">${statusLabel(t.category)}</span></td>
       <td>${t.description}</td>
       <td><span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${statusLabel(t.priority)}</span></td>
-      <td><span class="badge ${t.status === 'Đã hoàn thành' ? 'badge-paid' : (t.status === 'Đang sửa chữa' || t.status === 'Đang xử lý' ? 'badge-pending' : 'badge-open')}">${statusLabel(t.status)}</span></td>
+      <td><span class="badge ${ticketStatusBadgeClass(t.status)}">${statusLabel(t.status)}</span></td>
       <td style="color:var(--cala-blue); font-weight:600;">${t.response || `<em>${window.t('waiting_admin_reply')}</em>`}</td>
       <td>
         <button class="btn btn-blue btn-sm" onclick="openTenantTicketDetail('${t.id}')">
@@ -3902,7 +3905,25 @@ function renderTenantReportsView() {
       </td>
     `;
     tbody.appendChild(tr);
+
+    if (cardsBox) {
+      const card = document.createElement('div');
+      card.className = 'tenant-ticket-card';
+      card.innerHTML = `
+        <div class="tenant-ticket-card-top">
+          <span class="badge badge-resolved">${statusLabel(t.category)}</span>
+          <span class="badge ${ticketStatusBadgeClass(t.status)}">${statusLabel(t.status)}</span>
+        </div>
+        <small class="tenant-ticket-card-time">${t.timestamp}</small>
+        <button class="btn btn-blue btn-sm" onclick="openTenantTicketDetail('${t.id}')">
+          <i data-lucide="message-square"></i> ${window.t('btn_view_and_discuss')}
+        </button>
+      `;
+      cardsBox.appendChild(card);
+    }
   });
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 async function handleTenantSubmitReport(event) {

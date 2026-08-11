@@ -224,6 +224,16 @@ body {
 }
 .ticket-card-delete svg { width: 13px; height: 13px; }
 
+/* TENANT TICKET CARD — deliberately minimal, see the toggle above */
+.tenant-tickets-mobile-cards { display: none; }
+.tenant-ticket-card {
+  background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg);
+  padding: 1rem 1.1rem;
+}
+.tenant-ticket-card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.5rem; }
+.tenant-ticket-card-time { display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.75rem; }
+.tenant-ticket-card .btn { width: 100%; justify-content: center; }
+
 /* MODAL */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(3, 18, 26, 0.65); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 200; opacity: 0; pointer-events: none; transition: all 0.25s ease; }
 .modal-backdrop.active { opacity: 1; pointer-events: auto; }
@@ -343,6 +353,13 @@ body {
      column here via the grid-collapse rule above) opens on tap. */
   .tickets-desktop-table { display: none; }
   .tickets-mobile-cards { display: flex; flex-direction: column; gap: 0.75rem; }
+
+  /* TENANT'S "MY TICKETS" TABLE — same overcrowding problem, but tenants
+     don't need the full admin-style summary either: they submitted the
+     report, so they already know what it says. Just type + status + a way
+     into the reply thread. */
+  .tenant-tickets-desktop-table { display: none; }
+  .tenant-tickets-mobile-cards { display: flex; flex-direction: column; gap: 0.75rem; }
 }
 
 /* ---------- MOBILE ---------- */

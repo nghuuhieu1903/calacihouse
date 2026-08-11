@@ -757,7 +757,7 @@
 
             <div class="cala-card">
               <h3 style="margin-bottom: 1rem;"><i data-lucide="clock" style="color: var(--cala-emerald); vertical-align: middle;"></i> <span data-i18n="my_tickets_history">Lịch Sử Báo Lỗi</span></h3>
-              <div class="excel-table-wrapper">
+              <div class="excel-table-wrapper tenant-tickets-desktop-table">
                 <table class="excel-table">
                   <thead>
                     <tr>
@@ -773,6 +773,11 @@
                   <tbody id="tenant-tickets-tbody"></tbody>
                 </table>
               </div>
+
+              <!-- Mobile/tablet-portrait: minimal cards — just what the
+                   tenant actually needs to recognize a report (type + status)
+                   plus one button into the full detail/discussion thread. -->
+              <div id="tenant-tickets-cards" class="tenant-tickets-mobile-cards"></div>
             </div>
           </div>
         </div>
