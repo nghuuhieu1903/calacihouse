@@ -436,4 +436,20 @@ select.form-control { padding-right: 2.25rem; }
   .invoice-paper { padding: 1.25rem; }
 
   .excel-table th, .excel-table td { padding: 0.6rem 0.7rem; }
+
+  /* TENANT'S OWN INVOICE — 3 columns (item, formula/meter-reading
+     explanation, amount) don't fit a phone screen. Default to just item +
+     amount; the "Xem Chi Tiết Cách Tính" eye button (toggleInvoiceDetailView)
+     adds .show-detail back to reveal the calculation column for anyone who
+     wants to double-check the math. Desktop/tablet always show it — there's
+     room, and it's the more useful default when reviewing on a bigger screen. */
+  .invoice-paper table.excel-table th:nth-child(2),
+  .invoice-paper table.excel-table td:nth-child(2) {
+    display: none;
+  }
+  .invoice-paper.show-detail table.excel-table th:nth-child(2),
+  .invoice-paper.show-detail table.excel-table td:nth-child(2) {
+    display: table-cell;
+  }
+  #btn-toggle-invoice-detail { display: inline-flex !important; }
 }

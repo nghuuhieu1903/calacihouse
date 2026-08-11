@@ -198,6 +198,8 @@ const I18N = {
     invoice_empty_desc: 'Chủ nhà đang tổng hợp chỉ số điện nước và phí dịch vụ. Vui lòng quay lại sau!',
     default_house_addr_label: 'Hệ Thống Quản Lý Trọ',
     btn_print_invoice: 'In / Tải Hóa Đơn PDF',
+    btn_view_calc_detail: 'Xem Chi Tiết Cách Tính',
+    btn_hide_calc_detail: 'Thu Gọn',
     invoice_paper_title: 'HÓA ĐƠN TIỀN NHÀ',
     invoice_id_label: 'Mã HĐ:',
     invoice_period_label: 'Kỳ:',
@@ -652,6 +654,8 @@ const I18N = {
     invoice_empty_desc: 'The landlord is still compiling utility readings and service fees. Please check back later!',
     default_house_addr_label: 'Rental Management System',
     btn_print_invoice: 'Print / Download Invoice PDF',
+    btn_view_calc_detail: 'View Calculation Detail',
+    btn_hide_calc_detail: 'Hide Detail',
     invoice_paper_title: 'RENT INVOICE',
     invoice_id_label: 'Invoice ID:',
     invoice_period_label: 'Period:',
@@ -3186,7 +3190,10 @@ function renderTenantInvoiceView() {
   });
 
   container.innerHTML = `
-    <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 1rem;">
+    <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap;">
+      <button class="btn btn-secondary" id="btn-toggle-invoice-detail" style="display:none;" onclick="toggleInvoiceDetailView()">
+        <i data-lucide="eye"></i> <span>${t('btn_view_calc_detail')}</span>
+      </button>
       <button class="btn btn-blue" onclick="window.print()">
         <i data-lucide="printer"></i> ${t('btn_print_invoice')}
       </button>
@@ -3218,6 +3225,7 @@ function renderTenantInvoiceView() {
         </div>
       </div>
 
+      <div class="excel-table-wrapper">
       <table class="excel-table" style="color: #03121a; width:100%;">
         <thead>
           <tr style="background:#f7f9fa; color:#43494d;">
@@ -3249,6 +3257,7 @@ function renderTenantInvoiceView() {
           ${serviceRowsHtml}
         </tbody>
       </table>
+      </div>
 
       <div style="background:#f7f9fa; padding:1.25rem; border-radius:12px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e5e9f0; margin-top:1.5rem;">
         <div>
@@ -3263,6 +3272,22 @@ function renderTenantInvoiceView() {
     </div>
   `;
   lucide.createIcons();
+}
+
+// On phones the invoice table defaults to just service name + price (see
+// the .show-detail CSS toggle) — this button reveals/hides the calculation
+// breakdown column (meter readings, formula used) for tenants who want it.
+function toggleInvoiceDetailView() {
+  const paper = document.querySelector('.invoice-paper');
+  const btn = document.getElementById('btn-toggle-invoice-detail');
+  if (!paper) return;
+  const showing = paper.classList.toggle('show-detail');
+  if (btn) {
+    btn.innerHTML = showing
+      ? `<i data-lucide="eye-off"></i> <span>${t('btn_hide_calc_detail')}</span>`
+      : `<i data-lucide="eye"></i> <span>${t('btn_view_calc_detail')}</span>`;
+    lucide.createIcons();
+  }
 }
 
 function viewInvoiceDetail(invoiceId) {
