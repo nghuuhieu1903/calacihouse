@@ -79,6 +79,7 @@ SCHEMA_STATEMENTS = [
         phone          VARCHAR(32) DEFAULT '',
         base_rent      DOUBLE DEFAULT 0,
         headcount      INT DEFAULT 1,
+        room_type      VARCHAR(32) DEFAULT 'single',
         elec_formula   VARCHAR(191) DEFAULT '',
         water_formula  VARCHAR(191) DEFAULT ''
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -146,6 +147,21 @@ SCHEMA_STATEMENTS = [
 ]
 
 
+def _ensure_column(cur, table, column, ddl):
+    """CREATE TABLE IF NOT EXISTS only applies to brand-new installs — an
+    already-existing table (like everyone's live `rooms` table) never picks
+    up columns added to SCHEMA_STATEMENTS later. Add them here instead, each
+    guarded by an existence check so it's a no-op after the first run. Only
+    ever ADD COLUMN — never touches existing columns or rows."""
+    cur.execute(
+        "SELECT COUNT(*) AS c FROM information_schema.columns "
+        "WHERE table_schema = %s AND table_name = %s AND column_name = %s",
+        (MYSQL_DATABASE, table, column)
+    )
+    if cur.fetchone()['c'] == 0:
+        cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
+
+
 def init_db():
     """Create the database and all tables if they don't already exist.
     Called once on app startup. Safe to run every time (IF NOT EXISTS)."""
@@ -155,6 +171,7 @@ def init_db():
         with conn.cursor() as cur:
             for statement in SCHEMA_STATEMENTS:
                 cur.execute(statement)
+            _ensure_column(cur, 'rooms', 'room_type', "VARCHAR(32) DEFAULT 'single'")
         conn.commit()
     finally:
         conn.close()

@@ -448,6 +448,11 @@ const I18N = {
     lbl_room_name: 'Tên Phòng',
     lbl_tenant_name: 'Tên Khách Thuê',
     lbl_phone_number: 'Số Điện Thoại',
+    lbl_room_type: 'Loại Phòng',
+    option_room_type_single: '🚪 Phòng Đơn (1 hóa đơn trọn gói cho cả phòng)',
+    option_room_type_dorm: '🛏️ Phòng Ký Túc Xá (tiền điện chia đều theo số người ở)',
+    hint_room_type_dorm: 'Giá thuê phòng bên dưới nên nhập theo mức 1 người. Tiền điện của cả phòng sẽ tự động chia đều cho Số Người Ở trước khi tính vào hóa đơn. Tiền nước & dịch vụ khác giữ nguyên, không chia.',
+    lbl_room_rent_price_dorm: 'Giá Tiền Thuê / 1 Người (VNĐ/tháng)',
     lbl_headcount_full: 'Số Người Ở (Để tính tiền khoán x số người)',
     lbl_room_rent_price: 'Giá Tiền Thuê Phòng (VNĐ/tháng)',
     lbl_water_formula: 'Công Thức / Cách Tính Tiền Nước Cho Phòng Này',
@@ -903,6 +908,11 @@ const I18N = {
     lbl_room_name: 'Room Name',
     lbl_tenant_name: 'Tenant Name',
     lbl_phone_number: 'Phone Number',
+    lbl_room_type: 'Room Type',
+    option_room_type_single: '🚪 Single Room (one all-inclusive bill for the whole room)',
+    option_room_type_dorm: '🛏️ Dorm Room (electricity split evenly across occupants)',
+    hint_room_type_dorm: 'Enter the rent below as the per-person rate. The room\'s total electricity cost is automatically split evenly across Number of Occupants before being added to the bill. Water & other services are not split.',
+    lbl_room_rent_price_dorm: 'Rent Per Person (VND/month)',
     lbl_headcount_full: 'Number of Occupants (used for per-person flat fees)',
     lbl_room_rent_price: 'Room Rent Price (VND/month)',
     lbl_water_formula: 'Water Calculation Formula For This Room',
@@ -2010,10 +2020,27 @@ function evalCustomFormula(expr, usage) {
   }
 }
 
-function getFormulaDescription(formulaExpr, usage) {
+function getFormulaDescription(formulaExpr, usage, splitHeadcount) {
   if (!formulaExpr) return t('formula_desc_fixed');
   const amount = evalCustomFormula(formulaExpr, usage);
-  return `x=${usage} → ${formulaExpr} = ${formatMoney(amount)}đ`;
+  const base = `x=${usage} → ${formulaExpr} = ${formatMoney(amount)}đ`;
+  if (splitHeadcount && splitHeadcount > 1) {
+    return `${base} ÷ ${splitHeadcount} ${t('formula_per_person_label')} = ${formatMoney(Math.round(amount / splitHeadcount))}đ`;
+  }
+  return base;
+}
+
+// Dorm rooms (Phòng Ký Túc Xá) share one electricity meter across several
+// tenants, each billed individually — so the room's total electricity cost
+// gets split evenly across its headcount before landing on the invoice.
+// Water and other services are per the room as entered, not split (see the
+// "Loại Phòng" hint text in the room config modal).
+function utilityCostForRoom(formulaExpr, usage, isElec, room) {
+  const raw = evalCustomFormula(formulaExpr, usage);
+  if (isElec && room && room.roomType === 'dorm') {
+    return Math.round(raw / Math.max(1, room.headcount || 1));
+  }
+  return raw;
 }
 
 function renderAdminDashboard() {
@@ -2030,7 +2057,7 @@ function renderAdminDashboard() {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
         const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-        roomTot += evalCustomFormula(s.customFormula, usage);
+        roomTot += utilityCostForRoom(s.customFormula, usage, isElec, r);
       } else {
         roomTot += calculateServiceCostForRoom(s, r);
       }
@@ -2089,7 +2116,7 @@ function renderInvestorDashboard() {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
         const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-        const cost = evalCustomFormula(s.customFormula, usage);
+        const cost = utilityCostForRoom(s.customFormula, usage, isElec, r);
         if (isElec) totalElec += cost; else totalWater += cost;
       } else {
         totalService += calculateServiceCostForRoom(s, r);
@@ -2262,7 +2289,7 @@ function renderSpreadsheet() {
         const newVal = isElec ? rd.elecNew : rd.waterNew;
         const usage = Math.max(0, (newVal || 0) - (oldVal || 0));
 
-        const cost = isServiceApplicable ? evalCustomFormula(s.customFormula, usage) : 0;
+        const cost = isServiceApplicable ? utilityCostForRoom(s.customFormula, usage, isElec, r) : 0;
         grandTotal += cost;
 
         if (isServiceApplicable) {
@@ -2433,7 +2460,7 @@ async function generateAndSendAllInvoices() {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
         const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-        const cost = evalCustomFormula(s.customFormula, usage);
+        const cost = utilityCostForRoom(s.customFormula, usage, isElec, r);
         if (isElec) { elecCost = cost; elecFormulaText = s.customFormula || ''; }
         else { waterCost = cost; waterFormulaText = s.customFormula || ''; }
         totalAmount += cost;
@@ -3173,7 +3200,7 @@ function renderTenantInvoiceView() {
                 <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
               </button>
             </td>
-            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage)}</small></td>
+            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, room && room.roomType === 'dorm' ? room.headcount : 0)}</small></td>
             <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(invoice.elecCost)} đ</td>
           </tr>
           <tr>
@@ -3965,13 +3992,25 @@ function updateBadges() {
   }
 }
 
+// Swaps the rent field's label + shows/hides the explainer paragraph based
+// on the selected Loại Phòng — purely cosmetic, doesn't touch any value.
+function toggleRoomTypeHint() {
+  const isDorm = document.getElementById('room-type').value === 'dorm';
+  const hint = document.getElementById('room-type-hint');
+  const rentLabel = document.getElementById('lbl-room-base-rent');
+  if (hint) hint.style.display = isDorm ? 'block' : 'none';
+  if (rentLabel) rentLabel.innerText = isDorm ? t('lbl_room_rent_price_dorm') : t('lbl_room_rent_price');
+}
+
 function openAddRoomModal() {
   document.getElementById('room-id').value = '';
   document.getElementById('room-name').value = '';
   document.getElementById('room-tenant').value = '';
   document.getElementById('room-phone').value = '';
+  document.getElementById('room-type').value = 'single';
   document.getElementById('room-headcount').value = '1';
   document.getElementById('room-base-rent').value = '3500000';
+  toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
   houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
@@ -3988,8 +4027,10 @@ function openEditRoomModal(roomId) {
   document.getElementById('room-name').value = r.name;
   document.getElementById('room-tenant').value = r.tenant || '';
   document.getElementById('room-phone').value = r.phone || '';
+  document.getElementById('room-type').value = r.roomType || 'single';
   document.getElementById('room-headcount').value = r.headcount || 1;
   document.getElementById('room-base-rent').value = r.baseRent || 0;
+  toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
   houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}" ${h.id === r.houseId ? 'selected' : ''}>${h.name}</option>`).join('');
@@ -4004,12 +4045,13 @@ async function saveRoomConfig(event) {
   const name = document.getElementById('room-name').value.trim();
   const tenant = document.getElementById('room-tenant').value.trim();
   const phone = document.getElementById('room-phone').value.trim();
+  const roomType = document.getElementById('room-type').value;
   const headcount = parseInt(document.getElementById('room-headcount').value) || 1;
   const baseRent = parseFloat(document.getElementById('room-base-rent').value) || 0;
 
   const rObj = {
     id: id || `R${Date.now().toString().slice(-4)}`,
-    houseId, name, tenant, phone, headcount, baseRent
+    houseId, name, tenant, phone, roomType, headcount, baseRent
   };
 
   const idx = state.rooms.findIndex(r => r.id === rObj.id);

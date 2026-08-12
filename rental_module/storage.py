@@ -171,6 +171,7 @@ def _room(row):
         'phone': row['phone'] or '',
         'baseRent': row['base_rent'],
         'headcount': row['headcount'],
+        'roomType': row.get('room_type') or 'single',
         'elecFormula': row['elec_formula'] or '',
         'waterFormula': row['water_formula'] or ''
     }
@@ -397,8 +398,8 @@ class Storage:
                 for r in rooms:
                     cur.execute(
                         "REPLACE INTO rooms "
-                        "(id, house_id, name, tenant, phone, base_rent, headcount, elec_formula, water_formula) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                        "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                         (
                             r['id'],
                             r.get('houseId', ''),
@@ -407,6 +408,7 @@ class Storage:
                             r.get('phone', ''),
                             r.get('baseRent', 0),
                             r.get('headcount', 1),
+                            r.get('roomType', 'single'),
                             r.get('elecFormula', ''),
                             r.get('waterFormula', '')
                         )

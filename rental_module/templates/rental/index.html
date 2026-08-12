@@ -1093,13 +1093,24 @@
           </div>
         </div>
 
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_type">Loại Phòng</label>
+          <select id="room-type" class="form-control" onchange="toggleRoomTypeHint()">
+            <option value="single" data-i18n="option_room_type_single">🚪 Phòng Đơn (1 hóa đơn trọn gói cho cả phòng)</option>
+            <option value="dorm" data-i18n="option_room_type_dorm">🛏️ Phòng Ký Túc Xá (tiền điện chia đều theo số người ở)</option>
+          </select>
+          <p id="room-type-hint" style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.4rem; display: none;" data-i18n="hint_room_type_dorm">
+            Giá thuê phòng bên dưới nên nhập theo mức 1 người. Tiền điện của cả phòng sẽ tự động chia đều cho Số Người Ở trước khi tính vào hóa đơn. Tiền nước & dịch vụ khác giữ nguyên, không chia.
+          </p>
+        </div>
+
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
           <div>
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_headcount_full">Số Người Ở (Để tính tiền khoán x số người)</label>
             <input type="number" id="room-headcount" class="form-control" min="1" value="1" required>
           </div>
           <div>
-            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_rent_price">Giá Tiền Thuê Phòng (VNĐ/tháng)</label>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" id="lbl-room-base-rent" data-i18n="lbl_room_rent_price">Giá Tiền Thuê Phòng (VNĐ/tháng)</label>
             <input type="number" id="room-base-rent" class="form-control" placeholder="3500000" required>
           </div>
         </div>

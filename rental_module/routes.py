@@ -123,6 +123,7 @@ def save_room():
         data.get('phone'),
         data.get('baseRent'),
         data.get('headcount'),
+        data.get('roomType'),
         data.get('elecFormula'),
         data.get('waterFormula')
     )

@@ -26,6 +26,19 @@ class RentalService:
             return 0
 
     @staticmethod
+    def utility_cost_for_room(expr, usage, is_elec, room):
+        """Dorm rooms (Phòng Ký Túc Xá) share one electricity meter across
+        several tenants billed individually — split the room's total
+        electricity cost evenly across headcount. Water & other services
+        are billed as entered, not split. Mirrors utilityCostForRoom() in
+        app.js exactly — this is the server-side path invoices are actually
+        persisted through."""
+        raw = RentalService.eval_custom_formula(expr, usage)
+        if is_elec and room.get('roomType') == 'dorm':
+            return round(raw / max(1, room.get('headcount') or 1))
+        return raw
+
+    @staticmethod
     def service_matches_house(s, target_house_id):
         if not target_house_id or target_house_id == 'all':
             return True
@@ -251,7 +264,7 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, elec_formula, water_formula):
+    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None):
         rooms = Storage.get_rooms()
         r_id = room_id or f"R{uuid.uuid4().hex[:4].upper()}"
         r_obj = {
@@ -262,6 +275,7 @@ class RentalService:
             'phone': phone or '',
             'baseRent': float(base_rent or 0),
             'headcount': int(headcount or 1),
+            'roomType': room_type or 'single',
             'elecFormula': elec_formula or 'elec_flat_3500',
             'waterFormula': water_formula or 'water_flat_18000'
         }
@@ -421,7 +435,7 @@ class RentalService:
                     continue
                 is_elec = 'Điện' in s.get('name', '')
                 usage = elec_usage if is_elec else water_usage
-                cost = RentalService.eval_custom_formula(s.get('customFormula'), usage)
+                cost = RentalService.utility_cost_for_room(s.get('customFormula'), usage, is_elec, r)
                 if is_elec:
                     elec_cost = cost
                     elec_formula_text = s.get('customFormula') or ''
