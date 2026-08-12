@@ -187,7 +187,10 @@ def _service(row):
         'icon': row['icon'] or '',
         'symbol': row['symbol'] or '📦',
         'calcType': row['calc_type'] or 'fixed',
-        'formulaId': row['formula_id'] or None,
+        # Column is still named formula_id (avoids a migration) but now holds
+        # the service's own inline expression string, e.g. "x*3500", instead
+        # of a shared formula library id.
+        'customFormula': row['formula_id'] or '',
         'applyRooms': json.loads(row['apply_rooms']) if row['apply_rooms'] else []
     }
 
@@ -458,7 +461,7 @@ class Storage:
                             s.get('icon', ''),
                             s.get('symbol', '📦'),
                             s.get('calcType', 'fixed'),
-                            s.get('formulaId') or '',
+                            s.get('customFormula') or '',
                             json.dumps(s.get('houseIds', ['all'])),
                             json.dumps(s.get('roomIds', ['all'])),
                             json.dumps(s.get('applyRooms', []))

@@ -158,11 +158,8 @@ const I18N = {
     toast_service_saved_suffix: '! Bảng tính & Hóa đơn đã cập nhật.',
     confirm_delete_service: 'Bạn có chắc chắn muốn xóa dịch vụ này?',
     toast_service_deleted: 'Đã xóa dịch vụ! Bảng tính & Hóa đơn đã cập nhật.',
-    confirm_delete_formula: 'Bạn có chắc chắn muốn xóa công thức này?',
-    toast_formula_deleted: 'Đã xóa công thức!',
-    toast_formula_saved: 'Đã lưu công thức thành công!',
+    toast_invalid_formula: 'Công thức không hợp lệ! Chỉ dùng số, chữ x, và + − × ÷ ( )',
     formula_desc_fixed: 'Cố định',
-    formula_desc_evn_tiered_prefix: 'Bậc thang EVN tiêu thụ ',
     dashboard_no_invoices_prefix: 'Chưa phát hành hóa đơn cho tháng ',
     dashboard_no_invoices_hint: 'Nhấn "Tự Động Gửi Hóa Đơn" để tạo ngay.',
     dashboard_issued_label: 'Phát hành:',
@@ -413,7 +410,9 @@ const I18N = {
     option_unit_fixed_room: 'Cố định / phòng',
     option_unit_per_person: 'Theo số người ở (VNĐ / người)',
     option_unit_per_vehicle: 'Theo xe / tháng',
-    lbl_choose_formula: 'Chọn công thức tính toán áp dụng',
+    lbl_custom_formula: 'Công thức tính riêng (dùng "x" = chỉ số tiêu thụ Mới − Cũ)',
+    ph_custom_formula: 'VD: x*3500 hoặc x*3500+50000',
+    hint_custom_formula: 'Chỉ dùng số, chữ x, và các phép + − × ÷ ( ). Ví dụ: x*3500 (đơn giá cố định/đơn vị), (x-50)*3500 (trừ 50 đơn vị miễn phí).',
     btn_save_service: 'Lưu Dịch Vụ',
     option_role_tenant: 'Khách Thuê (Tenant)',
     option_role_admin: 'Quản Trị Viên (Admin)',
@@ -614,11 +613,8 @@ const I18N = {
     toast_service_saved_suffix: '! Spreadsheet & invoices updated.',
     confirm_delete_service: 'Are you sure you want to delete this service?',
     toast_service_deleted: 'Service deleted! Spreadsheet & invoices updated.',
-    confirm_delete_formula: 'Are you sure you want to delete this formula?',
-    toast_formula_deleted: 'Formula deleted!',
-    toast_formula_saved: 'Formula saved successfully!',
+    toast_invalid_formula: 'Invalid formula! Only numbers, x, and + − × ÷ ( ) are allowed',
     formula_desc_fixed: 'Fixed',
-    formula_desc_evn_tiered_prefix: 'EVN tiered rate for ',
     dashboard_no_invoices_prefix: 'No invoices issued yet for ',
     dashboard_no_invoices_hint: 'Click "Auto Send Invoices" to generate them now.',
     dashboard_issued_label: 'Issued:',
@@ -869,7 +865,9 @@ const I18N = {
     option_unit_fixed_room: 'Fixed / room',
     option_unit_per_person: 'Per occupant (VND / person)',
     option_unit_per_vehicle: 'Per vehicle / month',
-    lbl_choose_formula: 'Choose the calculation formula to apply',
+    lbl_custom_formula: 'Custom formula (use "x" = usage, New − Old)',
+    ph_custom_formula: 'e.g. x*3500 or x*3500+50000',
+    hint_custom_formula: 'Only numbers, the letter x, and + − × ÷ ( ) are allowed. Example: x*3500 (flat rate/unit), (x-50)*3500 (first 50 units free).',
     btn_save_service: 'Save Service',
     option_role_tenant: 'Tenant',
     option_role_admin: 'Administrator (Admin)',
@@ -986,24 +984,19 @@ let state = {
   ],
   users: DEFAULT_CLIENT_USERS,
   rooms: [
-    { id: 'R101', houseId: 'house_a', name: 'Phòng 101 (Tòa A)', tenant: 'Nguyễn Văn An', phone: '0901234567', baseRent: 3500000, headcount: 2, elecFormula: 'elec_flat_3500', waterFormula: 'water_flat_18000' },
-    { id: 'R102', houseId: 'house_a', name: 'Phòng 102 (Tòa A)', tenant: 'Trần Thị Bích', phone: '0912345678', baseRent: 4000000, headcount: 3, elecFormula: 'elec_evn_tiered', waterFormula: 'water_flat_18000' },
-    { id: 'R201', houseId: 'house_b', name: 'Phòng 201 (Tòa B)', tenant: 'Lê Hoàng Nam', phone: '0987654321', baseRent: 3800000, headcount: 1, elecFormula: 'elec_flat_3500', waterFormula: 'water_headcount_100k' },
-    { id: 'R202', houseId: 'house_b', name: 'Phòng 202 (Tòa B)', tenant: 'Phạm Minh Tuấn', phone: '0934567890', baseRent: 4200000, headcount: 2, elecFormula: 'elec_flat_4000', waterFormula: 'water_flat_18000' }
+    { id: 'R101', houseId: 'house_a', name: 'Phòng 101 (Tòa A)', tenant: 'Nguyễn Văn An', phone: '0901234567', baseRent: 3500000, headcount: 2 },
+    { id: 'R102', houseId: 'house_a', name: 'Phòng 102 (Tòa A)', tenant: 'Trần Thị Bích', phone: '0912345678', baseRent: 4000000, headcount: 3 },
+    { id: 'R201', houseId: 'house_b', name: 'Phòng 201 (Tòa B)', tenant: 'Lê Hoàng Nam', phone: '0987654321', baseRent: 3800000, headcount: 1 },
+    { id: 'R202', houseId: 'house_b', name: 'Phòng 202 (Tòa B)', tenant: 'Phạm Minh Tuấn', phone: '0934567890', baseRent: 4200000, headcount: 2 }
   ],
   services: [
-    { id: 'srv_elec', houseId: 'all', houseIds: ['all'], name: 'Tiền Điện', icon: 'zap', symbol: '⚡', calcType: 'formula', formulaId: 'elec_flat_3500', price: 3500, unit: 'Theo chỉ số (kWh)' },
-    { id: 'srv_water', houseId: 'all', houseIds: ['all'], name: 'Tiền Nước', icon: 'droplet', symbol: '💧', calcType: 'formula', formulaId: 'water_flat_18000', price: 18000, unit: 'Theo chỉ số (m³)' },
+    { id: 'srv_elec', houseId: 'all', houseIds: ['all'], name: 'Tiền Điện', icon: 'zap', symbol: '⚡', calcType: 'formula', customFormula: 'x*3500', price: 0, unit: 'Theo chỉ số (kWh)' },
+    { id: 'srv_water', houseId: 'all', houseIds: ['all'], name: 'Tiền Nước', icon: 'droplet', symbol: '💧', calcType: 'formula', customFormula: 'x*18000', price: 0, unit: 'Theo chỉ số (m³)' },
     { id: 'srv_trash', houseId: 'all', houseIds: ['all'], name: 'gom rác', icon: 'trash-2', symbol: '🧹', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' },
     { id: 'srv_internet', houseId: 'all', houseIds: ['all'], name: 'Internet', icon: 'wifi', symbol: '🌐', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' },
     { id: 'srv_parking', houseId: 'all', houseIds: ['all'], name: 'Phí Gửi Xe Máy', icon: 'bike', symbol: '🛵', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' }
   ],
-  formulas: [
-    { id: 'elec_flat_3500', name: 'Điện Cố Định (3,500đ / kWh)', type: 'flat', rate: 3500, category: 'elec' },
-    { id: 'elec_evn_tiered', name: 'Điện Bậc Thang EVN Sinh Hoạt', type: 'tiered', category: 'elec', tiers: [{ max: 50, rate: 1893 }, { max: 100, rate: 1956 }, { max: 200, rate: 2271 }, { max: 300, rate: 2860 }, { max: 'inf', rate: 3197 }] },
-    { id: 'water_flat_18000', name: 'Nước Theo Khối (18,000đ / m³)', type: 'flat', rate: 18000, category: 'water' },
-    { id: 'water_headcount_100k', name: 'Nước Khoán Đầu Người (Giá Tiền x Số Người)', type: 'headcount', rate: 100000, category: 'water' }
-  ],
+  formulas: [],
   readings: {},
   invoices: [],
   tickets: [],
@@ -1532,10 +1525,9 @@ function renderServicesConfig() {
       let ruleHtml = '';
 
       if (s.calcType === 'formula') {
-        const f = state.formulas.find(x => x.id === s.formulaId);
         calcTypeHtml = `
           <span class="badge badge-pending">🧮 ${t('calc_type_formula')}</span><br>
-          <strong style="color:var(--cala-blue); font-size:0.85rem;">${f ? f.name : (s.formulaId || t('evn_tiered_default_label'))}</strong>
+          <strong style="color:var(--cala-blue); font-size:0.85rem;">x = ${s.customFormula || '?'}</strong>
         `;
         ruleHtml = `<span class="badge badge-resolved" style="background:#e6f4fe; color:#0178d2;">${t('rule_creates_reading_columns')}</span>`;
       } else {
@@ -1570,26 +1562,6 @@ function renderServicesConfig() {
       sBody.appendChild(tr);
     });
   }
-
-  const fGrid = document.getElementById('services-formulas-grid');
-  fGrid.innerHTML = '';
-  state.formulas.forEach(f => {
-    const card = document.createElement('div');
-    card.style.cssText = 'padding: 0.85rem 1rem; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-base); display: flex; justify-content: space-between; align-items: center;';
-    card.innerHTML = `
-      <div>
-        <div style="font-weight: 800; color: var(--cala-blue);">${f.name}</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">
-          ${f.type === 'flat' ? `${t('formula_rate_label')}${formatMoney(f.rate)} đ` : (f.type === 'headcount' ? `${t('formula_headcount_label')}${formatMoney(f.rate)} đ / ${t('formula_per_person_label')}` : t('formula_evn_tiered_label'))}
-        </div>
-      </div>
-      <div style="display: flex; gap: 0.5rem; align-items: center;">
-        <span class="badge ${f.category === 'elec' ? 'badge-resolved' : 'badge-paid'}">${f.category === 'elec' ? t('category_elec') : t('category_water')}</span>
-        <button class="btn btn-secondary btn-sm" onclick="deleteFormulaApi('${f.id}')" style="color: var(--cala-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>
-      </div>
-    `;
-    fGrid.appendChild(card);
-  });
 
   lucide.createIcons();
 }
@@ -1874,9 +1846,6 @@ function toggleServiceCalcFields() {
   if (calcType === 'formula') {
     boxFixed.style.display = 'none';
     boxFormula.style.display = 'block';
-
-    const formulaSelect = document.getElementById('service-formula-id');
-    formulaSelect.innerHTML = state.formulas.map(f => `<option value="${f.id}">${f.name}</option>`).join('');
   } else {
     boxFixed.style.display = 'block';
     boxFormula.style.display = 'none';
@@ -1891,7 +1860,8 @@ function openAddServiceModal() {
   document.getElementById('service-calc-type').value = 'fixed';
   document.getElementById('service-price').value = '50000';
   document.getElementById('service-unit').value = 'Cố định / phòng';
-  
+  document.getElementById('service-custom-formula').value = '';
+
   renderIconPicker('package');
   toggleServiceCalcFields();
 
@@ -1924,7 +1894,7 @@ function editService(srvId) {
   toggleServiceCalcFields();
 
   if (srv.calcType === 'formula') {
-    document.getElementById('service-formula-id').value = srv.formulaId || (state.formulas[0] ? state.formulas[0].id : '');
+    document.getElementById('service-custom-formula').value = srv.customFormula || '';
   } else {
     document.getElementById('service-price').value = srv.price || 50000;
     document.getElementById('service-unit').value = srv.unit || 'Cố định / phòng';
@@ -1946,9 +1916,13 @@ async function saveService(event) {
   let sObj = { id: id || `srv_${Date.now()}`, houseId, houseIds: selectedHouseIds, roomIds: selectedRoomIds, name, icon, symbol, calcType };
 
   if (calcType === 'formula') {
-    sObj.formulaId = document.getElementById('service-formula-id').value;
-    const f = state.formulas.find(x => x.id === sObj.formulaId);
-    sObj.price = f ? (f.rate || 0) : 0;
+    const customFormula = document.getElementById('service-custom-formula').value.trim();
+    if (!customFormula || !/^[0-9x+\-*/(). ]+$/.test(customFormula)) {
+      showToast(t('toast_invalid_formula'), 'error');
+      return;
+    }
+    sObj.customFormula = customFormula;
+    sObj.price = 0;
     sObj.unit = 'Theo chỉ số';
   } else {
     sObj.price = parseFloat(document.getElementById('service-price').value) || 0;
@@ -2013,64 +1987,33 @@ async function deleteServiceApi(srvId) {
   if (state.currentView === 'admin-spreadsheet') renderSpreadsheet();
 }
 
-async function deleteFormulaApi(formulaId) {
-  if (!confirm(t('confirm_delete_formula'))) return;
-  state.formulas = state.formulas.filter(f => f.id !== formulaId);
-
-  try {
-    await fetch(`${API_BASE}/formulas/delete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: formulaId })
-    });
-  } catch (err) {
-    console.warn('Deleted formula locally:', err);
-  }
-
-  showToast(t('toast_formula_deleted'), 'success');
-  renderServicesConfig();
-}
-
 /* ==========================================================================
    DYNAMIC SPREADSHEET WITH INDIVIDUAL SERVICE COLUMNS (NO GỘP CHUNG)
    ========================================================================== */
 
-function calculateUtilityAmount(usage, formulaId, headcount = 1) {
-  const formula = state.formulas.find(f => f.id === formulaId);
-  if (!formula) return Math.round(usage * 3500);
-
-  if (formula.type === 'flat') {
-    return Math.round(Math.max(0, usage) * (formula.rate || 0));
+// Each formula-type service now carries its own inline expression (e.g.
+// "x*3500" or "(x-50)*3500") instead of pointing at a shared library entry —
+// x stands in for the meter usage (Mới − Cũ). Whitelist the characters
+// before ever handing the string to Function(): admin-authored, but this
+// still closes off arbitrary code execution if that string's origin ever
+// changes (e.g. imported data) rather than trusting it implicitly.
+function evalCustomFormula(expr, usage) {
+  if (!expr || typeof expr !== 'string') return 0;
+  const trimmed = expr.trim();
+  if (!trimmed || !/^[0-9x+\-*/(). ]+$/.test(trimmed)) return 0;
+  try {
+    const substituted = trimmed.replace(/x/g, `(${Math.max(0, usage)})`);
+    const result = Function(`"use strict"; return (${substituted});`)();
+    return Number.isFinite(result) ? Math.round(result) : 0;
+  } catch (err) {
+    return 0;
   }
-  if (formula.type === 'headcount') {
-    return Math.round((formula.rate || 0) * headcount);
-  }
-  if (formula.type === 'tiered' && formula.tiers) {
-    let total = 0;
-    let remainingUsage = Math.max(0, usage);
-    let prevMax = 0;
-
-    for (let tier of formula.tiers) {
-      if (remainingUsage <= 0) break;
-      const tierMax = (tier.max === 'inf' || tier.max === null) ? Infinity : tier.max;
-      const tierLimit = tierMax - prevMax;
-      const usageInTier = Math.min(remainingUsage, tierLimit);
-      total += usageInTier * tier.rate;
-      remainingUsage -= usageInTier;
-      prevMax = tierMax;
-    }
-    return Math.round(total);
-  }
-  return Math.round(usage * 3500);
 }
 
-function getFormulaDescription(formulaId, usage, headcount) {
-  const formula = state.formulas.find(f => f.id === formulaId);
-  if (!formula) return t('formula_desc_fixed');
-  if (formula.type === 'flat') return `${formula.name} (${formatMoney(formula.rate)}/đv)`;
-  if (formula.type === 'headcount') return `${formula.name} (${headcount} ${t('formula_per_person_label')} x ${formatMoney(formula.rate)})`;
-  if (formula.type === 'tiered') return `${formula.name} (${t('formula_desc_evn_tiered_prefix')}${usage} kWh)`;
-  return formula.name;
+function getFormulaDescription(formulaExpr, usage) {
+  if (!formulaExpr) return t('formula_desc_fixed');
+  const amount = evalCustomFormula(formulaExpr, usage);
+  return `x=${usage} → ${formulaExpr} = ${formatMoney(amount)}đ`;
 }
 
 function renderAdminDashboard() {
@@ -2087,8 +2030,7 @@ function renderAdminDashboard() {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
         const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-        const fId = isElec ? (rd.elecFormula || r.elecFormula) : (rd.waterFormula || r.waterFormula);
-        roomTot += calculateUtilityAmount(usage, fId, r.headcount);
+        roomTot += evalCustomFormula(s.customFormula, usage);
       } else {
         roomTot += calculateServiceCostForRoom(s, r);
       }
@@ -2147,8 +2089,7 @@ function renderInvestorDashboard() {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
         const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-        const fId = isElec ? (rd.elecFormula || r.elecFormula) : (rd.waterFormula || r.waterFormula);
-        const cost = calculateUtilityAmount(usage, fId, r.headcount);
+        const cost = evalCustomFormula(s.customFormula, usage);
         if (isElec) totalElec += cost; else totalWater += cost;
       } else {
         totalService += calculateServiceCostForRoom(s, r);
@@ -2299,10 +2240,7 @@ function renderSpreadsheet() {
   }
 
   activeRooms.forEach(r => {
-    const rd = monthReadings[r.id] || {
-      elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0,
-      elecFormula: r.elecFormula, waterFormula: r.waterFormula
-    };
+    const rd = monthReadings[r.id] || { elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0 };
 
     let grandTotal = r.baseRent;
     const house = state.houses.find(h => h.id === r.houseId);
@@ -2323,9 +2261,8 @@ function renderSpreadsheet() {
         const oldVal = isElec ? rd.elecOld : rd.waterOld;
         const newVal = isElec ? rd.elecNew : rd.waterNew;
         const usage = Math.max(0, (newVal || 0) - (oldVal || 0));
-        const fSelected = isElec ? (rd.elecFormula || r.elecFormula) : (rd.waterFormula || r.waterFormula);
-        
-        const cost = isServiceApplicable ? calculateUtilityAmount(usage, fSelected, r.headcount) : 0;
+
+        const cost = isServiceApplicable ? evalCustomFormula(s.customFormula, usage) : 0;
         grandTotal += cost;
 
         if (isServiceApplicable) {
@@ -2384,15 +2321,8 @@ function renderSpreadsheet() {
   });
 }
 
-function renderFormulaOptions(selectedId, category) {
-  return state.formulas
-    .filter(f => f.category === category)
-    .map(f => `<option value="${f.id}" ${f.id === selectedId ? 'selected' : ''}>${f.name}</option>`)
-    .join('');
-}
-
 function isReadingTextField(field) {
-  return field === 'elecFormula' || field === 'waterFormula' || field.endsWith('Photo');
+  return field.endsWith('Photo');
 }
 
 function meterPhotoButtonHtml(roomId, field, photoDataUrl) {
@@ -2489,11 +2419,13 @@ async function updateReadingApi(roomId, field, value) {
 async function generateAndSendAllInvoices() {
   const monthReadings = state.readings[state.currentMonth] || {};
   state.rooms.forEach(r => {
-    const rd = monthReadings[r.id] || { elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0, elecFormula: r.elecFormula, waterFormula: r.waterFormula };
+    const rd = monthReadings[r.id] || { elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0 };
     let totalAmount = r.baseRent;
     let serviceItems = [];
     let elecCost = 0;
     let waterCost = 0;
+    let elecFormulaText = '';
+    let waterFormulaText = '';
 
     const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId));
     houseServices.forEach(s => {
@@ -2501,10 +2433,9 @@ async function generateAndSendAllInvoices() {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
         const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-        const fId = isElec ? (rd.elecFormula || r.elecFormula) : (rd.waterFormula || r.waterFormula);
-        const cost = calculateUtilityAmount(usage, fId, r.headcount);
-        if (isElec) elecCost = cost;
-        else waterCost = cost;
+        const cost = evalCustomFormula(s.customFormula, usage);
+        if (isElec) { elecCost = cost; elecFormulaText = s.customFormula || ''; }
+        else { waterCost = cost; waterFormulaText = s.customFormula || ''; }
         totalAmount += cost;
       } else {
         const cost = calculateServiceCostForRoom(s, r);
@@ -2528,8 +2459,8 @@ async function generateAndSendAllInvoices() {
     const idx = state.invoices.findIndex(i => i.id === invoiceId);
     const invObj = {
       id: invoiceId, month: state.currentMonth, roomId: r.id, houseId: r.houseId, roomName: r.name, tenant: r.tenant, phone: r.phone,
-      baseRent: r.baseRent, elecOld: rd.elecOld, elecNew: rd.elecNew, elecUsage, elecFormula: rd.elecFormula, elecCost,
-      waterOld: rd.waterOld, waterNew: rd.waterNew, waterUsage, waterFormula: rd.waterFormula, waterCost,
+      baseRent: r.baseRent, elecOld: rd.elecOld, elecNew: rd.elecNew, elecUsage, elecFormula: elecFormulaText, elecCost,
+      waterOld: rd.waterOld, waterNew: rd.waterNew, waterUsage, waterFormula: waterFormulaText, waterCost,
       serviceFee: serviceItems.reduce((sum, item) => sum + item.total, 0),
       parkingFee: 0,
       serviceItems, otherFees: serviceItems.reduce((sum, item) => sum + item.total, 0), totalAmount, sendStatus: 'Đã gửi tự động', status: idx >= 0 ? state.invoices[idx].status : 'Chờ thanh toán', sentAt: 'Hôm nay'
@@ -3242,7 +3173,7 @@ function renderTenantInvoiceView() {
                 <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
               </button>
             </td>
-            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, room ? room.headcount : 1)}</small></td>
+            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage)}</small></td>
             <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(invoice.elecCost)} đ</td>
           </tr>
           <tr>
@@ -3251,7 +3182,7 @@ function renderTenantInvoiceView() {
                 <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
               </button>
             </td>
-            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.waterOld} ➔ ${invoice.waterNew} (${invoice.waterUsage} m³)<br><small style="color:#687176;">${getFormulaDescription(invoice.waterFormula, invoice.waterUsage, room ? room.headcount : 1)}</small></td>
+            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.waterOld} ➔ ${invoice.waterNew} (${invoice.waterUsage} m³)<br><small style="color:#687176;">${getFormulaDescription(invoice.waterFormula, invoice.waterUsage)}</small></td>
             <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(invoice.waterCost)} đ</td>
           </tr>
           ${serviceRowsHtml}
@@ -4034,37 +3965,6 @@ function updateBadges() {
   }
 }
 
-function openFormulaConfigModal() {
-  document.getElementById('modal-formula-config').classList.add('active');
-}
-
-async function saveFormula(event) {
-  event.preventDefault();
-  const id = document.getElementById('formula-id').value;
-  const name = document.getElementById('formula-name').value;
-  const type = document.getElementById('formula-type').value;
-  const rate = parseFloat(document.getElementById('formula-rate').value) || 0;
-
-  const fObj = { id: id || `formula_${Date.now()}`, name, type, rate, category: name.toLowerCase().includes('nước') ? 'water' : 'elec' };
-  const idx = state.formulas.findIndex(f => f.id === fObj.id);
-  if (idx >= 0) state.formulas[idx] = fObj;
-  else state.formulas.push(fObj);
-
-  try {
-    await fetch(`${API_BASE}/formulas/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, name, type, rate })
-    });
-  } catch (err) {
-    console.warn('Saved formula locally:', err);
-  }
-
-  showToast(t('toast_formula_saved'), 'success');
-  closeModal('modal-formula-config');
-  renderServicesConfig();
-}
-
 function openAddRoomModal() {
   document.getElementById('room-id').value = '';
   document.getElementById('room-name').value = '';
@@ -4076,12 +3976,6 @@ function openAddRoomModal() {
   const houseSelect = document.getElementById('room-house-id');
   houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
   if (state.currentHouseId !== 'all') houseSelect.value = state.currentHouseId;
-
-  const waterSelect = document.getElementById('room-water-formula');
-  waterSelect.innerHTML = state.formulas.filter(f => f.category === 'water' || f.type === 'headcount').map(f => `<option value="${f.id}">${f.name}</option>`).join('');
-
-  const elecSelect = document.getElementById('room-elec-formula');
-  elecSelect.innerHTML = state.formulas.filter(f => f.category === 'elec' || f.type !== 'headcount').map(f => `<option value="${f.id}">${f.name}</option>`).join('');
 
   document.getElementById('modal-room-config').classList.add('active');
 }
@@ -4100,12 +3994,6 @@ function openEditRoomModal(roomId) {
   const houseSelect = document.getElementById('room-house-id');
   houseSelect.innerHTML = state.houses.map(h => `<option value="${h.id}" ${h.id === r.houseId ? 'selected' : ''}>${h.name}</option>`).join('');
 
-  const waterSelect = document.getElementById('room-water-formula');
-  waterSelect.innerHTML = state.formulas.filter(f => f.category === 'water' || f.type === 'headcount').map(f => `<option value="${f.id}" ${f.id === r.waterFormula ? 'selected' : ''}>${f.name}</option>`).join('');
-
-  const elecSelect = document.getElementById('room-elec-formula');
-  elecSelect.innerHTML = state.formulas.filter(f => f.category === 'elec' || f.type !== 'headcount').map(f => `<option value="${f.id}" ${f.id === r.elecFormula ? 'selected' : ''}>${f.name}</option>`).join('');
-
   document.getElementById('modal-room-config').classList.add('active');
 }
 
@@ -4118,12 +4006,10 @@ async function saveRoomConfig(event) {
   const phone = document.getElementById('room-phone').value.trim();
   const headcount = parseInt(document.getElementById('room-headcount').value) || 1;
   const baseRent = parseFloat(document.getElementById('room-base-rent').value) || 0;
-  const waterFormula = document.getElementById('room-water-formula').value;
-  const elecFormula = document.getElementById('room-elec-formula').value;
 
   const rObj = {
     id: id || `R${Date.now().toString().slice(-4)}`,
-    houseId, name, tenant, phone, headcount, baseRent, waterFormula, elecFormula
+    houseId, name, tenant, phone, headcount, baseRent
   };
 
   const idx = state.rooms.findIndex(r => r.id === rObj.id);

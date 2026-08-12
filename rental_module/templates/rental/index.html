@@ -213,48 +213,30 @@
         
         <!-- TAB: UNIFIED ADMIN SERVICES CONFIG (INCLUDING ELECTRICITY & WATER & ICON PICKER) -->
         <div id="view-admin-services" class="view-panel" style="display: none;">
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
-            
-            <div class="cala-card">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3><i data-lucide="sliders" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="services_config_title">Bảng Cấu Hình Dịch Vụ & Điện Nước</span> (<span id="current-house-name-label" style="color: var(--cala-blue);">Tất Cả Tòa Nhà</span>)</h3>
-                <button class="btn btn-orange btn-sm" onclick="openAddServiceModal()">
-                  <i data-lucide="plus"></i> <span data-i18n="btn_add_service">Thêm Dịch Vụ Mới</span>
-                </button>
-              </div>
-              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;" data-i18n="services_config_desc">
-                Match 100% với Bảng Tính Điện Nước: Khi cấu hình Cố Định ➔ Bảng tính chỉ hiển thị số tiền. Khi cấu hình Công Thức ➔ Bảng tính tự động hiện ô nhập chỉ số Cũ/Mới. Bạn có thể chọn và sửa biểu tượng Icon cho từng dịch vụ bên dưới.
-              </p>
-
-              <div class="excel-table-wrapper">
-                <table class="excel-table">
-                  <thead>
-                    <tr>
-                      <th data-i18n="th_icon_service_name">Biểu Tượng & Tên Dịch Vụ</th>
-                      <th data-i18n="th_type_price">Hình Thức & Đơn Giá</th>
-                      <th data-i18n="th_spreadsheet_rule">Quy Tắc Match Bảng Tính</th>
-                      <th style="text-align: right;" data-i18n="col_actions">Thao Tác</th>
-                    </tr>
-                  </thead>
-                  <tbody id="services-table-body"></tbody>
-                </table>
-              </div>
+          <div class="cala-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+              <h3><i data-lucide="sliders" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="services_config_title">Bảng Cấu Hình Dịch Vụ & Điện Nước</span> (<span id="current-house-name-label" style="color: var(--cala-blue);">Tất Cả Tòa Nhà</span>)</h3>
+              <button class="btn btn-orange btn-sm" onclick="openAddServiceModal()">
+                <i data-lucide="plus"></i> <span data-i18n="btn_add_service">Thêm Dịch Vụ Mới</span>
+              </button>
             </div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;" data-i18n="services_config_desc">
+              Match 100% với Bảng Tính Điện Nước: Khi cấu hình Cố Định ➔ Bảng tính chỉ hiển thị số tiền. Khi cấu hình Công Thức ➔ Bảng tính tự động hiện ô nhập chỉ số Cũ/Mới và tự tính theo công thức riêng của dịch vụ đó. Bạn có thể chọn và sửa biểu tượng Icon cho từng dịch vụ bên dưới.
+            </p>
 
-            <div class="cala-card">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <h3><i data-lucide="calculator" style="color: var(--cala-emerald); vertical-align: middle;"></i> <span data-i18n="formulas_library_title">Thư Viện Công Thức</span></h3>
-                <button class="btn btn-blue btn-sm" onclick="openFormulaConfigModal()">
-                  <i data-lucide="plus"></i> <span data-i18n="btn_create_formula">Tạo Công Thức</span>
-                </button>
-              </div>
-              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;" data-i18n="formulas_library_desc">
-                Tạo sẵn công thức tính theo kWh/m³ để gán cho các dịch vụ tính theo chỉ số.
-              </p>
-
-              <div id="services-formulas-grid" style="display: flex; flex-direction: column; gap: 0.85rem;"></div>
+            <div class="excel-table-wrapper">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th data-i18n="th_icon_service_name">Biểu Tượng & Tên Dịch Vụ</th>
+                    <th data-i18n="th_type_price">Hình Thức & Đơn Giá</th>
+                    <th data-i18n="th_spreadsheet_rule">Quy Tắc Match Bảng Tính</th>
+                    <th style="text-align: right;" data-i18n="col_actions">Thao Tác</th>
+                  </tr>
+                </thead>
+                <tbody id="services-table-body"></tbody>
+              </table>
             </div>
-
           </div>
 
           <div class="cala-card" style="background: linear-gradient(135deg, var(--cala-blue-light) 0%, #ffffff 100%); border: 1px solid #bce2fd; margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
@@ -911,12 +893,11 @@
           </div>
         </div>
 
-        <!-- FORMULA SELECTION FIELDS -->
+        <!-- CUSTOM FORMULA FIELD — riêng cho từng dịch vụ, không dùng thư viện chung nữa -->
         <div id="box-service-formula" style="margin-bottom: 1.5rem; display: none;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_choose_formula">Chọn công thức tính toán áp dụng</label>
-          <select id="service-formula-id" class="form-control">
-            <!-- Populated dynamically in JS -->
-          </select>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_custom_formula">Công thức tính riêng (dùng "x" = chỉ số tiêu thụ Mới − Cũ)</label>
+          <input type="text" id="service-custom-formula" class="form-control" placeholder="VD: x*3500 hoặc x*3500+50000" data-i18n-placeholder="ph_custom_formula">
+          <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.4rem;" data-i18n="hint_custom_formula">Chỉ dùng số, chữ x, và các phép + − × ÷ ( ). Ví dụ: x*3500 (đơn giá cố định/đơn vị), (x-50)*3500 (trừ 50 đơn vị miễn phí).</p>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
@@ -1081,38 +1062,6 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="modal-formula-config">
-    <div class="modal-card">
-      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
-        <h3><i data-lucide="calculator" style="color: var(--cala-emerald); vertical-align: middle;"></i> <span data-i18n="modal_formula_config_title">Công Thức Tính</span></h3>
-        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-formula-config')"><i data-lucide="x"></i></button>
-      </div>
-      <form id="form-formula-edit" onsubmit="saveFormula(event)">
-        <input type="hidden" id="formula-id">
-        <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_formula_name">Tên công thức</label>
-          <input type="text" id="formula-name" class="form-control" placeholder="VD: Nước khoán / Điện sinh hoạt..." required>
-        </div>
-        <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_formula_type">Loại công thức tính toán</label>
-          <select id="formula-type" class="form-control">
-            <option value="headcount" data-i18n="option_formula_headcount">👤 Giá tiền x Số người ở (Tính khoán theo đầu người)</option>
-            <option value="flat" data-i18n="option_formula_flat">⚡/💧 Cố định theo chỉ số sử dụng (đ / kWh hoặc m³)</option>
-            <option value="tiered" data-i18n="option_formula_tiered">📊 Bậc thang EVN / Nhà nước</option>
-          </select>
-        </div>
-        <div style="margin-bottom: 1.5rem;" id="formula-rate-box">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_formula_rate">Đơn giá (VNĐ / đv hoặc VNĐ / người)</label>
-          <input type="number" id="formula-rate" class="form-control" placeholder="100000" value="100000">
-        </div>
-        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-formula-config')" data-i18n="btn_close">Đóng</button>
-          <button type="submit" class="btn btn-orange" data-i18n="btn_save_formula">Lưu Công Thức</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- Modal Add / Edit Room & Custom Room Pricing -->
   <div class="modal-backdrop" id="modal-room-config">
     <div class="modal-card">
@@ -1153,16 +1102,6 @@
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_rent_price">Giá Tiền Thuê Phòng (VNĐ/tháng)</label>
             <input type="number" id="room-base-rent" class="form-control" placeholder="3500000" required>
           </div>
-        </div>
-
-        <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_water_formula">Công Thức / Cách Tính Tiền Nước Cho Phòng Này</label>
-          <select id="room-water-formula" class="form-control"></select>
-        </div>
-
-        <div style="margin-bottom: 1.5rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_elec_formula">Công Thức Tiền Điện Áp Dụng Cho Phòng Này</label>
-          <select id="room-elec-formula" class="form-control"></select>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">

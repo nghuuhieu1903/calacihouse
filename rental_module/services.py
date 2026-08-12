@@ -1,43 +1,29 @@
 from .storage import Storage
 from datetime import datetime
+import re
 import uuid
+
+# Only digits, the variable x, whitespace, and + - * / ( ) . — the same
+# whitelist enforced in app.js's evalCustomFormula. eval() only ever sees a
+# string that already passed this check, with builtins stripped out, so it
+# can't reach anything beyond basic arithmetic even though the check is
+# admin-authored input rather than fully untrusted.
+_FORMULA_RE = re.compile(r'^[0-9x+\-*/(). ]+$')
 
 class RentalService:
     @staticmethod
-    def calculate_utility_amount(usage, formula_id, headcount=1):
-        formulas = Storage.get_formulas()
-        formula = next((f for f in formulas if f['id'] == formula_id), None)
-        usage = max(0, usage)
-
-        if not formula:
-            return round(usage * 3500)
-
-        f_type = formula.get('type')
-
-        if f_type == 'flat':
-            return round(usage * (formula.get('rate') or 0))
-
-        if f_type == 'headcount':
-            return round((formula.get('rate') or 0) * headcount)
-
-        if f_type == 'tiered' and formula.get('tiers'):
-            total = 0
-            remaining_usage = usage
-            prev_max = 0
-
-            for tier in formula['tiers']:
-                if remaining_usage <= 0:
-                    break
-                tier_max = float('inf') if (tier['max'] == 'inf' or tier['max'] is None) else tier['max']
-                tier_limit = tier_max - prev_max
-                usage_in_tier = min(remaining_usage, tier_limit)
-                total += usage_in_tier * tier['rate']
-                remaining_usage -= usage_in_tier
-                prev_max = tier_max
-
-            return round(total)
-
-        return round(usage * 3500)
+    def eval_custom_formula(expr, usage):
+        if not expr or not isinstance(expr, str):
+            return 0
+        trimmed = expr.strip()
+        if not trimmed or not _FORMULA_RE.match(trimmed):
+            return 0
+        try:
+            substituted = trimmed.replace('x', f'({max(0, usage)})')
+            result = eval(substituted, {"__builtins__": {}}, {})
+            return round(result) if isinstance(result, (int, float)) else 0
+        except Exception:
+            return 0
 
     @staticmethod
     def service_matches_house(s, target_house_id):
@@ -206,21 +192,21 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', formula_id=None, icon='package', symbol='📦', room_ids=None):
+    def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None):
         services = Storage.get_services()
         srv_id = service_id or f"srv_{uuid.uuid4().hex[:6]}"
-        srv_obj = { 
-            'id': srv_id, 
-            'houseId': house_id or 'all', 
+        srv_obj = {
+            'id': srv_id,
+            'houseId': house_id or 'all',
             'houseIds': house_ids if house_ids else (['all'] if house_id == 'all' else [house_id]),
             'roomIds': room_ids if room_ids else ['all'],
-            'name': name, 
+            'name': name,
             'icon': icon or 'package',
             'symbol': symbol or '📦',
             'calcType': calc_type or 'fixed',
-            'formulaId': formula_id,
-            'price': float(price or 0), 
-            'unit': unit 
+            'customFormula': custom_formula,
+            'price': float(price or 0),
+            'unit': unit
         }
         
         idx = next((i for i, s in enumerate(services) if s['id'] == srv_id), -1)
@@ -417,17 +403,32 @@ class RentalService:
 
         for r in rooms:
             srv_tot, prk_tot, item_list = RentalService.calculate_room_services_total(r, services)
-            rd = readings.get(r['id'], {
-                'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
-                'elecFormula': r['elecFormula'], 'waterFormula': r['waterFormula']
-            })
+            rd = readings.get(r['id'], {'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0})
 
             elec_usage = max(0, rd.get('elecNew', 0) - rd.get('elecOld', 0))
             water_usage = max(0, rd.get('waterNew', 0) - rd.get('waterOld', 0))
 
-            elec_cost = RentalService.calculate_utility_amount(elec_usage, rd.get('elecFormula'), r['headcount'])
-            water_cost = RentalService.calculate_utility_amount(water_usage, rd.get('waterFormula'), r['headcount'])
-            
+            # Each formula-type service (e.g. "Tiền Điện") now carries its own
+            # inline expression — find the one(s) applicable to this room's
+            # house and evaluate directly, matching app.js's
+            # generateAndSendAllInvoices() house-only matching exactly.
+            elec_cost = 0
+            water_cost = 0
+            elec_formula_text = ''
+            water_formula_text = ''
+            for s in services:
+                if s.get('calcType') != 'formula' or not RentalService.service_matches_house(s, r.get('houseId')):
+                    continue
+                is_elec = 'Điện' in s.get('name', '')
+                usage = elec_usage if is_elec else water_usage
+                cost = RentalService.eval_custom_formula(s.get('customFormula'), usage)
+                if is_elec:
+                    elec_cost = cost
+                    elec_formula_text = s.get('customFormula') or ''
+                else:
+                    water_cost = cost
+                    water_formula_text = s.get('customFormula') or ''
+
             service_fee = srv_tot
             parking_fee = prk_tot
 
@@ -448,14 +449,14 @@ class RentalService:
                 'elecOld': rd.get('elecOld', 0),
                 'elecNew': rd.get('elecNew', 0),
                 'elecUsage': elec_usage,
-                'elecFormula': rd.get('elecFormula'),
+                'elecFormula': elec_formula_text,
                 'elecCost': elec_cost,
                 'elecOldPhoto': rd.get('elecOldPhoto', ''),
                 'elecNewPhoto': rd.get('elecNewPhoto', ''),
                 'waterOld': rd.get('waterOld', 0),
                 'waterNew': rd.get('waterNew', 0),
                 'waterUsage': water_usage,
-                'waterFormula': rd.get('waterFormula'),
+                'waterFormula': water_formula_text,
                 'waterCost': water_cost,
                 'waterOldPhoto': rd.get('waterOldPhoto', ''),
                 'waterNewPhoto': rd.get('waterNewPhoto', ''),

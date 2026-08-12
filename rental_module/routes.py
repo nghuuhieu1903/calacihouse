@@ -77,7 +77,7 @@ def save_service():
         data.get('unit'),
         data.get('houseIds'),
         data.get('calcType'),
-        data.get('formulaId'),
+        data.get('customFormula'),
         data.get('icon'),
         data.get('symbol'),
         data.get('roomIds')
