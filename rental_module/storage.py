@@ -279,8 +279,12 @@ class Storage:
         finally:
             conn.close()
         result = [_house(r) for r in rows]
+        # Show sample data for a genuinely empty table WITHOUT writing it —
+        # persisting here means a single transient empty read (a connection
+        # hiccup, a query racing table creation, ...) silently overwrites
+        # real data with demo houses. It already happened once for services;
+        # only an explicit save from the UI should ever create real rows.
         if not result:
-            Storage.save_houses(DEFAULT_HOUSES)
             return DEFAULT_HOUSES
         return result
 
@@ -326,7 +330,6 @@ class Storage:
             conn.close()
         result = [_user(r) for r in rows]
         if not result:
-            Storage.save_users(DEFAULT_USERS)
             return DEFAULT_USERS
         return result
 
@@ -381,7 +384,6 @@ class Storage:
             conn.close()
         result = [_room(r) for r in rows]
         if not result:
-            Storage.save_rooms(DEFAULT_ROOMS)
             return DEFAULT_ROOMS
         return result
 
@@ -436,8 +438,15 @@ class Storage:
             conn.close()
         result = [_service(r) for r in rows]
         if not result:
-            Storage.save_services(DEFAULT_SERVICES)
-            return Storage.get_services()
+            # Same shape _service() would produce, without a DB round-trip.
+            return [{
+                'id': s['id'], 'houseId': s.get('houseId', 'all'),
+                'houseIds': [s['houseId']] if s.get('houseId') else ['all'],
+                'roomIds': ['all'], 'name': s.get('name', ''), 'price': s.get('price', 0),
+                'unit': s.get('unit', ''), 'icon': s.get('icon', ''), 'symbol': s.get('symbol', '📦'),
+                'calcType': s.get('calcType', 'fixed'), 'customFormula': s.get('customFormula', ''),
+                'applyRooms': []
+            } for s in DEFAULT_SERVICES]
         return result
 
     @staticmethod
@@ -494,7 +503,6 @@ class Storage:
             conn.close()
         result = [_formula(r) for r in rows]
         if not result:
-            Storage.save_formulas(DEFAULT_FORMULAS)
             return DEFAULT_FORMULAS
         return result
 
@@ -614,7 +622,6 @@ class Storage:
             conn.close()
         result = [_ticket(r) for r in rows]
         if not result:
-            Storage.save_tickets(DEFAULT_TICKETS)
             return DEFAULT_TICKETS
         return result
 
@@ -639,8 +646,13 @@ class Storage:
         finally:
             conn.close()
         if not rows:
-            Storage.save_tickets(DEFAULT_TICKETS)
-            return Storage.get_tickets_light()
+            return [{
+                'id': t['id'], 'roomId': t.get('roomId', ''), 'roomName': t.get('roomName', ''),
+                'tenant': t.get('tenant', ''), 'category': t.get('category', ''), 'priority': t.get('priority', ''),
+                'description': t.get('description', ''), 'timestamp': t.get('timestamp', ''),
+                'status': t.get('status', ''), 'response': t.get('response', ''), 'comments': [], 'images': [],
+                'imagesCount': len(t.get('images', [])), 'commentsCount': len(t.get('comments', []))
+            } for t in DEFAULT_TICKETS]
         return [
             {
                 'id': r['id'],
