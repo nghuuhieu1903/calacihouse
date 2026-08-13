@@ -1745,7 +1745,7 @@ function renderServiceScopeTree(selectedHouseIds = ['all'], selectedRoomIds = ['
                              (selectedRoomIds.includes('all') || selectedRoomIds.length === state.rooms.length);
 
   let html = `
-    <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.25rem;">
+    <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 0.25rem; flex-shrink: 0;">
       <label class="checkbox-item" style="margin: 0; padding: 0;">
         <input type="checkbox" id="chk-scope-all" value="all" ${isAllMasterChecked ? 'checked' : ''} onchange="toggleAllScopeMaster(this)">
         <span style="font-weight: 800; color: var(--cala-blue);">🌐 ${t('scope_all_houses_rooms')}</span>
@@ -1760,7 +1760,7 @@ function renderServiceScopeTree(selectedHouseIds = ['all'], selectedRoomIds = ['
     const isHouseAllChecked = isAllMasterChecked || (isHouseExplicit && (selectedRoomIds.includes('all') || checkedRoomCount === houseRooms.length));
 
     html += `
-      <div style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); overflow: hidden;">
+      <div style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); overflow: hidden; flex-shrink: 0;">
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: var(--bg-surface);">
           <label class="checkbox-item" style="margin: 0; padding: 0;">
             <input type="checkbox" class="chk-house-node" data-house="${h.id}" value="${h.id}" ${isHouseAllChecked ? 'checked' : ''} onchange="toggleHouseNodeCheckbox('${h.id}', this)">
@@ -1847,6 +1847,27 @@ function toggleHouseRoomSublist(houseId) {
   if (chevron) {
     chevron.setAttribute('data-lucide', isHidden ? 'chevron-up' : 'chevron-down');
     lucide.createIcons();
+  }
+
+  if (isHidden) {
+    // #service-scope-container is a short, internally-scrolling box — a
+    // sublist expanding further down can land partly or fully below the
+    // visible area with no obvious scrollbar hinting it's there.
+    // scrollIntoView({block:'nearest'}) turned out unreliable here (it
+    // often decided no scroll was needed even when the sublist's bottom
+    // edge was genuinely clipped), so scroll by the exact clipped amount
+    // instead. requestAnimationFrame waits for the display:flex change
+    // above to actually reflow before measuring positions.
+    requestAnimationFrame(() => {
+      const container = document.getElementById('service-scope-container');
+      if (!container) return;
+      const containerRect = container.getBoundingClientRect();
+      const sublistRect = sublist.getBoundingClientRect();
+      const clippedBy = sublistRect.bottom - containerRect.bottom;
+      if (clippedBy > 0) {
+        container.scrollBy({ top: clippedBy + 8, behavior: 'smooth' });
+      }
+    });
   }
 }
 
