@@ -1154,6 +1154,7 @@ function setupUserRoleUI() {
   const avatarText = document.getElementById('user-avatar-text');
   const nameEl = document.getElementById('user-display-name');
   const roleEl = document.getElementById('user-display-role');
+  const usernameEl = document.getElementById('user-display-username');
 
   if (user.role === 'superadmin') {
     avatarText.innerText = 'SA';
@@ -1173,6 +1174,7 @@ function setupUserRoleUI() {
   }
 
   nameEl.innerText = user.fullName;
+  if (usernameEl) usernameEl.innerText = `@${user.username}`;
 
   if (user.role === 'superadmin' || user.role === 'admin' || user.role === 'manager') {
     adminNav.style.display = 'flex';

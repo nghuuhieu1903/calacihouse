@@ -193,9 +193,10 @@
         <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--cala-blue); display: flex; align-items: center; justify-content: center; font-weight: 800; color: white;">
           <span id="user-avatar-text">AD</span>
         </div>
-        <div>
-          <div id="user-display-name" style="font-size: 0.9rem; font-weight: 800;">Admin</div>
+        <div style="min-width: 0;">
+          <div id="user-display-name" style="font-size: 0.9rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Admin</div>
           <div id="user-display-role" style="font-size: 0.75rem; color: var(--text-secondary);">Quản trị viên</div>
+          <div id="user-display-username" style="font-size: 0.72rem; color: var(--text-muted);"></div>
         </div>
       </div>
     </aside>
