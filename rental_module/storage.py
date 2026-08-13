@@ -126,12 +126,12 @@ DEFAULT_TICKETS = [
 
 DEFAULT_PERMISSIONS = [
     {"key": "view_all_invoices", "name": "Xem tất cả hóa đơn các tòa nhà",          "admin": True, "manager": True,  "tenant": False},
-    {"key": "manage_invoices",   "name": "Tạo, sửa và xóa hóa đơn",                 "admin": True, "manager": False, "tenant": False},
+    {"key": "manage_invoices",   "name": "Tạo và sửa hóa đơn (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "tenant": False},
     {"key": "view_all_tickets",  "name": "Xem tất cả báo lỗi (Tickets) các tòa nhà","admin": True, "manager": True,  "tenant": False},
     {"key": "manage_tickets",    "name": "Bình luận và trả lời báo lỗi (Tickets)",   "admin": True, "manager": True,  "tenant": False},
-    {"key": "manage_rooms",      "name": "Quản lý phòng trọ (Thêm, Sửa, Xóa)",      "admin": True, "manager": False, "tenant": False},
-    {"key": "manage_services",   "name": "Cấu hình dịch vụ & công thức",             "admin": True, "manager": False, "tenant": False},
-    {"key": "manage_accounts",   "name": "Quản lý tài khoản người dùng",             "admin": True, "manager": False, "tenant": False},
+    {"key": "manage_rooms",      "name": "Quản lý phòng trọ - Thêm, Sửa (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "tenant": False},
+    {"key": "manage_services",   "name": "Cấu hình dịch vụ & công thức (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "tenant": False},
+    {"key": "manage_accounts",   "name": "Quản lý tài khoản người dùng (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "tenant": False},
     {"key": "manage_permissions","name": "Quản lý phân quyền hệ thống",              "admin": True, "manager": False, "tenant": False},
     {"key": "view_investor_report", "name": "Xem báo cáo chủ đầu tư",                "admin": True, "manager": False, "tenant": False}
 ]

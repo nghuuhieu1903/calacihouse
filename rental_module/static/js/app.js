@@ -1113,6 +1113,14 @@ async function restoreSession() {
   }
 }
 
+// Delete endpoints are hardcoded @admin_required server-side (see routes.py)
+// — a manager granted full add/edit access via the permissions matrix still
+// cannot delete anything, by design. Hide delete buttons for them too,
+// rather than showing a button that only errors on click.
+function canDelete() {
+  return !!(state.currentUser && state.currentUser.role === 'admin');
+}
+
 function hasPermission(role, permissionKey) {
   if (!state.permissions || state.permissions.length === 0) {
     if (role === 'admin') return true;
@@ -1566,7 +1574,7 @@ function renderServicesConfig() {
         <td>${ruleHtml}</td>
         <td style="text-align: right;">
           <button class="btn btn-secondary btn-sm" onclick="editService('${s.id}')" title="${t('title_edit_service_icon')}"><i data-lucide="edit"></i> ${t('btn_edit')}</button>
-          <button class="btn btn-secondary btn-sm" onclick="deleteServiceApi('${s.id}')" style="color: var(--cala-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>
+          ${canDelete() ? `<button class="btn btn-secondary btn-sm" onclick="deleteServiceApi('${s.id}')" style="color: var(--cala-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>` : ''}
         </td>
       `;
       sBody.appendChild(tr);
@@ -1685,9 +1693,9 @@ function renderHousesManagement() {
               <button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditHouseModal('${h.id}')">
                 <i data-lucide="edit-2"></i> ${t('btn_edit')}
               </button>
-              <button class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteHouseConfirm('${h.id}')">
+              ${canDelete() ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteHouseConfirm('${h.id}')">
                 <i data-lucide="trash-2"></i>
-              </button>
+              </button>` : ''}
             </div>
           </div>
         `;
@@ -2732,7 +2740,7 @@ function renderInvestorExpensesTable() {
         <td style="text-align:right;">
           <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
             <button class="btn btn-secondary btn-sm" onclick="openEditInvestorExpenseModal('${e.id}')"><i data-lucide="edit-2"></i></button>
-            <button class="btn btn-secondary btn-sm" onclick="deleteInvestorExpenseApi('${e.id}')" style="color:var(--cala-red);"><i data-lucide="trash-2"></i></button>
+            ${canDelete() ? `<button class="btn btn-secondary btn-sm" onclick="deleteInvestorExpenseApi('${e.id}')" style="color:var(--cala-red);"><i data-lucide="trash-2"></i></button>` : ''}
           </div>
         </td>
       </tr>
@@ -2856,7 +2864,7 @@ function renderAdminUsers() {
           <button class="btn btn-blue btn-sm" onclick="openEditUserModal('${u.id}')">
             <i data-lucide="edit-2"></i> ${t('btn_edit')}
           </button>
-          ${u.username !== 'admin' ? `
+          ${u.username !== 'admin' && canDelete() ? `
             <button class="btn btn-secondary btn-sm" onclick="deleteUserApi('${u.id}')" style="color:var(--cala-red);">
               <i data-lucide="trash-2"></i> ${dict.btn_delete}
             </button>
@@ -3340,9 +3348,9 @@ function renderRoomsManagement() {
                 <button class="btn btn-orange btn-sm" style="flex:1; justify-content:center;" onclick="openRoomDocumentsModal('${r.id}')">
                   <i data-lucide="image"></i> ${t('contract_photos_label')}${(state.roomDocuments[r.id] || []).length ? ` (${(state.roomDocuments[r.id] || []).length})` : ''}
                 </button>
-                <button class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoom('${r.id}')">
+                ${canDelete() ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoom('${r.id}')">
                   <i data-lucide="trash-2"></i>
-                </button>
+                </button>` : ''}
               </div>
             </div>
           `).join('')}
@@ -3464,9 +3472,9 @@ function renderRoomDocumentsList() {
         <div style="font-weight:700; font-size:0.9rem;">${d.label}</div>
         <div style="font-size:0.75rem; color:var(--text-muted);">${d.uploadedAt}</div>
       </div>
-      <button type="button" class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoomDocument('${d.id}')">
+      ${canDelete() ? `<button type="button" class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoomDocument('${d.id}')">
         <i data-lucide="trash-2"></i>
-      </button>
+      </button>` : ''}
     </div>
   `).join('');
   lucide.createIcons();

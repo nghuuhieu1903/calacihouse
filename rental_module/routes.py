@@ -47,7 +47,7 @@ def logout():
     return jsonify({'success': True})
 
 @rental_bp.route('/api/houses/save', methods=['POST'])
-@admin_required
+@roles_required('admin', 'manager')
 def save_house():
     data = request.json or {}
     h_obj = RentalService.save_house(
@@ -66,7 +66,7 @@ def delete_house():
     return jsonify({'success': True})
 
 @rental_bp.route('/api/services/save', methods=['POST'])
-@admin_required
+@roles_required('admin', 'manager')
 def save_service():
     data = request.json or {}
     s_obj = RentalService.save_service(
@@ -112,7 +112,7 @@ def delete_formula():
     return jsonify({'success': True})
 
 @rental_bp.route('/api/rooms/save', methods=['POST'])
-@admin_required
+@roles_required('admin', 'manager')
 def save_room():
     data = request.json or {}
     r_obj = RentalService.save_room(
@@ -138,7 +138,7 @@ def delete_room():
     return jsonify({'success': True})
 
 @rental_bp.route('/api/users/approve', methods=['POST'])
-@admin_required
+@roles_required('admin', 'manager')
 def approve_user():
     data = request.json or {}
     user_id = data.get('userId')
@@ -147,7 +147,7 @@ def approve_user():
     return jsonify({'success': success})
 
 @rental_bp.route('/api/users/create', methods=['POST'])
-@admin_required
+@roles_required('admin', 'manager')
 def create_user():
     data = request.json or {}
     user, error = RentalService.create_user_by_admin(
@@ -163,7 +163,7 @@ def create_user():
     return jsonify({'success': True, 'user': user})
 
 @rental_bp.route('/api/users/save', methods=['POST'])
-@admin_required
+@roles_required('admin', 'manager')
 def save_user():
     data = request.json or {}
     user, error = RentalService.update_user_by_admin(
@@ -199,7 +199,7 @@ def update_reading():
     return jsonify({'success': True, 'readings': readings})
 
 @rental_bp.route('/api/invoices/generate-all', methods=['POST'])
-@admin_required
+@roles_required('admin', 'manager')
 def generate_all_invoices():
     data = request.json or {}
     count = RentalService.generate_all_invoices(data.get('month'))
@@ -211,7 +211,7 @@ def mark_paid():
     return jsonify({'success': True})
 
 @rental_bp.route('/api/investor-expenses/save', methods=['POST'])
-@admin_required
+@roles_required('admin', 'manager')
 def save_investor_expense():
     data = request.json or {}
     e_obj = RentalService.save_investor_expense(
