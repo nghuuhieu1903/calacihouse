@@ -39,6 +39,17 @@ class RentalService:
         return raw
 
     @staticmethod
+    def room_rent_total(room):
+        """Dorm rooms (Phòng Ký Túc Xá) store baseRent as the per-person rate
+        (see the room-type hint shown in the room form) — the amount actually
+        owed for the room is that rate times headcount. Single rooms bill
+        baseRent as-is. Mirrors roomRentTotal() in app.js."""
+        base_rent = room.get('baseRent', 0) or 0
+        if room.get('roomType') == 'dorm':
+            return base_rent * max(1, room.get('headcount') or 1)
+        return base_rent
+
+    @staticmethod
     def service_matches_house(s, target_house_id):
         if not target_house_id or target_house_id == 'all':
             return True
@@ -452,8 +463,9 @@ class RentalService:
 
             service_fee = srv_tot
             parking_fee = prk_tot
+            room_rent = RentalService.room_rent_total(r)
 
-            total_amount = r['baseRent'] + elec_cost + water_cost + service_fee + parking_fee
+            total_amount = room_rent + elec_cost + water_cost + service_fee + parking_fee
 
             invoice_id = f"INV-{month.replace('-', '')}-{r['id']}"
 
@@ -466,7 +478,7 @@ class RentalService:
                 'roomName': r['name'],
                 'tenant': r['tenant'],
                 'phone': r['phone'],
-                'baseRent': r['baseRent'],
+                'baseRent': room_rent,
                 'elecOld': rd.get('elecOld', 0),
                 'elecNew': rd.get('elecNew', 0),
                 'elecUsage': elec_usage,

@@ -2086,6 +2086,17 @@ function utilityCostForRoom(formulaExpr, usage, isElec, room) {
   return raw;
 }
 
+// Dorm rooms store baseRent as the per-person rate (see the room-type hint
+// in the room form) — the amount actually owed for the room is that rate
+// times headcount. Single rooms bill baseRent as-is.
+function roomRentTotal(room) {
+  const baseRent = (room && room.baseRent) || 0;
+  if (room && room.roomType === 'dorm') {
+    return baseRent * Math.max(1, room.headcount || 1);
+  }
+  return baseRent;
+}
+
 function renderAdminDashboard() {
   const activeRooms = getFilteredRooms();
   const monthReadings = state.readings[state.currentMonth] || {};
@@ -2093,7 +2104,7 @@ function renderAdminDashboard() {
 
   activeRooms.forEach(r => {
     const rd = monthReadings[r.id] || {};
-    let roomTot = r.baseRent;
+    let roomTot = roomRentTotal(r);
 
     const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId));
     houseServices.forEach(s => {
@@ -2151,7 +2162,7 @@ function renderInvestorDashboard() {
 
   activeRooms.forEach(r => {
     if (r.tenant) occupiedCount++;
-    totalRent += r.baseRent;
+    totalRent += roomRentTotal(r);
 
     const rd = monthReadings[r.id] || {};
     const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId));
@@ -2216,7 +2227,7 @@ function renderInvestorDashboard() {
     } else {
       tbody.innerHTML = activeRooms.map(r => {
         const inv = monthInvoices.find(i => i.roomId === r.id);
-        const total = inv ? inv.totalAmount : r.baseRent;
+        const total = inv ? inv.totalAmount : roomRentTotal(r);
         const statusBadge = inv
           ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
           : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`;
@@ -2226,7 +2237,7 @@ function renderInvestorDashboard() {
             <td><strong>${r.name}</strong>${house ? `<br><small style="color:var(--text-muted);">${house.name}</small>` : ''}</td>
             <td>${r.tenant || `<em>${t('empty_tenant_label')}</em>`}</td>
             <td>${r.headcount}</td>
-            <td>${formatMoney(r.baseRent)} đ</td>
+            <td>${formatMoney(roomRentTotal(r))} đ</td>
             <td style="font-weight:800; color:var(--cala-orange);">${formatMoney(total)} đ</td>
             <td>${statusBadge}</td>
           </tr>
@@ -2312,14 +2323,14 @@ function renderSpreadsheet() {
   activeRooms.forEach(r => {
     const rd = monthReadings[r.id] || { elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0 };
 
-    let grandTotal = r.baseRent;
+    let grandTotal = roomRentTotal(r);
     const house = state.houses.find(h => h.id === r.houseId);
     const houseBadge = house ? `<br><span class="badge badge-resolved" style="font-size:0.65rem;">${house.name}</span>` : '';
 
     let rowHtml = `
       <td><strong>${r.name}</strong>${houseBadge}</td>
       <td>${r.tenant || `<em>${t('empty_tenant_label')}</em>`} <br><small style="color: var(--text-muted);">${r.headcount} ${t('formula_per_person_label')}</small></td>
-      <td>${formatMoney(r.baseRent)}</td>
+      <td>${formatMoney(roomRentTotal(r))}</td>
     `;
 
     // Render Each Active Service as its Own Independent Column!
@@ -2490,7 +2501,7 @@ async function generateAndSendAllInvoices() {
   const monthReadings = state.readings[state.currentMonth] || {};
   state.rooms.forEach(r => {
     const rd = monthReadings[r.id] || { elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0 };
-    let totalAmount = r.baseRent;
+    let totalAmount = roomRentTotal(r);
     let serviceItems = [];
     let elecCost = 0;
     let waterCost = 0;
@@ -2529,7 +2540,7 @@ async function generateAndSendAllInvoices() {
     const idx = state.invoices.findIndex(i => i.id === invoiceId);
     const invObj = {
       id: invoiceId, month: state.currentMonth, roomId: r.id, houseId: r.houseId, roomName: r.name, tenant: r.tenant, phone: r.phone,
-      baseRent: r.baseRent, elecOld: rd.elecOld, elecNew: rd.elecNew, elecUsage, elecFormula: elecFormulaText, elecCost,
+      baseRent: roomRentTotal(r), elecOld: rd.elecOld, elecNew: rd.elecNew, elecUsage, elecFormula: elecFormulaText, elecCost,
       waterOld: rd.waterOld, waterNew: rd.waterNew, waterUsage, waterFormula: waterFormulaText, waterCost,
       serviceFee: serviceItems.reduce((sum, item) => sum + item.total, 0),
       parkingFee: 0,
