@@ -132,8 +132,8 @@ body {
 /* BUTTONS */
 .btn {
   display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1.1rem; font-size: 0.85rem; font-weight: 700;
-  border-radius: var(--radius-full); border: none; cursor: pointer; transition: all 0.2s ease; text-decoration: none;
-  line-height: 1.2;
+  border-radius: var(--radius-md); border: none; cursor: pointer; transition: all 0.2s ease; text-decoration: none;
+  line-height: 1.2; white-space: nowrap;
 }
 .btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 .btn-orange { background: var(--cala-orange); color: #ffffff; box-shadow: 0 4px 12px rgba(255, 94, 31, 0.3); }
@@ -198,7 +198,7 @@ select.form-control { padding-right: 2.25rem; }
 .excel-input { width: 95px; padding: 0.45rem; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: right; font-weight: 700; color: var(--text-primary); }
 
 /* BADGES */
-.badge { display: inline-flex; align-items: center; gap: 4px; padding: 0.3rem 0.75rem; border-radius: var(--radius-full); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 0.28rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
 .badge-paid { background: #e6f9f2; color: var(--cala-emerald); border: 1px solid #b3f2db; }
 .badge-pending { background: #fff2ec; color: var(--cala-orange); border: 1px solid #ffd4c2; }
 .badge-open { background: #ffecee; color: var(--cala-red); border: 1px solid #ffc2c9; }
