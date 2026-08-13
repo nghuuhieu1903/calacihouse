@@ -28,4 +28,13 @@ def roles_required(*roles):
 
 
 def admin_required(fn):
-    return roles_required('admin')(fn)
+    """Either admin-tier role: superadmin (full power) or admin (everything
+    except delete/managing permissions — enforced separately, see
+    superadmin_required and the frontend's hasPermission())."""
+    return roles_required('superadmin', 'admin')(fn)
+
+
+def superadmin_required(fn):
+    """The only role that can delete anything or edit the permission
+    matrix itself."""
+    return roles_required('superadmin')(fn)

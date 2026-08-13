@@ -164,7 +164,7 @@ class RentalService:
         # or tenant session must never receive these figures, regardless of the
         # house filtering above.
         role = current_user.get('role') if current_user else None
-        if role not in ('admin', 'manager'):
+        if role not in ('superadmin', 'admin', 'manager'):
             investor_expenses = []
 
         safe_users = [{k: v for k, v in u.items() if k != 'password'} for u in users]
@@ -347,8 +347,13 @@ class RentalService:
         user = next((u for u in users if u['id'] == user_id), None)
         if user:
             if user['username'] == 'admin':
+                # The bootstrap account's role isn't editable via this form
+                # (it's whatever the one-time superadmin migration set it
+                # to) — only its profile fields are. Read back its own
+                # current value rather than hardcoding 'admin', or this
+                # would silently downgrade a promoted superadmin back to
+                # admin on every unrelated profile edit.
                 user['fullName'] = full_name
-                user['role'] = 'admin'
                 user['status'] = 'approved'
                 user['roomId'] = ''
                 user['houseId'] = ''

@@ -117,6 +117,7 @@ const I18N = {
     toast_login_wrong_credentials_default: 'Sai tên đăng nhập hoặc mật khẩu! Mật khẩu mặc định: 123',
     toast_account_pending_approval: 'Tài khoản của bạn đang chờ Admin duyệt!',
     toast_logout_success: 'Đã đăng xuất tài khoản!',
+    role_superadmin_label: 'Super Admin',
     role_admin_label: 'Quản trị viên',
     role_manager_label: 'Quản lý',
     role_tenant_label: 'Khách thuê',
@@ -415,7 +416,8 @@ const I18N = {
     hint_custom_formula: 'Chỉ dùng số, chữ x, và các phép + − × ÷ ( ). Ví dụ: x*3500 (đơn giá cố định/đơn vị), (x-50)*3500 (trừ 50 đơn vị miễn phí).',
     btn_save_service: 'Lưu Dịch Vụ',
     option_role_tenant: 'Khách Thuê (Tenant)',
-    option_role_admin: 'Quản Trị Viên (Admin)',
+    option_role_superadmin: '🔑 Super Admin (Toàn quyền)',
+    option_role_admin: 'Quản Trị Viên (Admin - không xoá được)',
     option_role_manager: 'Quản Lý (Manager)',
     lbl_choose_house: 'Chọn tòa nhà',
     modal_edit_user_title: 'Chỉnh Sửa & Phân Quyền Thành Viên',
@@ -577,6 +579,7 @@ const I18N = {
     toast_login_wrong_credentials_default: 'Incorrect username or password! Default password: 123',
     toast_account_pending_approval: 'Your account is pending Admin approval!',
     toast_logout_success: 'Logged out successfully!',
+    role_superadmin_label: 'Super Admin',
     role_admin_label: 'Administrator',
     role_manager_label: 'Manager',
     role_tenant_label: 'Tenant',
@@ -875,7 +878,8 @@ const I18N = {
     hint_custom_formula: 'Only numbers, the letter x, and + − × ÷ ( ) are allowed. Example: x*3500 (flat rate/unit), (x-50)*3500 (first 50 units free).',
     btn_save_service: 'Save Service',
     option_role_tenant: 'Tenant',
-    option_role_admin: 'Administrator (Admin)',
+    option_role_superadmin: '🔑 Super Admin (Full access)',
+    option_role_admin: 'Administrator (Admin - cannot delete)',
     option_role_manager: 'Manager',
     lbl_choose_house: 'Choose house',
     modal_edit_user_title: 'Edit User & Permissions',
@@ -974,7 +978,7 @@ const ICON_LIBRARY = [
 ];
 
 const DEFAULT_CLIENT_USERS = [
-  { username: 'admin', password: '123', fullName: 'Quản Lý Hệ Thống (Admin)', role: 'admin', roomId: '', status: 'approved' },
+  { username: 'admin', password: '123', fullName: 'Quản Lý Hệ Thống (Admin)', role: 'superadmin', roomId: '', status: 'approved' },
   { username: 'nguyenvanan', password: '123', fullName: 'Nguyễn Văn An', role: 'tenant', roomId: 'R101', status: 'approved' },
   { username: 'tranthibich', password: '123', fullName: 'Trần Thị Bích', role: 'tenant', roomId: 'R102', status: 'approved' }
 ];
@@ -1113,17 +1117,22 @@ async function restoreSession() {
   }
 }
 
-// Delete endpoints are hardcoded @admin_required server-side (see routes.py)
-// — a manager granted full add/edit access via the permissions matrix still
-// cannot delete anything, by design. Hide delete buttons for them too,
-// rather than showing a button that only errors on click.
+// Delete endpoints are hardcoded @superadmin_required server-side (see
+// routes.py) — even an "admin" account with full add/edit access cannot
+// delete anything, by design (only "superadmin" can). Hide delete buttons
+// for everyone else too, rather than showing a button that only 403s.
 function canDelete() {
-  return !!(state.currentUser && state.currentUser.role === 'admin');
+  return !!(state.currentUser && state.currentUser.role === 'superadmin');
 }
 
 function hasPermission(role, permissionKey) {
+  if (role === 'superadmin') return true;
+  // "admin" sees/manages everything superadmin does except editing the
+  // permission matrix itself (that stays a superadmin-only lever) — this
+  // is unconditional, not driven by the matrix below, so promoting someone
+  // to admin never needs a matrix visit first.
+  if (role === 'admin') return permissionKey !== 'manage_permissions';
   if (!state.permissions || state.permissions.length === 0) {
-    if (role === 'admin') return true;
     if (role === 'manager') {
       // Manager mặc định: chỉ xem hóa đơn và ticket, không được cấu hình dịch vụ
       return ['view_all_invoices', 'view_all_tickets', 'manage_tickets'].includes(permissionKey);
@@ -1146,7 +1155,10 @@ function setupUserRoleUI() {
   const nameEl = document.getElementById('user-display-name');
   const roleEl = document.getElementById('user-display-role');
 
-  if (user.role === 'admin') {
+  if (user.role === 'superadmin') {
+    avatarText.innerText = 'SA';
+    roleEl.innerText = t('role_superadmin_label');
+  } else if (user.role === 'admin') {
     avatarText.innerText = 'AD';
     roleEl.innerText = t('role_admin_label');
   } else if (user.role === 'manager') {
@@ -1162,7 +1174,7 @@ function setupUserRoleUI() {
 
   nameEl.innerText = user.fullName;
 
-  if (user.role === 'admin' || user.role === 'manager') {
+  if (user.role === 'superadmin' || user.role === 'admin' || user.role === 'manager') {
     adminNav.style.display = 'flex';
     tenantNav.style.display = 'none';
     if (investorNav) investorNav.style.display = 'none';
@@ -2839,7 +2851,7 @@ function renderAdminUsers() {
     tr.innerHTML = `
       <td><strong>${u.username}</strong></td>
       <td>${u.fullName}</td>
-      <td><span class="badge ${u.role === 'admin' ? 'badge-open' : 'badge-resolved'}">${u.role.toUpperCase()}</span></td>
+      <td><span class="badge ${u.role === 'superadmin' ? 'badge-open' : (u.role === 'admin' ? 'badge-pending' : 'badge-resolved')}">${u.role.toUpperCase()}</span></td>
       <td>
         ${u.role === 'tenant' && u.status === 'pending' ? `
           <select id="assign-room-${u.id}" class="form-control" style="width:130px; padding:0.3rem;">
@@ -2925,9 +2937,19 @@ function populateHouseOptions(selectEl, includeAllOption) {
   selectEl.innerHTML = html;
 }
 
+// The server rejects a non-superadmin trying to grant the superadmin role
+// anyway (see /api/users/create and /api/users/save), but hiding the
+// option here avoids someone picking it and getting a confusing 403.
+function hideSuperadminOptionUnlessSelf(selectId) {
+  const select = document.getElementById(selectId);
+  const opt = select && select.querySelector('option[value="superadmin"]');
+  if (opt) opt.style.display = (state.currentUser && state.currentUser.role === 'superadmin') ? '' : 'none';
+}
+
 function openCreateUserModal() {
   document.getElementById('form-create-user').reset();
   toggleRoomSelectInCreateModal();
+  hideSuperadminOptionUnlessSelf('create-role');
   document.getElementById('modal-create-user').classList.add('active');
 }
 
@@ -2964,6 +2986,7 @@ function openEditUserModal(userId) {
   document.getElementById('edit-user-id').value = u.id;
   document.getElementById('edit-username').value = u.username;
   document.getElementById('edit-fullname').value = u.fullName;
+  hideSuperadminOptionUnlessSelf('edit-role');
   document.getElementById('edit-role').value = u.role;
   document.getElementById('edit-status').value = u.status;
 
@@ -3756,7 +3779,7 @@ function renderAdminTickets() {
     return;
   }
 
-  const isAdmin = state.currentUser && state.currentUser.role === 'admin';
+  const canDeleteTickets = canDelete();
 
   state.tickets.forEach(t => {
     const imgCount = t.imagesCount != null ? t.imagesCount : (t.images || []).length;
@@ -3776,7 +3799,7 @@ function renderAdminTickets() {
           <button class="btn btn-blue btn-sm" onclick="openTicketDetail('${t.id}')">
             <i data-lucide="eye"></i> ${window.t('btn_view_details')}
           </button>
-          ${isAdmin ? `
+          ${canDeleteTickets ? `
           <button class="btn btn-secondary btn-sm" style="color:var(--cala-red);" onclick="deleteTicketApi('${t.id}')">
             <i data-lucide="trash-2"></i>
           </button>` : ''}
@@ -3804,7 +3827,7 @@ function renderAdminTickets() {
           <small>${t.timestamp}</small>
           <div class="ticket-card-meta-right">
             ${imgCount > 0 ? `<span>📷 ${imgCount}</span>` : ''}
-            ${isAdmin ? `<button class="ticket-card-delete" onclick="event.stopPropagation(); deleteTicketApi('${t.id}')"><i data-lucide="trash-2"></i></button>` : ''}
+            ${canDeleteTickets ? `<button class="ticket-card-delete" onclick="event.stopPropagation(); deleteTicketApi('${t.id}')"><i data-lucide="trash-2"></i></button>` : ''}
           </div>
         </div>
       `;

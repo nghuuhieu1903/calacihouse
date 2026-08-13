@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session
 from .services import RentalService
-from .auth import login_required, roles_required, admin_required
+from .auth import login_required, roles_required, admin_required, superadmin_required
 
 rental_bp = Blueprint(
     'rental',
@@ -47,7 +47,7 @@ def logout():
     return jsonify({'success': True})
 
 @rental_bp.route('/api/houses/save', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def save_house():
     data = request.json or {}
     h_obj = RentalService.save_house(
@@ -59,14 +59,14 @@ def save_house():
     return jsonify({'success': True, 'house': h_obj})
 
 @rental_bp.route('/api/houses/delete', methods=['POST'])
-@admin_required
+@superadmin_required
 def delete_house():
     data = request.json or {}
     RentalService.delete_house(data.get('id'))
     return jsonify({'success': True})
 
 @rental_bp.route('/api/services/save', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def save_service():
     data = request.json or {}
     s_obj = RentalService.save_service(
@@ -85,7 +85,7 @@ def save_service():
     return jsonify({'success': True, 'service': s_obj})
 
 @rental_bp.route('/api/services/delete', methods=['POST'])
-@admin_required
+@superadmin_required
 def delete_service():
     data = request.json or {}
     RentalService.delete_service(data.get('id'))
@@ -105,14 +105,14 @@ def save_formula():
     return jsonify({'success': True, 'formula': f_obj})
 
 @rental_bp.route('/api/formulas/delete', methods=['POST'])
-@admin_required
+@superadmin_required
 def delete_formula():
     data = request.json or {}
     RentalService.delete_formula(data.get('id'))
     return jsonify({'success': True})
 
 @rental_bp.route('/api/rooms/save', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def save_room():
     data = request.json or {}
     r_obj = RentalService.save_room(
@@ -130,7 +130,7 @@ def save_room():
     return jsonify({'success': True, 'room': r_obj})
 
 @rental_bp.route('/api/rooms/delete', methods=['POST'])
-@admin_required
+@superadmin_required
 def delete_room():
     data = request.json or {}
     room_id = data.get('id') or data.get('roomId')
@@ -138,7 +138,7 @@ def delete_room():
     return jsonify({'success': True})
 
 @rental_bp.route('/api/users/approve', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def approve_user():
     data = request.json or {}
     user_id = data.get('userId')
@@ -147,14 +147,21 @@ def approve_user():
     return jsonify({'success': success})
 
 @rental_bp.route('/api/users/create', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def create_user():
     data = request.json or {}
+    role = data.get('role', 'tenant')
+    # Only an existing superadmin may hand out the superadmin role — an
+    # "admin" account can do everything else this route allows, but
+    # granting the one role that can delete/manage permissions would be a
+    # privilege escalation.
+    if role == 'superadmin' and session.get('user', {}).get('role') != 'superadmin':
+        return jsonify({'success': False, 'error': 'Chỉ Super Admin mới có thể tạo tài khoản Super Admin khác!'}), 403
     user, error = RentalService.create_user_by_admin(
         data.get('username'),
         data.get('password'),
         data.get('fullName'),
-        data.get('role', 'tenant'),
+        role,
         data.get('roomId', ''),
         data.get('houseId', '')
     )
@@ -163,13 +170,16 @@ def create_user():
     return jsonify({'success': True, 'user': user})
 
 @rental_bp.route('/api/users/save', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def save_user():
     data = request.json or {}
+    role = data.get('role')
+    if role == 'superadmin' and session.get('user', {}).get('role') != 'superadmin':
+        return jsonify({'success': False, 'error': 'Chỉ Super Admin mới có thể gán vai trò Super Admin!'}), 403
     user, error = RentalService.update_user_by_admin(
         data.get('id'),
         data.get('fullName'),
-        data.get('role'),
+        role,
         data.get('roomId'),
         data.get('status'),
         data.get('newPassword'),  # Optional - only set if provided
@@ -180,14 +190,14 @@ def save_user():
     return jsonify({'success': True, 'user': user})
 
 @rental_bp.route('/api/users/delete', methods=['POST'])
-@admin_required
+@superadmin_required
 def delete_user():
     data = request.json or {}
     RentalService.delete_user(data.get('userId'))
     return jsonify({'success': True})
 
 @rental_bp.route('/api/readings/update', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def update_reading():
     data = request.json or {}
     readings = RentalService.update_room_reading(
@@ -199,19 +209,19 @@ def update_reading():
     return jsonify({'success': True, 'readings': readings})
 
 @rental_bp.route('/api/invoices/generate-all', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def generate_all_invoices():
     data = request.json or {}
     count = RentalService.generate_all_invoices(data.get('month'))
     return jsonify({'success': True, 'count': count})
 
 @rental_bp.route('/api/invoices/mark-paid', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def mark_paid():
     return jsonify({'success': True})
 
 @rental_bp.route('/api/investor-expenses/save', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def save_investor_expense():
     data = request.json or {}
     e_obj = RentalService.save_investor_expense(
@@ -224,7 +234,7 @@ def save_investor_expense():
     return jsonify({'success': True, 'expense': e_obj})
 
 @rental_bp.route('/api/investor-expenses/delete', methods=['POST'])
-@admin_required
+@superadmin_required
 def delete_investor_expense():
     data = request.json or {}
     RentalService.delete_investor_expense(data.get('id'))
@@ -253,7 +263,7 @@ def get_ticket_detail(ticket_id):
     return jsonify({'success': True, 'ticket': ticket})
 
 @rental_bp.route('/api/tickets/reply', methods=['POST'])
-@roles_required('admin', 'manager')
+@admin_required
 def reply_ticket():
     data = request.json or {}
     success = RentalService.reply_ticket(
@@ -265,7 +275,7 @@ def reply_ticket():
     return jsonify({'success': success})
 
 @rental_bp.route('/api/permissions/save', methods=['POST'])
-@admin_required
+@superadmin_required
 def save_permissions():
     data = request.json or {}
     matrix = data.get('matrix')
@@ -273,7 +283,7 @@ def save_permissions():
     return jsonify({'success': success})
 
 @rental_bp.route('/api/tickets/delete', methods=['POST'])
-@admin_required
+@superadmin_required
 def delete_ticket():
     data = request.json or {}
     ticket_id = data.get('ticketId')
@@ -295,7 +305,7 @@ def upload_room_document():
     return jsonify({'success': True, 'document': doc})
 
 @rental_bp.route('/api/rooms/documents/delete', methods=['POST'])
-@admin_required
+@superadmin_required
 def delete_room_document():
     data = request.json or {}
     success = RentalService.delete_room_document(data.get('roomId'), data.get('id'))

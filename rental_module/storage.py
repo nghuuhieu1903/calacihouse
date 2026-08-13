@@ -26,7 +26,7 @@ DEFAULT_USERS = [
         'username': 'admin',
         'password': '123',
         'fullName': 'Quản Lý Hệ Thống (Admin)',
-        'role': 'admin',
+        'role': 'superadmin',
         'roomId': '',
         'houseId': '',
         'status': 'approved',

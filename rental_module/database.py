@@ -162,6 +162,20 @@ def _ensure_column(cur, table, column, ddl):
         cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
 
+def _promote_admins_to_superadmin(cur):
+    """One-time role split: 'admin' used to mean full power including
+    delete; now 'superadmin' does, and 'admin' means everything except
+    delete. Run only once — if a superadmin already exists, someone (this
+    migration or a later manual promotion) already handled it, and any
+    'admin' accounts created since are meant to stay 'admin'. Detecting
+    "already ran" via existence of the target role, rather than a separate
+    migrations-log table, keeps this self-contained."""
+    cur.execute("SELECT COUNT(*) AS c FROM users WHERE role = 'superadmin'")
+    if cur.fetchone()['c'] > 0:
+        return
+    cur.execute("UPDATE users SET role = 'superadmin' WHERE role = 'admin'")
+
+
 def init_db():
     """Create the database and all tables if they don't already exist.
     Called once on app startup. Safe to run every time (IF NOT EXISTS)."""
@@ -172,6 +186,7 @@ def init_db():
             for statement in SCHEMA_STATEMENTS:
                 cur.execute(statement)
             _ensure_column(cur, 'rooms', 'room_type', "VARCHAR(32) DEFAULT 'single'")
+            _promote_admins_to_superadmin(cur)
         conn.commit()
     finally:
         conn.close()
