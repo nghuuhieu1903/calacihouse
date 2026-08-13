@@ -346,13 +346,15 @@ class RentalService:
         users = Storage.get_users()
         user = next((u for u in users if u['id'] == user_id), None)
         if user:
-            if user['username'] == 'admin':
+            if user['id'] == 'usr_admin':
                 # The bootstrap account's role isn't editable via this form
                 # (it's whatever the one-time superadmin migration set it
                 # to) — only its profile fields are. Read back its own
                 # current value rather than hardcoding 'admin', or this
                 # would silently downgrade a promoted superadmin back to
-                # admin on every unrelated profile edit.
+                # admin on every unrelated profile edit. Matched by id, not
+                # username — the username itself is editable elsewhere and
+                # no longer reliably says "this is the bootstrap account".
                 user['fullName'] = full_name
                 user['status'] = 'approved'
                 user['roomId'] = ''
@@ -376,7 +378,7 @@ class RentalService:
     def delete_user(user_id):
         users = Storage.get_users()
         user = next((u for u in users if u['id'] == user_id), None)
-        if user and user['username'] != 'admin':
+        if user and user['id'] != 'usr_admin':
             Storage.delete_user(user_id)
         return True
 

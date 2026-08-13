@@ -2899,7 +2899,7 @@ function renderAdminUsers() {
           <button class="btn btn-blue btn-sm" onclick="openEditUserModal('${u.id}')">
             <i data-lucide="edit-2"></i> ${t('btn_edit')}
           </button>
-          ${u.username !== 'admin' && canDelete() ? `
+          ${u.id !== 'usr_admin' && canDelete() ? `
             <button class="btn btn-secondary btn-sm" onclick="deleteUserApi('${u.id}')" style="color:var(--cala-red);">
               <i data-lucide="trash-2"></i> ${dict.btn_delete}
             </button>
