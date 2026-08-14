@@ -201,7 +201,11 @@ select.form-control { padding-right: 2.25rem; }
 .excel-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
 .excel-table th { background: #f7f9fa; color: #43494d; padding: 1rem; text-align: left; font-weight: 800; border-bottom: 2px solid var(--border-color); white-space: nowrap; }
 [data-theme="dark"] .excel-table th { background: #0f172a; color: #94a3b8; }
-.excel-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); }
+/* Matches th's white-space: nowrap — without it, a cell like "6.800.400 đ"
+   wraps the "đ" onto its own line instead of the table properly overflowing
+   into .excel-table-wrapper's horizontal scroll (the whole reason that
+   wrapper + its scroll-shadow hint exist). */
+.excel-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
 .excel-input { width: 95px; padding: 0.45rem; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: right; font-weight: 700; color: var(--text-primary); }
 
 /* BADGES */
