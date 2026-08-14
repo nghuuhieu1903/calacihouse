@@ -155,6 +155,7 @@ class RentalService:
         invoices = Storage.get_invoices()
         tickets = Storage.get_tickets_light()
         permissions = Storage.get_permissions()
+        site_settings = Storage.get_site_settings()
         room_documents = Storage.get_room_documents()
         # Investor payout math is internal to admin/manager — never shipped to
         # an investor or tenant session (see role filtering below).
@@ -199,6 +200,7 @@ class RentalService:
             'invoices': invoices,
             'tickets': tickets,
             'permissions': permissions,
+            'siteSettings': site_settings,
             'roomDocuments': room_documents,
             'investorExpenses': investor_expenses,
             'currentMonth': month
@@ -698,6 +700,19 @@ class RentalService:
     def save_permissions(matrix):
         Storage.save_permissions(matrix)
         return True
+
+    @staticmethod
+    def save_site_settings(site_name, title, description, keywords, share_image, favicon):
+        settings = {
+            'siteName': site_name or 'CalaciHouse',
+            'title': title or 'CalaciHouse',
+            'description': description or '',
+            'keywords': keywords or '',
+            'shareImage': share_image or '',
+            'favicon': favicon or ''
+        }
+        Storage.save_site_settings(settings)
+        return settings
 
     @staticmethod
     def get_ticket_detail(ticket_id):

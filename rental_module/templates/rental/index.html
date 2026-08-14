@@ -3,8 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CalaciHouse - Hệ Thống Quản Lý Phòng Trọ</title>
-  
+  <title id="page-title-tag">CalaciHouse - Hệ Thống Quản Lý Phòng Trọ</title>
+  <meta id="meta-description-tag" name="description" content="Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động">
+  <meta id="meta-keywords-tag" name="keywords" content="">
+  <meta id="meta-og-title-tag" property="og:title" content="CalaciHouse">
+  <meta id="meta-og-description-tag" property="og:description" content="Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động">
+  <meta id="meta-og-image-tag" property="og:image" content="">
+  <!-- Favicon <link> is only added by applySiteSettings() in app.js once a
+       favicon is actually configured — an empty href here would make the
+       browser resolve it to the current page URL and request that. -->
   <!-- Fonts & Lucide Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,7 +42,7 @@
         <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: var(--cala-blue-light); border-radius: 50%; color: var(--cala-blue); margin-bottom: 1rem;">
           <i data-lucide="plane-takeoff" style="width: 36px; height: 36px;"></i>
         </div>
-        <h2 style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">CalaciHouse</h2>
+        <h2 id="auth-site-name" style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">CalaciHouse</h2>
         <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;" data-i18n="auth_subtitle">
           Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động
         </p>
@@ -70,7 +77,7 @@
       </button>
       <a href="#" class="cala-brand">
         <i data-lucide="building-2" style="width: 28px; height: 28px;"></i>
-        CalaciHouse
+        <span id="navbar-site-name">CalaciHouse</span>
         <span class="cala-brand-badge">Multi-House</span>
       </a>
     </div>
@@ -162,6 +169,10 @@
         <a class="nav-item" data-view="admin-permissions">
           <i data-lucide="shield-check"></i>
           <span data-i18n="nav_permissions">Phân Quyền Hệ Thống</span>
+        </a>
+        <a class="nav-item" id="nav-site-settings" onclick="openSiteSettingsModal(); return false;" href="#" style="display: none;">
+          <i data-lucide="settings"></i>
+          <span data-i18n="nav_site_settings">Thiết Lập Trang</span>
         </a>
       </div>
 
@@ -1171,6 +1182,62 @@
         <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_saved_photos_list">Danh Sách Ảnh Đã Lưu (Khách thuê xem được)</label>
         <div id="room-documents-list"></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Modal: Site Settings (Thiết Lập Trang — title/description/keywords/
+       share image/favicon, applied live to <title>, meta tags, favicon and
+       the in-app site name shown in the navbar/login screen) -->
+  <div class="modal-backdrop" id="modal-site-settings">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="settings" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="nav_site_settings">Thiết Lập Trang</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-site-settings')"><i data-lucide="x"></i></button>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_site_name">Tên Website (hiển thị trên thanh điều hướng)</label>
+        <input type="text" id="site-settings-name" class="form-control" placeholder="CalaciHouse">
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_page_title">Tiêu Đề Trang</label>
+        <input type="text" id="site-settings-title" class="form-control" placeholder="CalaciHouse - Hệ Thống Quản Lý Phòng Trọ">
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_page_description">Mô Tả Trang</label>
+        <textarea id="site-settings-description" class="form-control" rows="2" placeholder="Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động"></textarea>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_page_keywords">Từ Khoá Về Trang</label>
+        <input type="text" id="site-settings-keywords" class="form-control" placeholder="quản lý phòng trọ, hóa đơn điện nước, ...">
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_share_image">Hình Ảnh Khi Chia Sẻ</label>
+        <div style="display: flex; gap: 0.5rem;">
+          <input type="text" id="site-settings-share-image" class="form-control" placeholder="https://..." oninput="updateSiteSettingsImagePreview('site-settings-share-image')">
+          <input type="file" id="site-settings-share-image-input" accept="image/*" style="display:none;" onchange="handleSiteSettingsImageSelect(event, 'site-settings-share-image')">
+          <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="document.getElementById('site-settings-share-image-input').click()"><span data-i18n="btn_choose_image">Chọn ảnh</span></button>
+        </div>
+        <img id="site-settings-share-image-preview" src="" style="display:none; max-width: 220px; max-height: 90px; margin-top: 0.6rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); object-fit: contain;">
+      </div>
+
+      <div style="margin-bottom: 0.5rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_favicon">Hình Ảnh Favicon</label>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <img id="site-settings-favicon-preview" src="" style="display:none; width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: cover; flex-shrink: 0;">
+          <input type="text" id="site-settings-favicon" class="form-control" placeholder="https://..." oninput="updateSiteSettingsImagePreview('site-settings-favicon')">
+          <input type="file" id="site-settings-favicon-input" accept="image/*" style="display:none;" onchange="handleSiteSettingsImageSelect(event, 'site-settings-favicon')">
+          <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="document.getElementById('site-settings-favicon-input').click()"><span data-i18n="btn_choose_image">Chọn ảnh</span></button>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-orange" style="margin-top: 1rem; width: 100%; justify-content: center;" onclick="saveSiteSettings()">
+        <i data-lucide="save"></i> <span data-i18n="btn_save_site_settings">Lưu Thiết Lập</span>
+      </button>
     </div>
   </div>
 

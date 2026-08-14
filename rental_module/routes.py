@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify, session
 from .services import RentalService
+from .storage import Storage
 from .auth import login_required, roles_required, admin_required, superadmin_required
 
 rental_bp = Blueprint(
@@ -20,6 +21,13 @@ def get_data():
     month = request.args.get('month', '2026-08')
     data = RentalService.get_full_state(month, session.get('user'))
     return jsonify(data)
+
+@rental_bp.route('/api/settings/public', methods=['GET'])
+def get_public_site_settings():
+    # No login_required — the login screen itself needs the site name/
+    # title/favicon before anyone has authenticated. Nothing here (name,
+    # title, description, keywords, share image, favicon) is sensitive.
+    return jsonify({'success': True, 'settings': Storage.get_site_settings()})
 
 @rental_bp.route('/api/auth/login', methods=['POST'])
 def login():
@@ -306,6 +314,20 @@ def save_permissions():
     matrix = data.get('matrix')
     success = RentalService.save_permissions(matrix)
     return jsonify({'success': success})
+
+@rental_bp.route('/api/settings/save', methods=['POST'])
+@superadmin_required
+def save_site_settings():
+    data = request.json or {}
+    settings = RentalService.save_site_settings(
+        data.get('siteName'),
+        data.get('title'),
+        data.get('description'),
+        data.get('keywords'),
+        data.get('shareImage'),
+        data.get('favicon')
+    )
+    return jsonify({'success': True, 'settings': settings})
 
 @rental_bp.route('/api/tickets/delete', methods=['POST'])
 @superadmin_required

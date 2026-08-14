@@ -137,6 +137,15 @@ DEFAULT_PERMISSIONS = [
     {"key": "view_investor_report", "name": "Xem báo cáo chủ đầu tư",                "admin": True, "manager": False, "tenant": False}
 ]
 
+DEFAULT_SITE_SETTINGS = {
+    'siteName': 'CalaciHouse',
+    'title': 'CalaciHouse - Hệ Thống Quản Lý Phòng Trọ',
+    'description': 'Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động',
+    'keywords': '',
+    'shareImage': '',
+    'favicon': ''
+}
+
 
 # ---------------------------------------------------------------------------
 # Row → dict converters (DB column names are snake_case, app uses camelCase)
@@ -852,6 +861,16 @@ class Storage:
     @staticmethod
     def save_permissions(permissions):
         Storage._kv_set('permissions', permissions)
+
+    # -- Site Settings (page title/SEO/branding — one global object) --------
+
+    @staticmethod
+    def get_site_settings():
+        return Storage._kv_get('site_settings', DEFAULT_SITE_SETTINGS)
+
+    @staticmethod
+    def save_site_settings(settings):
+        Storage._kv_set('site_settings', settings)
 
     # -- Room Documents (contract & related images, keyed by roomId) --------
 

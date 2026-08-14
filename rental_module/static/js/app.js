@@ -315,6 +315,16 @@ const I18N = {
     nav_houses: 'Quản Lý Tòa Nhà',
     nav_rooms: 'Quản Lý Phòng',
     nav_permissions: 'Phân Quyền Hệ Thống',
+    nav_site_settings: 'Thiết Lập Trang',
+    lbl_site_name: 'Tên Website (hiển thị trên thanh điều hướng)',
+    lbl_page_title: 'Tiêu Đề Trang',
+    lbl_page_description: 'Mô Tả Trang',
+    lbl_page_keywords: 'Từ Khoá Về Trang',
+    lbl_share_image: 'Hình Ảnh Khi Chia Sẻ',
+    lbl_favicon: 'Hình Ảnh Favicon',
+    btn_choose_image: 'Chọn ảnh',
+    btn_save_site_settings: 'Lưu Thiết Lập',
+    toast_site_settings_saved: 'Đã lưu thiết lập trang!',
     nav_investor_report: 'Báo Cáo Chủ Đầu Tư',
     view_admin_investor_report_title: 'Báo Cáo Chủ Đầu Tư',
     view_admin_investor_report_subtitle: 'Tính toán doanh thu chia sẻ và số tiền chủ đầu tư nhận được mỗi tháng',
@@ -796,6 +806,16 @@ const I18N = {
     nav_houses: 'Building Management',
     nav_rooms: 'Room Management',
     nav_permissions: 'System Permissions',
+    nav_site_settings: 'Page Settings',
+    lbl_site_name: 'Site Name (shown in the navbar)',
+    lbl_page_title: 'Page Title',
+    lbl_page_description: 'Page Description',
+    lbl_page_keywords: 'Page Keywords',
+    lbl_share_image: 'Share Image',
+    lbl_favicon: 'Favicon Image',
+    btn_choose_image: 'Choose image',
+    btn_save_site_settings: 'Save Settings',
+    toast_site_settings_saved: 'Page settings saved!',
     nav_investor_report: 'Investor Report',
     view_admin_investor_report_title: 'Investor Report',
     view_admin_investor_report_subtitle: 'Calculate shared revenue and the payout owed to the investor each month',
@@ -1054,7 +1074,8 @@ let state = {
   tickets: [],
   roomDocuments: {},
   investorExpenses: [],
-  investorFeePercent: 20
+  investorFeePercent: 20,
+  siteSettings: { siteName: 'CalaciHouse', title: 'CalaciHouse - Hệ Thống Quản Lý Phòng Trọ', description: '', keywords: '', shareImage: '', favicon: '' }
 };
 
 const API_BASE = '/api';
@@ -1156,6 +1177,55 @@ async function handleLogout() {
   document.getElementById('cala-navbar').style.display = 'none';
   document.getElementById('app-container').style.display = 'none';
   showToast(t('toast_logout_success'), 'info');
+}
+
+// Applies siteName/title/description/keywords/shareImage/favicon to every
+// place they're visible: the browser tab (<title>, favicon), search/social
+// previews (meta tags), and in-app branding (navbar + login screen). Called
+// once before login (via the public settings endpoint, since the login
+// screen needs it before anyone's authenticated) and again after fetchState()
+// picks up the same object from get_full_state, in case it changed mid-session.
+function applySiteSettings(settings) {
+  if (!settings) return;
+  state.siteSettings = settings;
+
+  const siteName = settings.siteName || 'CalaciHouse';
+  document.querySelectorAll('#navbar-site-name, #auth-site-name').forEach(el => { el.textContent = siteName; });
+
+  const titleTag = document.getElementById('page-title-tag');
+  if (titleTag) document.title = settings.title || siteName;
+
+  const descTag = document.getElementById('meta-description-tag');
+  if (descTag && settings.description) descTag.setAttribute('content', settings.description);
+  const keywordsTag = document.getElementById('meta-keywords-tag');
+  if (keywordsTag) keywordsTag.setAttribute('content', settings.keywords || '');
+  const ogTitleTag = document.getElementById('meta-og-title-tag');
+  if (ogTitleTag) ogTitleTag.setAttribute('content', settings.title || siteName);
+  const ogDescTag = document.getElementById('meta-og-description-tag');
+  if (ogDescTag && settings.description) ogDescTag.setAttribute('content', settings.description);
+  const ogImageTag = document.getElementById('meta-og-image-tag');
+  if (ogImageTag) ogImageTag.setAttribute('content', settings.shareImage || '');
+
+  if (settings.favicon) {
+    let faviconLink = document.getElementById('favicon-link-tag');
+    if (!faviconLink) {
+      faviconLink = document.createElement('link');
+      faviconLink.id = 'favicon-link-tag';
+      faviconLink.rel = 'icon';
+      document.head.appendChild(faviconLink);
+    }
+    faviconLink.href = settings.favicon;
+  }
+}
+
+async function fetchPublicSiteSettings() {
+  try {
+    const res = await fetch(`${API_BASE}/settings/public`);
+    const data = await res.json();
+    if (data.success) applySiteSettings(data.settings);
+  } catch (err) {
+    console.warn('Could not fetch public site settings:', err);
+  }
 }
 
 async function restoreSession() {
@@ -1268,6 +1338,14 @@ function setupUserRoleUI() {
       }
     });
 
+    // Not part of the `tabs` map above since it opens a modal rather than
+    // switching to a view (no data-view attribute for that loop to find).
+    // Site-wide branding/SEO is superadmin-only, same sensitivity as
+    // Phân Quyền Hệ Thống — matches /api/settings/save's own
+    // @superadmin_required server-side.
+    const siteSettingsNav = document.getElementById('nav-site-settings');
+    if (siteSettingsNav) siteSettingsNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
+
     if (firstView) {
       switchView(firstView);
     } else {
@@ -1364,6 +1442,12 @@ function setLanguage(lang) {
     }
   });
 
+  // switchView() (below, when logged in) calls this too, but on a genuinely
+  // fresh/logged-out visit that branch never runs — leaving the login
+  // screen's own icons (e.g. the plane-takeoff logo) as un-rendered blank
+  // <i> tags forever, since nothing else on this screen ever calls it.
+  lucide.createIcons();
+
   if (state.currentUser) {
     switchView(state.currentView);
   }
@@ -1385,6 +1469,7 @@ async function fetchState() {
       state.permissions = data.permissions || state.permissions;
       state.roomDocuments = data.roomDocuments || state.roomDocuments;
       state.investorExpenses = data.investorExpenses || state.investorExpenses;
+      if (data.siteSettings) applySiteSettings(data.siteSettings);
       renderHouseSelector();
       renderCurrentView();
     }
@@ -4685,6 +4770,73 @@ async function savePermissionsMatrix() {
   }
 }
 
+function openSiteSettingsModal() {
+  const s = state.siteSettings || {};
+  document.getElementById('site-settings-name').value = s.siteName || '';
+  document.getElementById('site-settings-title').value = s.title || '';
+  document.getElementById('site-settings-description').value = s.description || '';
+  document.getElementById('site-settings-keywords').value = s.keywords || '';
+  document.getElementById('site-settings-share-image').value = s.shareImage || '';
+  document.getElementById('site-settings-favicon').value = s.favicon || '';
+  updateSiteSettingsImagePreview('site-settings-share-image');
+  updateSiteSettingsImagePreview('site-settings-favicon');
+  document.getElementById('modal-site-settings').classList.add('active');
+}
+
+function updateSiteSettingsImagePreview(inputId) {
+  const input = document.getElementById(inputId);
+  const preview = document.getElementById(`${inputId}-preview`);
+  if (!input || !preview) return;
+  if (input.value) {
+    preview.src = input.value;
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+}
+
+async function handleSiteSettingsImageSelect(event, targetInputId) {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    const dataUrl = await compressImageFile(file);
+    document.getElementById(targetInputId).value = dataUrl;
+    updateSiteSettingsImagePreview(targetInputId);
+  } catch (err) {
+    showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+  }
+}
+
+async function saveSiteSettings() {
+  const payload = {
+    siteName: document.getElementById('site-settings-name').value.trim(),
+    title: document.getElementById('site-settings-title').value.trim(),
+    description: document.getElementById('site-settings-description').value.trim(),
+    keywords: document.getElementById('site-settings-keywords').value.trim(),
+    shareImage: document.getElementById('site-settings-share-image').value.trim(),
+    favicon: document.getElementById('site-settings-favicon').value.trim()
+  };
+
+  try {
+    const res = await fetch(`${API_BASE}/settings/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || t('toast_server_connection_error'), 'error');
+      return;
+    }
+    applySiteSettings(data.settings);
+    showToast(t('toast_site_settings_saved'), 'success');
+    closeModal('modal-site-settings');
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+}
+
 // MOBILE SIDEBAR TOGGLE
 function toggleSidebar() {
   document.getElementById('sidebar')?.classList.toggle('open');
@@ -4725,5 +4877,6 @@ document.addEventListener('DOMContentLoaded', () => {
     new ResizeObserver(syncNavbarHeight).observe(navbarEl);
   }
 
+  fetchPublicSiteSettings();
   restoreSession();
 });
