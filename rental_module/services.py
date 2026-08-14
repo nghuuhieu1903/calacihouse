@@ -286,6 +286,11 @@ class RentalService:
     def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None):
         rooms = Storage.get_rooms()
         r_id = room_id or f"R{uuid.uuid4().hex[:4].upper()}"
+        idx = next((i for i, r in enumerate(rooms) if r['id'] == r_id), -1)
+        # This form doesn't carry contract dates (set separately from the
+        # "Ảnh Hợp Đồng" modal) — inherit whatever's already on the room
+        # instead of wiping it out on every unrelated edit.
+        existing = rooms[idx] if idx >= 0 else {}
         r_obj = {
             'id': r_id,
             'houseId': house_id or 'house_a',
@@ -296,9 +301,10 @@ class RentalService:
             'headcount': int(headcount or 1),
             'roomType': room_type or 'single',
             'elecFormula': elec_formula or 'elec_flat_3500',
-            'waterFormula': water_formula or 'water_flat_18000'
+            'waterFormula': water_formula or 'water_flat_18000',
+            'contractStart': existing.get('contractStart', ''),
+            'contractEnd': existing.get('contractEnd', '')
         }
-        idx = next((i for i, r in enumerate(rooms) if r['id'] == r_id), -1)
         if idx >= 0:
             rooms[idx] = r_obj
         else:
@@ -312,6 +318,14 @@ class RentalService:
         Storage.delete_room(room_id)
         RentalService.sync_readings_with_services()
         return True
+
+    @staticmethod
+    def update_room_contract(room_id, contract_start, contract_end):
+        if not room_id:
+            return None
+        Storage.update_room_contract(room_id, contract_start, contract_end)
+        rooms = Storage.get_rooms()
+        return next((r for r in rooms if r['id'] == room_id), None)
 
     @staticmethod
     def authenticate_user(username, password):

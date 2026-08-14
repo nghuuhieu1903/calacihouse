@@ -174,7 +174,9 @@ def _room(row):
         'headcount': row['headcount'],
         'roomType': row.get('room_type') or 'single',
         'elecFormula': row['elec_formula'] or '',
-        'waterFormula': row['water_formula'] or ''
+        'waterFormula': row['water_formula'] or '',
+        'contractStart': row.get('contract_start') or '',
+        'contractEnd': row.get('contract_end') or ''
     }
 
 def _service(row):
@@ -424,8 +426,8 @@ class Storage:
                 for r in rooms:
                     cur.execute(
                         "REPLACE INTO rooms "
-                        "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                        "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                         (
                             r['id'],
                             r.get('houseId', ''),
@@ -436,7 +438,9 @@ class Storage:
                             r.get('headcount', 1),
                             r.get('roomType', 'single'),
                             r.get('elecFormula', ''),
-                            r.get('waterFormula', '')
+                            r.get('waterFormula', ''),
+                            r.get('contractStart', ''),
+                            r.get('contractEnd', '')
                         )
                     )
             conn.commit()
@@ -449,6 +453,19 @@ class Storage:
         try:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM rooms WHERE id=%s", (room_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def update_room_contract(room_id, contract_start, contract_end):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE rooms SET contract_start=%s, contract_end=%s WHERE id=%s",
+                    (contract_start or '', contract_end or '', room_id)
+                )
             conn.commit()
         finally:
             conn.close()

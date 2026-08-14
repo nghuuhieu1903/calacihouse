@@ -1134,6 +1134,23 @@
       </div>
 
       <div class="cala-card" style="background: var(--bg-base); margin-bottom: 1.25rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_contract_duration">Thời Hạn Hợp Đồng</label>
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 130px;">
+            <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;" data-i18n="lbl_contract_start">Ngày Bắt Đầu</label>
+            <input type="date" id="room-contract-start" class="form-control">
+          </div>
+          <div style="flex: 1; min-width: 130px;">
+            <label style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;" data-i18n="lbl_contract_end">Ngày Kết Thúc</label>
+            <input type="date" id="room-contract-end" class="form-control">
+          </div>
+        </div>
+        <button type="button" class="btn btn-blue btn-sm" style="margin-top: 0.75rem; width: 100%; justify-content: center;" onclick="saveRoomContractDates()">
+          <i data-lucide="calendar-check"></i> <span data-i18n="btn_save_contract_duration">Lưu Thời Hạn Hợp Đồng</span>
+        </button>
+      </div>
+
+      <div class="cala-card" style="background: var(--bg-base); margin-bottom: 1.25rem;">
         <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_add_new_photo">Thêm Ảnh Mới</label>
         <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
           <div id="room-document-upload-area" onclick="document.getElementById('room-document-input').click()" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 0.85rem; text-align: center; cursor: pointer; background: var(--bg-surface); color: var(--text-secondary); font-size: 0.8rem; flex: 1;">

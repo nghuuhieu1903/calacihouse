@@ -129,6 +129,18 @@ def save_room():
     )
     return jsonify({'success': True, 'room': r_obj})
 
+@rental_bp.route('/api/rooms/contract/save', methods=['POST'])
+@admin_required
+def save_room_contract():
+    data = request.json or {}
+    room_id = data.get('roomId')
+    if not room_id:
+        return jsonify({'success': False, 'error': 'Thiếu roomId'}), 400
+    r_obj = RentalService.update_room_contract(room_id, data.get('contractStart'), data.get('contractEnd'))
+    if not r_obj:
+        return jsonify({'success': False, 'error': 'Không tìm thấy phòng'}), 404
+    return jsonify({'success': True, 'room': r_obj})
+
 @rental_bp.route('/api/rooms/delete', methods=['POST'])
 @superadmin_required
 def delete_room():

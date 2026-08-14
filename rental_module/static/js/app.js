@@ -463,7 +463,17 @@ const I18N = {
     lbl_add_new_photo: 'Thêm Ảnh Mới',
     select_contract_photo: 'Chọn ảnh hợp đồng / tài liệu',
     btn_add_to_list: 'Thêm Vào Danh Sách',
-    lbl_saved_photos_list: 'Danh Sách Ảnh Đã Lưu (Khách thuê xem được)'
+    lbl_saved_photos_list: 'Danh Sách Ảnh Đã Lưu (Khách thuê xem được)',
+    lbl_contract_duration: 'Thời Hạn Hợp Đồng',
+    lbl_contract_start: 'Ngày Bắt Đầu',
+    lbl_contract_end: 'Ngày Kết Thúc',
+    btn_save_contract_duration: 'Lưu Thời Hạn Hợp Đồng',
+    toast_contract_duration_saved: 'Đã lưu thời hạn hợp đồng!',
+    contract_duration_label: 'Thời hạn hợp đồng',
+    contract_no_end_date: 'Không xác định ngày kết thúc',
+    contract_status_expired: 'Hết hạn',
+    contract_status_expiring_soon: 'Sắp hết hạn',
+    contract_days_left_suffix: 'ngày nữa hết hạn'
   },
   en: {
     auth_subtitle: 'Rental House Management & Automated Billing System',
@@ -925,7 +935,17 @@ const I18N = {
     lbl_add_new_photo: 'Add New Photo',
     select_contract_photo: 'Select contract / document photo',
     btn_add_to_list: 'Add To List',
-    lbl_saved_photos_list: 'Saved Photos List (visible to tenant)'
+    lbl_saved_photos_list: 'Saved Photos List (visible to tenant)',
+    lbl_contract_duration: 'Contract Duration',
+    lbl_contract_start: 'Start Date',
+    lbl_contract_end: 'End Date',
+    btn_save_contract_duration: 'Save Contract Duration',
+    toast_contract_duration_saved: 'Contract duration saved!',
+    contract_duration_label: 'Contract duration',
+    contract_no_end_date: 'No end date set',
+    contract_status_expired: 'Expired',
+    contract_status_expiring_soon: 'Expiring soon',
+    contract_days_left_suffix: 'days left'
   }
 };
 
@@ -3142,13 +3162,25 @@ async function handleAdminCreateUser(event) {
 function renderTenantContractView() {
   const user = state.currentUser;
   const userRoomId = (user && user.roomId) ? user.roomId : (state.rooms[0] ? state.rooms[0].id : 'R101');
+  const room = state.rooms.find(r => r.id === userRoomId);
   const container = document.getElementById('tenant-contract-container');
   if (!container) return;
 
   const docs = state.roomDocuments[userRoomId] || [];
 
+  const durationHtml = (room && (room.contractStart || room.contractEnd)) ? `
+    <div class="cala-card" style="padding: 1rem 1.25rem; margin-bottom: 1rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+      <i data-lucide="calendar" style="width: 20px; height: 20px; color: var(--cala-blue); flex-shrink:0;"></i>
+      <div>
+        <div style="font-size: 0.78rem; color: var(--text-muted);">${t('contract_duration_label')}</div>
+        <strong>${room.contractStart || '?'} → ${room.contractEnd || t('contract_no_end_date')}</strong>
+      </div>
+      ${contractStatusBadgeHtml(room)}
+    </div>
+  ` : '';
+
   if (docs.length === 0) {
-    container.innerHTML = `
+    container.innerHTML = durationHtml + `
       <div class="cala-card" style="padding: 3rem; text-align: center; color: var(--text-secondary);">
         <i data-lucide="file-image" style="width: 48px; height: 48px; color: var(--cala-amber); margin-bottom: 1rem;"></i>
         <h3>${t('contract_empty_title')}</h3>
@@ -3159,7 +3191,7 @@ function renderTenantContractView() {
     return;
   }
 
-  container.innerHTML = `
+  container.innerHTML = durationHtml + `
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem;">
       ${docs.map(d => `
         <div class="cala-card" style="padding: 0.85rem; cursor: pointer;" onclick="viewDocumentFullSize('${d.dataUrl}')">
@@ -3398,6 +3430,13 @@ function renderRoomsManagement() {
                 <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
                 <div><span style="color:var(--text-muted);">${t('headcount_label')}</span><br><strong>${r.headcount || 1} ${t('formula_per_person_label')}</strong></div>
               </div>
+              ${r.contractStart || r.contractEnd ? `
+                <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+                  <i data-lucide="calendar" style="width:13px; height:13px; flex-shrink:0;"></i>
+                  <span>${r.contractStart || '?'} → ${r.contractEnd || t('contract_no_end_date')}</span>
+                  ${contractStatusBadgeHtml(r)}
+                </div>
+              ` : ''}
               <div style="display:flex; gap:0.5rem;">
                 <button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditRoomModal('${r.id}')">
                   <i data-lucide="edit-2"></i> ${t('btn_edit')}
@@ -3438,9 +3477,57 @@ function openRoomDocumentsModal(roomId) {
   const previewEl = document.getElementById('room-document-pending-preview');
   if (previewEl) previewEl.innerHTML = '';
 
+  const startInput = document.getElementById('room-contract-start');
+  const endInput = document.getElementById('room-contract-end');
+  if (startInput) startInput.value = (room && room.contractStart) || '';
+  if (endInput) endInput.value = (room && room.contractEnd) || '';
+
   renderRoomDocumentsList();
   document.getElementById('modal-room-documents').classList.add('active');
   lucide.createIcons();
+}
+
+async function saveRoomContractDates() {
+  if (!_currentDocRoomId) return;
+  const startInput = document.getElementById('room-contract-start');
+  const endInput = document.getElementById('room-contract-end');
+  const contractStart = startInput ? startInput.value : '';
+  const contractEnd = endInput ? endInput.value : '';
+
+  try {
+    const res = await fetch(`${API_BASE}/rooms/contract/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: _currentDocRoomId, contractStart, contractEnd })
+    });
+    const data = await res.json();
+    if (data.success) {
+      const room = state.rooms.find(r => r.id === _currentDocRoomId);
+      if (room) { room.contractStart = contractStart; room.contractEnd = contractEnd; }
+      renderRoomsManagement();
+      showToast(t('toast_contract_duration_saved'), 'success');
+    } else {
+      showToast(data.error || t('toast_upload_error'), 'error');
+    }
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+}
+
+// Days-left math is local-date based (no time component) so "today" always
+// reads as 0 days left rather than drifting negative from time-of-day.
+function contractStatusBadgeHtml(room) {
+  if (!room || !room.contractEnd) return '';
+  const end = new Date(room.contractEnd + 'T00:00:00');
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const daysLeft = Math.round((end - today) / 86400000);
+  if (daysLeft < 0) {
+    return `<span class="badge badge-open" style="font-size:0.68rem;">${t('contract_status_expired')}</span>`;
+  }
+  if (daysLeft <= 30) {
+    return `<span class="badge badge-pending" style="font-size:0.68rem;">${t('contract_status_expiring_soon')} · ${daysLeft} ${t('contract_days_left_suffix')}</span>`;
+  }
+  return '';
 }
 
 async function handleRoomDocumentSelect(event) {
