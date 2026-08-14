@@ -233,6 +233,11 @@ class RentalService:
     @staticmethod
     def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None):
         srv_id = service_id or f"srv_{uuid.uuid4().hex[:6]}"
+        # applyRooms is a leftover column from an older scoping mechanism
+        # the current UI never sets — carrying it forward rather than
+        # dropping it outright avoids silently zeroing a field on every
+        # save purely because this form doesn't happen to know about it.
+        existing = next((s for s in Storage.get_services() if s['id'] == srv_id), {})
         srv_obj = {
             'id': srv_id,
             'houseId': house_id or 'all',
@@ -244,7 +249,8 @@ class RentalService:
             'calcType': calc_type or 'fixed',
             'customFormula': custom_formula,
             'price': float(price or 0),
-            'unit': unit
+            'unit': unit,
+            'applyRooms': existing.get('applyRooms', [])
         }
         Storage.save_service(srv_obj)
         RentalService.sync_readings_with_services()
@@ -267,6 +273,12 @@ class RentalService:
             'rate': float(rate or 0),
             'category': cat
         }
+        # This form has no tiered-rate UI, so don't let saving here wipe
+        # tiers a record already had (Storage.save_formula() writes NULL
+        # for tiers_json whenever the 'tiers' key is absent entirely).
+        existing = next((f for f in Storage.get_formulas() if f['id'] == f_id), None)
+        if existing and 'tiers' in existing:
+            f_obj['tiers'] = existing['tiers']
         Storage.save_formula(f_obj)
         return f_obj
 
