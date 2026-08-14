@@ -112,27 +112,35 @@ class RentalService:
 
     @staticmethod
     def sync_readings_with_services(month='2026-08'):
+        # Runs on every page load / data fetch (called from get_full_state
+        # below), so a plain get-then-save here raced constantly against
+        # in-flight update_room_reading() calls — e.g. switching months in
+        # one tab while another tab had just saved a meter number could read
+        # a copy taken before that save committed, then write it straight
+        # back over it. Locked read-modify-write serializes the two instead.
         rooms = Storage.get_rooms()
         services = Storage.get_services()
-        readings = Storage.get_readings()
 
-        if month not in readings:
-            readings[month] = {}
+        def mutate(readings):
+            if month not in readings:
+                readings[month] = {}
 
-        for r in rooms:
-            srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
-            if r['id'] not in readings[month]:
-                readings[month][r['id']] = {
-                    'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
-                    'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
-                    'waterFormula': r.get('waterFormula', 'water_flat_18000'),
-                    'serviceFee': srv_tot, 'parkingFee': prk_tot
-                }
-            else:
-                readings[month][r['id']]['serviceFee'] = srv_tot
-                readings[month][r['id']]['parkingFee'] = prk_tot
+            for r in rooms:
+                srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
+                if r['id'] not in readings[month]:
+                    readings[month][r['id']] = {
+                        'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
+                        'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
+                        'waterFormula': r.get('waterFormula', 'water_flat_18000'),
+                        'serviceFee': srv_tot, 'parkingFee': prk_tot
+                    }
+                else:
+                    readings[month][r['id']]['serviceFee'] = srv_tot
+                    readings[month][r['id']]['parkingFee'] = prk_tot
 
-        Storage.save_readings(readings)
+            return readings
+
+        readings = Storage.update_readings(mutate)
         return readings[month]
 
     @staticmethod
@@ -523,6 +531,17 @@ class RentalService:
         return len(rooms)
 
     @staticmethod
+    def mark_invoice_paid(invoice_id):
+        def mutate(invoices):
+            for inv in invoices:
+                if inv['id'] == invoice_id:
+                    inv['status'] = 'Đã thanh toán'
+            return invoices
+
+        Storage.update_invoices(mutate)
+        return True
+
+    @staticmethod
     def save_investor_expense(expense_id, house_id, month, description, amount):
         expenses = Storage.get_investor_expenses()
         e_id = expense_id or f"exp_{uuid.uuid4().hex[:8]}"
@@ -612,8 +631,6 @@ class RentalService:
     def save_room_document(room_id, doc_id, label, data_url):
         if not room_id or not data_url:
             return None
-        documents = Storage.get_room_documents()
-        room_docs = documents.get(room_id, [])
         d_id = doc_id or f"doc_{uuid.uuid4().hex[:8]}"
         d_obj = {
             'id': d_id,
@@ -621,19 +638,26 @@ class RentalService:
             'dataUrl': data_url,
             'uploadedAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
-        idx = next((i for i, d in enumerate(room_docs) if d['id'] == d_id), -1)
-        if idx >= 0:
-            room_docs[idx] = d_obj
-        else:
-            room_docs.append(d_obj)
-        documents[room_id] = room_docs
-        Storage.save_room_documents(documents)
+
+        def mutate(documents):
+            room_docs = documents.get(room_id, [])
+            idx = next((i for i, d in enumerate(room_docs) if d['id'] == d_id), -1)
+            if idx >= 0:
+                room_docs[idx] = d_obj
+            else:
+                room_docs.append(d_obj)
+            documents[room_id] = room_docs
+            return documents
+
+        Storage.update_room_documents(mutate)
         return d_obj
 
     @staticmethod
     def delete_room_document(room_id, doc_id):
-        documents = Storage.get_room_documents()
-        room_docs = documents.get(room_id, [])
-        documents[room_id] = [d for d in room_docs if d['id'] != doc_id]
-        Storage.save_room_documents(documents)
+        def mutate(documents):
+            room_docs = documents.get(room_id, [])
+            documents[room_id] = [d for d in room_docs if d['id'] != doc_id]
+            return documents
+
+        Storage.update_room_documents(mutate)
         return True

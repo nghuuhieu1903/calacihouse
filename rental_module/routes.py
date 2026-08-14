@@ -218,7 +218,9 @@ def generate_all_invoices():
 @rental_bp.route('/api/invoices/mark-paid', methods=['POST'])
 @admin_required
 def mark_paid():
-    return jsonify({'success': True})
+    data = request.json or {}
+    success = RentalService.mark_invoice_paid(data.get('invoiceId'))
+    return jsonify({'success': success})
 
 @rental_bp.route('/api/investor-expenses/save', methods=['POST'])
 @admin_required

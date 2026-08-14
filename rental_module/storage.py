@@ -643,6 +643,15 @@ class Storage:
     def save_invoices(invoices):
         Storage._kv_set('invoices', invoices)
 
+    @staticmethod
+    def update_invoices(mutate):
+        """Locked read-modify-write variant of save_invoices — same race as
+        readings (see _kv_update). generate_all_invoices() replaces the
+        whole list at once so it doesn't need this, but a single-invoice
+        edit (e.g. marking one paid) does, since it can't be allowed to
+        clobber a concurrent edit to a different invoice."""
+        return Storage._kv_update('invoices', [], mutate)
+
     # -- Tickets ------------------------------------------------------------
 
     @staticmethod
@@ -779,3 +788,11 @@ class Storage:
     @staticmethod
     def save_room_documents(documents):
         Storage._kv_set('room_documents', documents)
+
+    @staticmethod
+    def update_room_documents(mutate):
+        """Locked read-modify-write variant of save_room_documents — same
+        race as readings (see _kv_update): uploading several contract
+        photos back-to-back for the same room fires overlapping requests
+        that would otherwise clobber each other's saved document."""
+        return Storage._kv_update('room_documents', {}, mutate)
