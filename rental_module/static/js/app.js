@@ -2117,18 +2117,11 @@ function roomRentTotal(room) {
   return baseRent;
 }
 
-// Room-rent line explanation for invoices. Admin sees the multiplication
-// that produced the total (so the total is self-evidently correct); tenants
-// see it framed as their per-person rate instead (they already see the
-// electricity line split the same way via getFormulaDescription).
+// Room-rent line explanation for invoices — just the per-person rate, no
+// headcount mentioned (the row's own amount column already shows the total).
 function roomRentFormulaDescription(room, forAdmin) {
   if (!room || room.roomType !== 'dorm') return forAdmin ? '' : t('line_fixed_by_contract');
-  const perPerson = formatMoney(room.baseRent) + 'đ';
-  const headcount = room.headcount || 1;
-  if (forAdmin) {
-    return `${perPerson} x ${headcount} ${t('formula_per_person_label')} = ${formatMoney(roomRentTotal(room))}đ`;
-  }
-  return `${perPerson} / ${t('formula_per_person_label')} x ${headcount} ${t('formula_per_person_label')}`;
+  return `${formatMoney(room.baseRent)}đ / ${t('formula_per_person_label')}`;
 }
 
 function renderAdminDashboard() {
