@@ -318,20 +318,21 @@ class Storage:
         return result
 
     @staticmethod
-    def save_houses(houses):
-        """Upserts each row by primary key. Deliberately does NOT delete
-        rows missing from `houses` first — a caller with a stale or
-        incomplete in-memory list (e.g. two admins saving near-simultaneously,
-        or a transient read glitch) must never be able to wipe out houses it
-        doesn't know about. Use delete_house() to remove a specific row."""
+    def save_house(h):
+        """Upserts this one row by primary key only — never touches any
+        other row. An earlier version took the whole houses list and
+        REPLACE INTO'd every row in it, which meant two admins saving
+        near-simultaneously (or even just a request reading a slightly
+        stale list) could silently overwrite each other's edit to a
+        DIFFERENT house with old data. A single-row write can't clobber
+        anything it doesn't touch."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                for h in houses:
-                    cur.execute(
-                        "REPLACE INTO houses (id, name, address, description) VALUES (%s,%s,%s,%s)",
-                        (h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''))
-                    )
+                cur.execute(
+                    "REPLACE INTO houses (id, name, address, description) VALUES (%s,%s,%s,%s)",
+                    (h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''))
+                )
             conn.commit()
         finally:
             conn.close()
@@ -363,29 +364,29 @@ class Storage:
         return result
 
     @staticmethod
-    def save_users(users):
-        """Upserts by primary key only — see save_houses() for why this must
-        never delete rows absent from `users` first."""
+    def save_user(u):
+        """Upserts this one row by primary key only — see save_house() for
+        why a single-row write matters here (two people editing different
+        accounts back-to-back must not be able to revert each other)."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                for u in users:
-                    cur.execute(
-                        "REPLACE INTO users "
-                        "(id, username, password, full_name, role, room_id, house_id, status, created_at) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                        (
-                            u['id'],
-                            u['username'],
-                            u.get('password', ''),
-                            u.get('fullName', ''),
-                            u.get('role', 'tenant'),
-                            u.get('roomId', ''),
-                            u.get('houseId', ''),
-                            u.get('status', 'pending'),
-                            u.get('createdAt', '')
-                        )
+                cur.execute(
+                    "REPLACE INTO users "
+                    "(id, username, password, full_name, role, room_id, house_id, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        u['id'],
+                        u['username'],
+                        u.get('password', ''),
+                        u.get('fullName', ''),
+                        u.get('role', 'tenant'),
+                        u.get('roomId', ''),
+                        u.get('houseId', ''),
+                        u.get('status', 'pending'),
+                        u.get('createdAt', '')
                     )
+                )
             conn.commit()
         finally:
             conn.close()
@@ -417,32 +418,31 @@ class Storage:
         return result
 
     @staticmethod
-    def save_rooms(rooms):
-        """Upserts by primary key only — see save_houses() for why this must
-        never delete rows absent from `rooms` first."""
+    def save_room(r):
+        """Upserts this one row by primary key only — see save_house() for
+        why a single-row write matters here."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                for r in rooms:
-                    cur.execute(
-                        "REPLACE INTO rooms "
-                        "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                        (
-                            r['id'],
-                            r.get('houseId', ''),
-                            r.get('name', ''),
-                            r.get('tenant', ''),
-                            r.get('phone', ''),
-                            r.get('baseRent', 0),
-                            r.get('headcount', 1),
-                            r.get('roomType', 'single'),
-                            r.get('elecFormula', ''),
-                            r.get('waterFormula', ''),
-                            r.get('contractStart', ''),
-                            r.get('contractEnd', '')
-                        )
+                cur.execute(
+                    "REPLACE INTO rooms "
+                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        r['id'],
+                        r.get('houseId', ''),
+                        r.get('name', ''),
+                        r.get('tenant', ''),
+                        r.get('phone', ''),
+                        r.get('baseRent', 0),
+                        r.get('headcount', 1),
+                        r.get('roomType', 'single'),
+                        r.get('elecFormula', ''),
+                        r.get('waterFormula', ''),
+                        r.get('contractStart', ''),
+                        r.get('contractEnd', '')
                     )
+                )
             conn.commit()
         finally:
             conn.close()
@@ -495,32 +495,37 @@ class Storage:
         return result
 
     @staticmethod
-    def save_services(services):
-        """Upserts by primary key only — see save_houses() for why this must
-        never delete rows absent from `services` first."""
+    def save_service(s):
+        """Upserts this one row by primary key only — see save_house() for
+        why a single-row write matters here. This specifically fixes the
+        room-scope picker (Áp Dụng Cho Tòa Nhà & Phòng) "resetting itself":
+        editing one service (e.g. water pricing for KTX rooms) right after
+        editing another (e.g. water pricing for single rooms) used to be
+        able to silently revert the first edit's room_ids back to its old
+        value, since both saves rewrote every service row from whichever
+        stale in-memory list each request happened to read first."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                for s in services:
-                    cur.execute(
-                        "REPLACE INTO services "
-                        "(id, house_id, name, price, unit, icon, symbol, calc_type, formula_id, house_ids, room_ids, apply_rooms) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                        (
-                            s['id'],
-                            s.get('houseId', ''),
-                            s.get('name', ''),
-                            s.get('price', 0),
-                            s.get('unit', ''),
-                            s.get('icon', ''),
-                            s.get('symbol', '📦'),
-                            s.get('calcType', 'fixed'),
-                            s.get('customFormula') or '',
-                            json.dumps(s.get('houseIds', ['all'])),
-                            json.dumps(s.get('roomIds', ['all'])),
-                            json.dumps(s.get('applyRooms', []))
-                        )
+                cur.execute(
+                    "REPLACE INTO services "
+                    "(id, house_id, name, price, unit, icon, symbol, calc_type, formula_id, house_ids, room_ids, apply_rooms) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        s['id'],
+                        s.get('houseId', ''),
+                        s.get('name', ''),
+                        s.get('price', 0),
+                        s.get('unit', ''),
+                        s.get('icon', ''),
+                        s.get('symbol', '📦'),
+                        s.get('calcType', 'fixed'),
+                        s.get('customFormula') or '',
+                        json.dumps(s.get('houseIds', ['all'])),
+                        json.dumps(s.get('roomIds', ['all'])),
+                        json.dumps(s.get('applyRooms', []))
                     )
+                )
             conn.commit()
         finally:
             conn.close()
@@ -552,26 +557,25 @@ class Storage:
         return result
 
     @staticmethod
-    def save_formulas(formulas):
-        """Upserts by primary key only — see save_houses() for why this must
-        never delete rows absent from `formulas` first."""
+    def save_formula(f):
+        """Upserts this one row by primary key only — see save_house() for
+        why a single-row write matters here."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                for f in formulas:
-                    cur.execute(
-                        "REPLACE INTO formulas "
-                        "(id, name, type, rate, category, tiers_json) "
-                        "VALUES (%s,%s,%s,%s,%s,%s)",
-                        (
-                            f['id'],
-                            f.get('name', ''),
-                            f.get('type', ''),
-                            f.get('rate', 0),
-                            f.get('category', ''),
-                            json.dumps(f['tiers']) if 'tiers' in f else None
-                        )
+                cur.execute(
+                    "REPLACE INTO formulas "
+                    "(id, name, type, rate, category, tiers_json) "
+                    "VALUES (%s,%s,%s,%s,%s,%s)",
+                    (
+                        f['id'],
+                        f.get('name', ''),
+                        f.get('type', ''),
+                        f.get('rate', 0),
+                        f.get('category', ''),
+                        json.dumps(f['tiers']) if 'tiers' in f else None
                     )
+                )
             conn.commit()
         finally:
             conn.close()
@@ -600,26 +604,25 @@ class Storage:
         return [_investor_expense(r) for r in rows]
 
     @staticmethod
-    def save_investor_expenses(expenses):
-        """Upserts by primary key only — see save_houses() for why this must
-        never delete rows absent from `expenses` first."""
+    def save_investor_expense(e):
+        """Upserts this one row by primary key only — see save_house() for
+        why a single-row write matters here."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                for e in expenses:
-                    cur.execute(
-                        "REPLACE INTO investor_expenses "
-                        "(id, house_id, month, description, amount, created_at) "
-                        "VALUES (%s,%s,%s,%s,%s,%s)",
-                        (
-                            e['id'],
-                            e.get('houseId', ''),
-                            e.get('month', ''),
-                            e.get('description', ''),
-                            e.get('amount', 0),
-                            e.get('createdAt', '')
-                        )
+                cur.execute(
+                    "REPLACE INTO investor_expenses "
+                    "(id, house_id, month, description, amount, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s)",
+                    (
+                        e['id'],
+                        e.get('houseId', ''),
+                        e.get('month', ''),
+                        e.get('description', ''),
+                        e.get('amount', 0),
+                        e.get('createdAt', '')
                     )
+                )
             conn.commit()
         finally:
             conn.close()
@@ -745,33 +748,51 @@ class Storage:
         return _ticket(row) if row else None
 
     @staticmethod
-    def save_tickets(tickets):
-        """Upserts by primary key only — see save_houses() for why this must
-        never delete rows absent from `tickets` first."""
+    def save_ticket(t):
+        """Upserts this one row by primary key only — see save_house() for
+        why a single-row write matters here. Also avoids create_ticket()
+        having to round-trip every OTHER ticket's embedded photos just to
+        insert one new row."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                for t in tickets:
-                    cur.execute(
-                        "REPLACE INTO tickets "
-                        "(id, room_id, room_name, tenant, category, priority, description, "
-                        " timestamp, status, response, comments_json, images_json) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                        (
-                            t['id'],
-                            t.get('roomId', ''),
-                            t.get('roomName', ''),
-                            t.get('tenant', ''),
-                            t.get('category', ''),
-                            t.get('priority', ''),
-                            t.get('description', ''),
-                            t.get('timestamp', ''),
-                            t.get('status', ''),
-                            t.get('response', ''),
-                            json.dumps(t.get('comments', []), ensure_ascii=False),
-                            json.dumps(t.get('images', []),   ensure_ascii=False)
-                        )
+                cur.execute(
+                    "REPLACE INTO tickets "
+                    "(id, room_id, room_name, tenant, category, priority, description, "
+                    " timestamp, status, response, comments_json, images_json) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        t['id'],
+                        t.get('roomId', ''),
+                        t.get('roomName', ''),
+                        t.get('tenant', ''),
+                        t.get('category', ''),
+                        t.get('priority', ''),
+                        t.get('description', ''),
+                        t.get('timestamp', ''),
+                        t.get('status', ''),
+                        t.get('response', ''),
+                        json.dumps(t.get('comments', []), ensure_ascii=False),
+                        json.dumps(t.get('images', []),   ensure_ascii=False)
                     )
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def update_ticket_reply(ticket_id, status, response, comments):
+        """Targeted update for the reply flow — only touches status/
+        response/comments, so it can't clobber the ticket's own
+        category/description/images even if this request's caller never
+        read them (it doesn't need to)."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE tickets SET status=%s, response=%s, comments_json=%s WHERE id=%s",
+                    (status or '', response or '', json.dumps(comments, ensure_ascii=False), ticket_id)
+                )
             conn.commit()
         finally:
             conn.close()

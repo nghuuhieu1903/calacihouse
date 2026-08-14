@@ -205,17 +205,9 @@ class RentalService:
 
     @staticmethod
     def save_house(house_id, name, address, description):
-        houses = Storage.get_houses()
         h_id = house_id or f"house_{uuid.uuid4().hex[:6]}"
         h_obj = { 'id': h_id, 'name': name, 'address': address, 'description': description }
-        
-        idx = next((i for i, h in enumerate(houses) if h['id'] == h_id), -1)
-        if idx >= 0:
-            houses[idx] = h_obj
-        else:
-            houses.append(h_obj)
-
-        Storage.save_houses(houses)
+        Storage.save_house(h_obj)
         return h_obj
 
     @staticmethod
@@ -225,7 +217,6 @@ class RentalService:
 
     @staticmethod
     def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None):
-        services = Storage.get_services()
         srv_id = service_id or f"srv_{uuid.uuid4().hex[:6]}"
         srv_obj = {
             'id': srv_id,
@@ -240,14 +231,7 @@ class RentalService:
             'price': float(price or 0),
             'unit': unit
         }
-        
-        idx = next((i for i, s in enumerate(services) if s['id'] == srv_id), -1)
-        if idx >= 0:
-            services[idx] = srv_obj
-        else:
-            services.append(srv_obj)
-
-        Storage.save_services(services)
+        Storage.save_service(srv_obj)
         RentalService.sync_readings_with_services()
         return srv_obj
 
@@ -259,7 +243,6 @@ class RentalService:
 
     @staticmethod
     def save_formula(formula_id, name, f_type, rate, category=None):
-        formulas = Storage.get_formulas()
         f_id = formula_id or f"formula_{uuid.uuid4().hex[:6]}"
         cat = category or ('water' if 'nước' in name.lower() else 'elec')
         f_obj = {
@@ -269,12 +252,7 @@ class RentalService:
             'rate': float(rate or 0),
             'category': cat
         }
-        idx = next((i for i, f in enumerate(formulas) if f['id'] == f_id), -1)
-        if idx >= 0:
-            formulas[idx] = f_obj
-        else:
-            formulas.append(f_obj)
-        Storage.save_formulas(formulas)
+        Storage.save_formula(f_obj)
         return f_obj
 
     @staticmethod
@@ -284,13 +262,14 @@ class RentalService:
 
     @staticmethod
     def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None):
-        rooms = Storage.get_rooms()
         r_id = room_id or f"R{uuid.uuid4().hex[:4].upper()}"
-        idx = next((i for i, r in enumerate(rooms) if r['id'] == r_id), -1)
         # This form doesn't carry contract dates (set separately from the
         # "Ảnh Hợp Đồng" modal) — inherit whatever's already on the room
-        # instead of wiping it out on every unrelated edit.
-        existing = rooms[idx] if idx >= 0 else {}
+        # instead of wiping it out on every unrelated edit. Read-only lookup,
+        # so a stale copy here just means we might re-write the same
+        # contract dates that are about to be there anyway — unlike a stale
+        # WRITE, it can't clobber a concurrent change to a different room.
+        existing = next((r for r in Storage.get_rooms() if r['id'] == r_id), {})
         r_obj = {
             'id': r_id,
             'houseId': house_id or 'house_a',
@@ -305,11 +284,7 @@ class RentalService:
             'contractStart': existing.get('contractStart', ''),
             'contractEnd': existing.get('contractEnd', '')
         }
-        if idx >= 0:
-            rooms[idx] = r_obj
-        else:
-            rooms.append(r_obj)
-        Storage.save_rooms(rooms)
+        Storage.save_room(r_obj)
         RentalService.sync_readings_with_services()
         return r_obj
 
@@ -343,13 +318,12 @@ class RentalService:
 
     @staticmethod
     def approve_user(user_id, room_id):
-        users = Storage.get_users()
-        user = next((u for u in users if u['id'] == user_id), None)
+        user = next((u for u in Storage.get_users() if u['id'] == user_id), None)
         if user:
             user['status'] = 'approved'
             if room_id:
                 user['roomId'] = room_id
-            Storage.save_users(users)
+            Storage.save_user(user)
             return True
         return False
 
@@ -370,14 +344,12 @@ class RentalService:
             'status': 'approved',
             'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
-        users.append(new_user)
-        Storage.save_users(users)
+        Storage.save_user(new_user)
         return new_user, None
 
     @staticmethod
     def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id=''):
-        users = Storage.get_users()
-        user = next((u for u in users if u['id'] == user_id), None)
+        user = next((u for u in Storage.get_users() if u['id'] == user_id), None)
         if user:
             if user['id'] == 'usr_admin':
                 # The bootstrap account's role isn't editable via this form
@@ -403,7 +375,7 @@ class RentalService:
             if new_password:
                 user['password'] = new_password
 
-            Storage.save_users(users)
+            Storage.save_user(user)
             return user, None
         return None, 'User not found'
 
@@ -557,10 +529,9 @@ class RentalService:
 
     @staticmethod
     def save_investor_expense(expense_id, house_id, month, description, amount):
-        expenses = Storage.get_investor_expenses()
         e_id = expense_id or f"exp_{uuid.uuid4().hex[:8]}"
-        idx = next((i for i, e in enumerate(expenses) if e['id'] == e_id), -1)
-        created_at = expenses[idx]['createdAt'] if idx >= 0 else datetime.now().strftime('%Y-%m-%d %H:%M')
+        existing = next((e for e in Storage.get_investor_expenses() if e['id'] == e_id), None)
+        created_at = existing['createdAt'] if existing else datetime.now().strftime('%Y-%m-%d %H:%M')
 
         e_obj = {
             'id': e_id,
@@ -570,13 +541,7 @@ class RentalService:
             'amount': float(amount or 0),
             'createdAt': created_at
         }
-
-        if idx >= 0:
-            expenses[idx] = e_obj
-        else:
-            expenses.append(e_obj)
-
-        Storage.save_investor_expenses(expenses)
+        Storage.save_investor_expense(e_obj)
         return e_obj
 
     @staticmethod
@@ -586,12 +551,10 @@ class RentalService:
 
     @staticmethod
     def create_ticket(ticket_id, room_id, category, priority, description, images):
-        tickets = Storage.get_tickets()
-        rooms = Storage.get_rooms()
-        room = next((r for r in rooms if r['id'] == room_id), None)
+        room = next((r for r in Storage.get_rooms() if r['id'] == room_id), None)
         room_name = room['name'] if room else 'Phòng'
         tenant = room['tenant'] if room else 'Khách'
-        
+
         ticket_obj = {
             'id': ticket_id or f"TK-{datetime.now().strftime('%M%S')}",
             'roomId': room_id,
@@ -606,22 +569,17 @@ class RentalService:
             'comments': [],
             'images': images or []
         }
-        tickets.insert(0, ticket_obj)
-        Storage.save_tickets(tickets)
+        Storage.save_ticket(ticket_obj)
         return ticket_obj
 
     @staticmethod
     def reply_ticket(ticket_id, status, response, comment=None):
-        tickets = Storage.get_tickets()
-        ticket = next((t for t in tickets if t['id'] == ticket_id), None)
+        ticket = Storage.get_ticket_full(ticket_id)
         if ticket:
-            ticket['status'] = status
-            ticket['response'] = response
-            if 'comments' not in ticket:
-                ticket['comments'] = []
+            comments = ticket.get('comments') or []
             if comment:
-                ticket['comments'].append(comment)
-            Storage.save_tickets(tickets)
+                comments.append(comment)
+            Storage.update_ticket_reply(ticket_id, status, response, comments)
             return True
         return False
 
