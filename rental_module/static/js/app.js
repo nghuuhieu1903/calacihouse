@@ -2250,7 +2250,7 @@ function renderInvestorDashboard() {
   const tbody = document.getElementById('investor-rooms-table-body');
   if (tbody) {
     if (activeRooms.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('spreadsheet_empty_state')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('spreadsheet_empty_state')}</td></tr>`;
     } else {
       tbody.innerHTML = activeRooms.map(r => {
         const inv = monthInvoices.find(i => i.roomId === r.id);
@@ -2267,9 +2267,11 @@ function renderInvestorDashboard() {
             <td>${formatMoney(roomRentTotal(r))} đ</td>
             <td style="font-weight:800; color:var(--cala-orange);">${formatMoney(total)} đ</td>
             <td>${statusBadge}</td>
+            <td>${inv ? `<button class="btn btn-secondary btn-sm" onclick="viewInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i> ${t('btn_view_details')}</button>` : ''}</td>
           </tr>
         `;
       }).join('');
+      lucide.createIcons();
     }
   }
 
