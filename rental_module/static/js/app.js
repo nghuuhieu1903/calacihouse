@@ -2195,7 +2195,7 @@ function renderAdminDashboard() {
     const rd = monthReadings[r.id] || {};
     let roomTot = roomRentTotal(r);
 
-    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId));
+    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id));
     houseServices.forEach(s => {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
@@ -2254,7 +2254,7 @@ function renderInvestorDashboard() {
     totalRent += roomRentTotal(r);
 
     const rd = monthReadings[r.id] || {};
-    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId));
+    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id));
     houseServices.forEach(s => {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
@@ -2426,7 +2426,12 @@ function renderSpreadsheet() {
 
     // Render Each Active Service as its Own Independent Column!
     activeServices.forEach(s => {
-      const isServiceApplicable = serviceMatchesHouse(s, r.houseId);
+      // House match alone isn't enough — a service scoped to specific
+      // rooms (e.g. "Nước KTX" applied only to the dorm rooms) must not
+      // show/charge for every OTHER room in the same house too, or a
+      // room outside its scope both misses its own water service AND
+      // gets billed for one that was never meant for it.
+      const isServiceApplicable = serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id);
 
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
@@ -2599,7 +2604,7 @@ async function generateAndSendAllInvoices() {
     let elecFormulaText = '';
     let waterFormulaText = '';
 
-    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId));
+    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id));
     houseServices.forEach(s => {
       const symbol = s.symbol || '📦';
       if (s.calcType === 'formula') {

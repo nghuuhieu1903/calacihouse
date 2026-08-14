@@ -541,14 +541,16 @@ class RentalService:
 
             # Each formula-type service (e.g. "Tiền Điện") now carries its own
             # inline expression — find the one(s) applicable to this room's
-            # house and evaluate directly, matching app.js's
-            # generateAndSendAllInvoices() house-only matching exactly.
+            # house/room and evaluate directly, matching app.js's
+            # generateAndSendAllInvoices() matching exactly.
             elec_cost = 0
             water_cost = 0
             elec_formula_text = ''
             water_formula_text = ''
             for s in services:
-                if s.get('calcType') != 'formula' or not RentalService.service_matches_house(s, r.get('houseId')):
+                if s.get('calcType') != 'formula':
+                    continue
+                if not RentalService.service_matches_house(s, r.get('houseId')) or not RentalService.service_matches_room(s, r.get('id')):
                     continue
                 is_elec = 'Điện' in s.get('name', '')
                 usage = elec_usage if is_elec else water_usage
