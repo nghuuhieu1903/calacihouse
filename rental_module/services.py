@@ -213,8 +213,22 @@ class RentalService:
 
     @staticmethod
     def delete_house(house_id):
+        # Deleting a house out from under its rooms doesn't remove them —
+        # they just silently stop showing up anywhere (no house to group
+        # them under), while any investor account scoped to this house
+        # goes blank with zero rooms/revenue and no explanation why. Block
+        # it instead: force clearing out rooms and reassigning investors
+        # first, so nothing quietly goes orphaned.
+        room_count = sum(1 for r in Storage.get_rooms() if r.get('houseId') == house_id)
+        if room_count > 0:
+            return False, f'Không thể xoá: tòa nhà này vẫn còn {room_count} phòng. Vui lòng xoá hết phòng trước.'
+
+        investor_count = sum(1 for u in Storage.get_users() if u.get('role') == 'investor' and u.get('houseId') == house_id)
+        if investor_count > 0:
+            return False, f'Không thể xoá: vẫn còn {investor_count} tài khoản chủ đầu tư đang gắn với tòa nhà này. Vui lòng đổi tòa nhà cho tài khoản đó trước.'
+
         Storage.delete_house(house_id)
-        return True
+        return True, None
 
     @staticmethod
     def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None):
@@ -296,9 +310,23 @@ class RentalService:
 
     @staticmethod
     def delete_room(room_id):
+        # A tenant account still pointing at roomId after the room itself is
+        # gone doesn't crash anything (every render site guards for a
+        # missing room), but it does leave the account showing the room's
+        # raw id as if it were still assigned — confusing for both the
+        # tenant (their invoice/contract pages just go blank) and whoever's
+        # managing accounts later. Clear the link so it reads as
+        # unassigned, same as an account that was never assigned a room.
+        unlinked_username = None
+        tenant = next((u for u in Storage.get_users() if u.get('roomId') == room_id), None)
+        if tenant:
+            tenant['roomId'] = ''
+            Storage.save_user(tenant)
+            unlinked_username = tenant.get('username')
+
         Storage.delete_room(room_id)
         RentalService.sync_readings_with_services()
-        return True
+        return unlinked_username
 
     @staticmethod
     def update_room_contract(room_id, contract_start, contract_end):

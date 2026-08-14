@@ -180,6 +180,7 @@ const I18N = {
     toast_invoices_issued_prefix: 'Đã phát hành hóa đơn cho tháng ',
     toast_invoice_marked_paid_prefix: 'Đã xác nhận thu tiền ',
     unassigned_label: 'Chưa gán',
+    room_deleted_label: 'Phòng đã bị xóa',
     unassigned_none_placeholder: 'Chưa gán / Không có',
     vacant_label: 'Trống',
     select_room_placeholder: 'Chọn phòng',
@@ -269,7 +270,8 @@ const I18N = {
     toast_ticket_sent: 'Đã gửi báo lỗi thành công đến Admin!',
     confirm_delete_room: 'Bạn chắc chắn muốn xóa phòng này?',
     toast_room_deleted: 'Đã xóa phòng',
-    confirm_delete_house: 'Bạn chắc chắn muốn xóa tòa nhà này? Các phòng thuộc tòa nhà này sẽ không còn hiển thị đúng.',
+    toast_room_deleted_tenant_unlinked_prefix: 'Đã gỡ liên kết phòng khỏi tài khoản khách thuê ',
+    confirm_delete_house: 'Bạn chắc chắn muốn xóa tòa nhà này? (Sẽ không xóa được nếu vẫn còn phòng hoặc tài khoản chủ đầu tư gắn với tòa nhà này)',
     toast_house_deleted: 'Đã xóa tòa nhà',
     toast_room_saved_prefix: 'Đã lưu thông tin phòng ',
     toast_room_saved_suffix: ' thành công!',
@@ -652,6 +654,7 @@ const I18N = {
     toast_invoices_issued_prefix: 'Invoices issued for ',
     toast_invoice_marked_paid_prefix: 'Payment confirmed for ',
     unassigned_label: 'Unassigned',
+    room_deleted_label: 'Room deleted',
     unassigned_none_placeholder: 'Unassigned / None',
     vacant_label: 'Vacant',
     select_room_placeholder: 'Select room',
@@ -741,7 +744,8 @@ const I18N = {
     toast_ticket_sent: 'Report sent to Admin successfully!',
     confirm_delete_room: 'Are you sure you want to delete this room?',
     toast_room_deleted: 'Room deleted',
-    confirm_delete_house: 'Are you sure you want to delete this building? Rooms in it will no longer display correctly.',
+    toast_room_deleted_tenant_unlinked_prefix: 'Unlinked this room from tenant account ',
+    confirm_delete_house: 'Are you sure you want to delete this building? (Deletion is blocked while it still has rooms or an investor account assigned to it)',
     toast_house_deleted: 'Building deleted',
     toast_room_saved_prefix: 'Room information saved for ',
     toast_room_saved_suffix: ' successfully!',
@@ -1750,16 +1754,32 @@ function renderHousesManagement() {
   lucide.createIcons();
 }
 
-function deleteHouseConfirm(houseId) {
+async function deleteHouseConfirm(houseId) {
   if (!confirm(t('confirm_delete_house'))) return;
+
+  // Deleting a house is blocked server-side while it still has rooms or an
+  // investor assigned to it (either would silently go orphaned otherwise —
+  // see delete_house() in services.py) — wait for that answer instead of
+  // removing it from view optimistically, or a blocked delete would still
+  // make the house vanish from this screen until the next refresh.
+  try {
+    const res = await fetch(`${API_BASE}/houses/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: houseId })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || t('toast_server_connection_error'), 'error');
+      return;
+    }
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+    return;
+  }
+
   state.houses = state.houses.filter(h => h.id !== houseId);
   if (state.currentHouseId === houseId) state.currentHouseId = 'all';
-
-  fetch(`${API_BASE}/houses/delete`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: houseId })
-  }).catch(err => console.warn('Deleted house locally:', err));
 
   showToast(t('toast_house_deleted'), 'success');
   renderHouseSelector();
@@ -2913,7 +2933,11 @@ function renderAdminUsers() {
 
   state.users.forEach(u => {
     const room = state.rooms.find(r => r.id === u.roomId);
-    let roomLabel = room ? room.name : (u.roomId ? u.roomId : t('unassigned_label'));
+    // Deleting a room now clears roomId off any tenant pointing at it, but
+    // older data from before that fix (or a room deleted some other way)
+    // can still leave this pointing at nothing — show that plainly instead
+    // of the bare, meaningless room id string.
+    let roomLabel = room ? room.name : (u.roomId ? `⚠️ ${t('room_deleted_label')}` : t('unassigned_label'));
     if (u.role === 'investor') {
       const house = state.houses.find(h => h.id === u.houseId);
       roomLabel = u.houseId === 'all' ? `🌐 ${t('all_houses_label')}` : (house ? `📍 ${house.name}` : t('unassigned_label'));
@@ -4148,15 +4172,29 @@ async function handleTenantSubmitReport(event) {
 function openTicketReplyModal(ticketId) { openTicketDetail(ticketId); }
 async function saveTicketResponse(event) { if(event) event.preventDefault(); }
 
-function deleteRoom(roomId) {
+async function deleteRoom(roomId) {
   if (!confirm(t('confirm_delete_room'))) return;
   state.rooms = state.rooms.filter(r => r.id !== roomId);
-  fetch(`${API_BASE}/rooms/delete`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: roomId, roomId: roomId })
-  }).catch(e => console.warn('Delete room locally'));
   showToast(t('toast_room_deleted'), 'success');
   renderRoomsManagement();
+
+  try {
+    const res = await fetch(`${API_BASE}/rooms/delete`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: roomId, roomId: roomId })
+    });
+    const data = await res.json();
+    // The room's tenant account (if any) had its room link cleared server-
+    // side rather than left pointing at a now-deleted room — let the admin
+    // know that account needs a new room assignment.
+    if (data.unlinkedUsername) {
+      const tenantUser = state.users.find(u => u.username === data.unlinkedUsername);
+      if (tenantUser) tenantUser.roomId = '';
+      showToast(`${t('toast_room_deleted_tenant_unlinked_prefix')}@${data.unlinkedUsername}`, 'info');
+    }
+  } catch (e) {
+    console.warn('Delete room locally', e);
+  }
 }
 
 function updateBadges() {

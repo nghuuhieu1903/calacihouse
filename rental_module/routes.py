@@ -62,7 +62,9 @@ def save_house():
 @superadmin_required
 def delete_house():
     data = request.json or {}
-    RentalService.delete_house(data.get('id'))
+    success, error = RentalService.delete_house(data.get('id'))
+    if not success:
+        return jsonify({'success': False, 'error': error}), 400
     return jsonify({'success': True})
 
 @rental_bp.route('/api/services/save', methods=['POST'])
@@ -146,8 +148,8 @@ def save_room_contract():
 def delete_room():
     data = request.json or {}
     room_id = data.get('id') or data.get('roomId')
-    RentalService.delete_room(room_id)
-    return jsonify({'success': True})
+    unlinked_username = RentalService.delete_room(room_id)
+    return jsonify({'success': True, 'unlinkedUsername': unlinked_username})
 
 @rental_bp.route('/api/users/approve', methods=['POST'])
 @admin_required
