@@ -351,6 +351,35 @@ class RentalService:
         return safe_user, None
 
     @staticmethod
+    def set_user_active(user_id, is_active):
+        """Quick activate/deactivate toggle — a tenant whose room now has a
+        different occupant (moved out, room re-let) doesn't need their
+        account deleted, just switched off so they can't log in. Reuses the
+        existing status field (approved/blocked) rather than adding a
+        parallel active/inactive flag."""
+        user = next((u for u in Storage.get_users() if u['id'] == user_id), None)
+        if not user or user['id'] == 'usr_admin':
+            return None
+        user['status'] = 'approved' if is_active else 'blocked'
+        Storage.save_user(user)
+        return user
+
+    @staticmethod
+    def _deactivate_other_tenants_in_room(room_id, keep_user_id):
+        """When a room gets a (re-)approved tenant, any OTHER tenant
+        account still marked approved for that same room is someone who
+        has moved out — leaving them active would let a former tenant keep
+        logging in and viewing the new occupant's invoices/tickets.
+        Returns the usernames deactivated, so the caller can tell the admin."""
+        deactivated = []
+        for u in Storage.get_users():
+            if u['id'] != keep_user_id and u.get('role') == 'tenant' and u.get('roomId') == room_id and u.get('status') == 'approved':
+                u['status'] = 'blocked'
+                Storage.save_user(u)
+                deactivated.append(u.get('username'))
+        return deactivated
+
+    @staticmethod
     def approve_user(user_id, room_id):
         user = next((u for u in Storage.get_users() if u['id'] == user_id), None)
         if user:
@@ -358,8 +387,9 @@ class RentalService:
             if room_id:
                 user['roomId'] = room_id
             Storage.save_user(user)
-            return True
-        return False
+            deactivated = RentalService._deactivate_other_tenants_in_room(room_id, user_id) if room_id else []
+            return True, deactivated
+        return False, []
 
     @staticmethod
     def create_user_by_admin(username, password, full_name, role, room_id, house_id=''):
@@ -416,8 +446,17 @@ class RentalService:
                 user['password'] = new_password
 
             Storage.save_user(user)
-            return user, None
-        return None, 'User not found'
+
+            # Same room-handoff cleanup as approve_user(): assigning this
+            # tenant to a room that another approved tenant is still on
+            # means that other account moved out — switch it off instead
+            # of leaving it able to log in and see the new occupant's data.
+            deactivated = []
+            if user['id'] != 'usr_admin' and role == 'tenant' and status == 'approved' and room_id:
+                deactivated = RentalService._deactivate_other_tenants_in_room(room_id, user_id)
+
+            return user, None, deactivated
+        return None, 'User not found', []
 
     @staticmethod
     def delete_user(user_id):

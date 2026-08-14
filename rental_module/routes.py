@@ -157,8 +157,8 @@ def approve_user():
     data = request.json or {}
     user_id = data.get('userId')
     room_id = data.get('roomId')
-    success = RentalService.approve_user(user_id, room_id)
-    return jsonify({'success': success})
+    success, deactivated = RentalService.approve_user(user_id, room_id)
+    return jsonify({'success': success, 'deactivatedUsernames': deactivated})
 
 @rental_bp.route('/api/users/create', methods=['POST'])
 @admin_required
@@ -190,7 +190,7 @@ def save_user():
     role = data.get('role')
     if role == 'superadmin' and session.get('user', {}).get('role') != 'superadmin':
         return jsonify({'success': False, 'error': 'Chỉ Super Admin mới có thể gán vai trò Super Admin!'}), 403
-    user, error = RentalService.update_user_by_admin(
+    user, error, deactivated = RentalService.update_user_by_admin(
         data.get('id'),
         data.get('fullName'),
         role,
@@ -201,6 +201,15 @@ def save_user():
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
+    return jsonify({'success': True, 'user': user, 'deactivatedUsernames': deactivated})
+
+@rental_bp.route('/api/users/set-active', methods=['POST'])
+@admin_required
+def set_user_active():
+    data = request.json or {}
+    user = RentalService.set_user_active(data.get('userId'), bool(data.get('isActive')))
+    if not user:
+        return jsonify({'success': False, 'error': 'Không thể thay đổi trạng thái tài khoản này'}), 400
     return jsonify({'success': True, 'user': user})
 
 @rental_bp.route('/api/users/delete', methods=['POST'])

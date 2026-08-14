@@ -98,6 +98,8 @@ const I18N = {
     status_pending: 'Chờ Duyệt',
     status_blocked: 'Đã Khóa',
     btn_approve: 'Duyệt',
+    btn_activate: 'Kích Hoạt',
+    btn_deactivate: 'Vô Hiệu Hóa',
     btn_delete: 'Xóa',
     view_admin_dashboard_subtitle: 'Thống kê hoạt động và hóa đơn tháng hiện tại',
     view_admin_services_subtitle: 'Cấu hình từng loại dịch vụ và quy tắc tính tiền',
@@ -116,6 +118,7 @@ const I18N = {
     toast_login_wrong_credentials: 'Sai tên đăng nhập hoặc mật khẩu!',
     toast_login_wrong_credentials_default: 'Sai tên đăng nhập hoặc mật khẩu! Mật khẩu mặc định: 123',
     toast_account_pending_approval: 'Tài khoản của bạn đang chờ Admin duyệt!',
+    toast_account_blocked: 'Tài khoản của bạn đã bị khóa!',
     toast_logout_success: 'Đã đăng xuất tài khoản!',
     role_superadmin_label: 'Super Admin',
     role_admin_label: 'Quản trị viên',
@@ -187,6 +190,9 @@ const I18N = {
     new_label: 'Mới',
     confirm_delete_user: 'Bạn có chắc chắn muốn xóa tài khoản này?',
     toast_user_approved: 'Đã duyệt tài khoản thành công!',
+    toast_user_activated: 'Đã kích hoạt tài khoản!',
+    toast_user_deactivated: 'Đã vô hiệu hóa tài khoản!',
+    toast_previous_tenant_deactivated_prefix: 'Đã tự động vô hiệu hóa tài khoản khách thuê cũ của phòng này: ',
     toast_user_deleted: 'Đã xóa tài khoản!',
     toast_user_created: 'Tạo tài khoản mới thành công!',
     toast_user_updated: 'Đã cập nhật tài khoản và phân quyền thành công!',
@@ -572,6 +578,8 @@ const I18N = {
     status_pending: 'Pending',
     status_blocked: 'Blocked',
     btn_approve: 'Approve',
+    btn_activate: 'Activate',
+    btn_deactivate: 'Deactivate',
     btn_delete: 'Delete',
     view_admin_dashboard_subtitle: 'Activity and current month invoice statistics',
     view_admin_services_subtitle: 'Configure each service type and its pricing rules',
@@ -590,6 +598,7 @@ const I18N = {
     toast_login_wrong_credentials: 'Incorrect username or password!',
     toast_login_wrong_credentials_default: 'Incorrect username or password! Default password: 123',
     toast_account_pending_approval: 'Your account is pending Admin approval!',
+    toast_account_blocked: 'Your account has been blocked!',
     toast_logout_success: 'Logged out successfully!',
     role_superadmin_label: 'Super Admin',
     role_admin_label: 'Administrator',
@@ -661,6 +670,9 @@ const I18N = {
     new_label: 'New',
     confirm_delete_user: 'Are you sure you want to delete this account?',
     toast_user_approved: 'Account approved successfully!',
+    toast_user_activated: 'Account activated!',
+    toast_user_deactivated: 'Account deactivated!',
+    toast_previous_tenant_deactivated_prefix: 'Automatically deactivated this room\'s previous tenant account: ',
     toast_user_deleted: 'Account deleted!',
     toast_user_created: 'New account created successfully!',
     toast_user_updated: 'Account and permissions updated successfully!',
@@ -1077,22 +1089,29 @@ async function handleLogin(event) {
       body: JSON.stringify({ username, password })
     });
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success) {
-        state.currentUser = data.user;
-        showToast(`${t('toast_login_greeting')}${data.user.fullName}!`, 'success');
-        document.getElementById('auth-screen').style.display = 'none';
-        document.getElementById('cala-navbar').style.display = 'flex';
-        document.getElementById('app-container').style.display = 'flex';
-        setupUserRoleUI();
-        await fetchState();
-        return;
-      } else {
-        showToast(data.error || t('toast_login_wrong_credentials'), 'error');
-        return;
-      }
+    // The login route responds with a real JSON body (success:false + a
+    // specific reason) on a rejected login, but as an HTTP 400 — which
+    // isn't `res.ok`. That used to fall straight through to the offline
+    // local-fallback authentication below without even parsing the
+    // response, silently ignoring the server's answer (wrong password,
+    // pending approval, or — the one that matters here — an account an
+    // admin just deactivated) and letting the login succeed anyway
+    // against the fallback's hardcoded demo credentials. Parse the JSON
+    // regardless of status and always return on it — only a genuine
+    // network failure (server unreachable) should fall through.
+    const data = await res.json();
+    if (data.success) {
+      state.currentUser = data.user;
+      showToast(`${t('toast_login_greeting')}${data.user.fullName}!`, 'success');
+      document.getElementById('auth-screen').style.display = 'none';
+      document.getElementById('cala-navbar').style.display = 'flex';
+      document.getElementById('app-container').style.display = 'flex';
+      setupUserRoleUI();
+      await fetchState();
+    } else {
+      showToast(data.error || t('toast_login_wrong_credentials'), 'error');
     }
+    return;
   } catch (err) {
     console.warn('Flask server fetch error, falling back to local authentication:', err);
   }
@@ -1104,6 +1123,10 @@ async function handleLogin(event) {
   if (foundUser) {
     if (foundUser.status === 'pending') {
       showToast(t('toast_account_pending_approval'), 'error');
+      return;
+    }
+    if (foundUser.status === 'blocked') {
+      showToast(t('toast_account_blocked'), 'error');
       return;
     }
     state.currentUser = foundUser;
@@ -2969,6 +2992,17 @@ function renderAdminUsers() {
               <i data-lucide="check"></i> ${dict.btn_approve}
             </button>
           ` : ''}
+          ${u.id !== 'usr_admin' && u.status !== 'pending' ? (
+            u.status === 'approved' ? `
+              <button class="btn btn-secondary btn-sm" style="color:var(--cala-orange); border-color:var(--cala-orange);" onclick="setUserActiveApi('${u.id}', false)" title="${t('btn_deactivate')}">
+                <i data-lucide="user-x"></i> ${t('btn_deactivate')}
+              </button>
+            ` : `
+              <button class="btn btn-secondary btn-sm" style="color:var(--cala-emerald); border-color:var(--cala-emerald);" onclick="setUserActiveApi('${u.id}', true)" title="${t('btn_activate')}">
+                <i data-lucide="user-check"></i> ${t('btn_activate')}
+              </button>
+            `
+          ) : ''}
           <button class="btn btn-blue btn-sm" onclick="openEditUserModal('${u.id}')">
             <i data-lucide="edit-2"></i> ${t('btn_edit')}
           </button>
@@ -2982,6 +3016,12 @@ function renderAdminUsers() {
     `;
     tbody.appendChild(tr);
   });
+  // switchView() covers this on the first navigation into this screen, but
+  // approve/deactivate/save/delete all re-render this table in place
+  // afterward without going through switchView again — without this, their
+  // buttons' icons (including the new activate/deactivate ones) render as
+  // blank <i> tags until the next full view switch.
+  lucide.createIcons();
 }
 
 async function approveUserApi(userId) {
@@ -2995,17 +3035,60 @@ async function approveUserApi(userId) {
   }
 
   try {
-    await fetch(`${API_BASE}/users/approve`, {
+    const res = await fetch(`${API_BASE}/users/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, roomId })
     });
+    const data = await res.json();
+    // The room this tenant just got assigned to may already have a
+    // different approved tenant account on it — that account just moved
+    // out, so the server switches it off automatically. Reflect that
+    // locally and let the admin know who.
+    applyDeactivatedUsernames(data.deactivatedUsernames);
   } catch (err) {
     console.warn('Approved user locally:', err);
   }
 
   showToast(t('toast_user_approved'), 'success');
   renderAdminUsers();
+}
+
+// Shared by approve/edit flows — both can trigger the "old tenant on this
+// room gets auto-deactivated" side effect (see _deactivate_other_tenants_in_room
+// in services.py).
+function applyDeactivatedUsernames(usernames) {
+  if (!usernames || !usernames.length) return;
+  usernames.forEach(username => {
+    const u = state.users.find(x => x.username === username);
+    if (u) u.status = 'blocked';
+  });
+  showToast(`${t('toast_previous_tenant_deactivated_prefix')}${usernames.map(u => '@' + u).join(', ')}`, 'info');
+}
+
+async function setUserActiveApi(userId, isActive) {
+  const user = state.users.find(u => u.id === userId);
+  if (user) user.status = isActive ? 'approved' : 'blocked';
+  renderAdminUsers();
+
+  try {
+    const res = await fetch(`${API_BASE}/users/set-active`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, isActive })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || t('toast_server_connection_error'), 'error');
+      if (user) user.status = isActive ? 'blocked' : 'approved';
+      renderAdminUsers();
+      return;
+    }
+  } catch (err) {
+    console.warn('Toggled user active state locally:', err);
+  }
+
+  showToast(t(isActive ? 'toast_user_activated' : 'toast_user_deactivated'), 'success');
 }
 
 async function deleteUserApi(userId) {
@@ -3157,11 +3240,13 @@ async function handleAdminSaveUser(event) {
   if (newPassword) payload.newPassword = newPassword;
 
   try {
-    await fetch(`${API_BASE}/users/save`, {
+    const res = await fetch(`${API_BASE}/users/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+    const data = await res.json();
+    applyDeactivatedUsernames(data.deactivatedUsernames);
   } catch (err) {
     console.warn('Saved user locally:', err);
   }
