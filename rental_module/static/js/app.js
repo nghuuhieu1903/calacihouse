@@ -128,6 +128,7 @@ const I18N = {
     all_rooms_label: 'Tất Cả Phòng',
     multiple_houses_label: 'Nhiều Tòa',
     rooms_unit_label: 'phòng',
+    house_no_rooms_label: 'Chưa có phòng',
     services_empty_state: 'Chưa có dịch vụ nào. Nhấn "Thêm Dịch Vụ Mới" để tạo.',
     calc_type_formula: 'THEO CÔNG THỨC',
     calc_type_fixed: 'CỐ ĐỊNH',
@@ -608,6 +609,7 @@ const I18N = {
     all_rooms_label: 'All Rooms',
     multiple_houses_label: 'Multiple Houses',
     rooms_unit_label: 'rooms',
+    house_no_rooms_label: 'No rooms yet',
     services_empty_state: 'No services yet. Click "Add New Service" to create one.',
     calc_type_formula: 'BY FORMULA',
     calc_type_fixed: 'FIXED',
@@ -1829,21 +1831,31 @@ function renderServiceScopeTree(selectedHouseIds = ['all'], selectedRoomIds = ['
 
   state.houses.forEach(h => {
     const houseRooms = state.rooms.filter(r => (r.houseId === h.id || r.house_id === h.id));
+    const houseHasRooms = houseRooms.length > 0;
     const isHouseExplicit = isAllMasterChecked || selectedHouseIds.includes('all') || selectedHouseIds.includes(h.id);
     const checkedRoomCount = houseRooms.filter(r => isAllMasterChecked || selectedRoomIds.includes('all') || selectedRoomIds.includes(r.id)).length;
-    const isHouseAllChecked = isAllMasterChecked || (isHouseExplicit && (selectedRoomIds.includes('all') || checkedRoomCount === houseRooms.length));
+    // A building with zero rooms trivially satisfies "checkedRoomCount ===
+    // houseRooms.length" (0 === 0) — without the houseHasRooms guard this
+    // showed every empty building as fully ticked any time the scope was
+    // house-wide but not literally the master "🌐 Tất Cả" (e.g. a service
+    // scoped to specific rooms in *other* buildings), even though nothing
+    // was ever actually selected there. Only the true "applies to
+    // everything, including rooms added later" master checkbox should
+    // check an empty building.
+    const isHouseAllChecked = isAllMasterChecked || (isHouseExplicit && houseHasRooms && (selectedRoomIds.includes('all') || checkedRoomCount === houseRooms.length));
+    const disableHouseChk = !houseHasRooms && !isAllMasterChecked;
 
     html += `
-      <div style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); overflow: hidden; flex-shrink: 0;">
+      <div style="border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); overflow: hidden; flex-shrink: 0; ${disableHouseChk ? 'opacity: 0.55;' : ''}">
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; background: var(--bg-surface);">
-          <label class="checkbox-item" style="margin: 0; padding: 0;">
-            <input type="checkbox" class="chk-house-node" data-house="${h.id}" value="${h.id}" ${isHouseAllChecked ? 'checked' : ''} onchange="toggleHouseNodeCheckbox('${h.id}', this)">
+          <label class="checkbox-item" style="margin: 0; padding: 0;" title="${disableHouseChk ? t('house_no_rooms_label') : ''}">
+            <input type="checkbox" class="chk-house-node" data-house="${h.id}" value="${h.id}" ${isHouseAllChecked ? 'checked' : ''} ${disableHouseChk ? 'disabled' : ''} onchange="toggleHouseNodeCheckbox('${h.id}', this)">
             <span style="font-weight: 700;">📍 ${h.name}</span>
           </label>
-          
-          <button type="button" class="btn btn-secondary btn-sm" onclick="toggleHouseRoomSublist('${h.id}')" style="padding: 3px 10px; font-size: 0.75rem; border-radius: var(--radius-sm);">
-            <span id="badge-count-${h.id}">${isHouseAllChecked ? houseRooms.length : checkedRoomCount}/${houseRooms.length} ${t('rooms_unit_label')}</span>
-            <i data-lucide="chevron-down" id="chevron-${h.id}" style="width:14px; height:14px; margin-left:4px;"></i>
+
+          <button type="button" class="btn btn-secondary btn-sm" onclick="toggleHouseRoomSublist('${h.id}')" ${houseHasRooms ? '' : 'disabled'} style="padding: 3px 10px; font-size: 0.75rem; border-radius: var(--radius-sm);">
+            <span id="badge-count-${h.id}">${houseHasRooms ? `${isHouseAllChecked ? houseRooms.length : checkedRoomCount}/${houseRooms.length} ${t('rooms_unit_label')}` : t('house_no_rooms_label')}</span>
+            ${houseHasRooms ? `<i data-lucide="chevron-down" id="chevron-${h.id}" style="width:14px; height:14px; margin-left:4px;"></i>` : ''}
           </button>
         </div>
 
@@ -1868,14 +1880,12 @@ function renderServiceScopeTree(selectedHouseIds = ['all'], selectedRoomIds = ['
 
 function toggleAllScopeMaster(masterChk) {
   const isChecked = masterChk.checked;
-  document.querySelectorAll('.chk-house-node').forEach(c => c.checked = isChecked);
-  document.querySelectorAll('.chk-room-node').forEach(c => c.checked = isChecked);
-
-  state.houses.forEach(h => {
-    const houseRooms = state.rooms.filter(r => (r.houseId === h.id || r.house_id === h.id));
-    const badge = document.getElementById(`badge-count-${h.id}`);
-    if (badge) badge.innerText = isChecked ? `${houseRooms.length}/${houseRooms.length} ${t('rooms_unit_label')}` : `0/${houseRooms.length} ${t('rooms_unit_label')}`;
-  });
+  // Re-rendering (rather than patching each checkbox/badge/disabled state
+  // by hand) keeps this in sync with renderServiceScopeTree's own rules —
+  // in particular, an empty building's checkbox is disabled outside of
+  // this master-all state, and a hand-patch here would leave it looking
+  // disabled even while freshly checked.
+  renderServiceScopeTree(isChecked ? ['all'] : [], isChecked ? ['all'] : []);
 }
 
 function toggleHouseNodeCheckbox(houseId, houseChk) {
