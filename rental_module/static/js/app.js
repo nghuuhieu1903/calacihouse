@@ -2117,6 +2117,20 @@ function roomRentTotal(room) {
   return baseRent;
 }
 
+// Room-rent line explanation for invoices. Admin sees the multiplication
+// that produced the total (so the total is self-evidently correct); tenants
+// see it framed as their per-person rate instead (they already see the
+// electricity line split the same way via getFormulaDescription).
+function roomRentFormulaDescription(room, forAdmin) {
+  if (!room || room.roomType !== 'dorm') return forAdmin ? '' : t('line_fixed_by_contract');
+  const perPerson = formatMoney(room.baseRent) + 'đ';
+  const headcount = room.headcount || 1;
+  if (forAdmin) {
+    return `${perPerson} x ${headcount} ${t('formula_per_person_label')} = ${formatMoney(roomRentTotal(room))}đ`;
+  }
+  return `${perPerson} / ${t('formula_per_person_label')} x ${headcount} ${t('formula_per_person_label')}`;
+}
+
 function renderAdminDashboard() {
   const activeRooms = getFilteredRooms();
   const monthReadings = state.readings[state.currentMonth] || {};
@@ -3290,7 +3304,7 @@ function renderTenantInvoiceView() {
           </tr>
         </thead>
         <tbody>
-          <tr><td style="padding:0.75rem; font-weight:bold;">1. ${t('line_room_rent')}</td><td style="padding:0.75rem;">${t('line_fixed_by_contract')}</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(invoice.baseRent)} đ</td></tr>
+          <tr><td style="padding:0.75rem; font-weight:bold;">1. ${t('line_room_rent')}</td><td style="padding:0.75rem;">${roomRentFormulaDescription(room, false)}</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(invoice.baseRent)} đ</td></tr>
           <tr>
             <td style="padding:0.75rem; font-weight:bold;">2. ⚡ ${t('line_electricity')}
               <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${invoice.id}')">
@@ -3359,7 +3373,7 @@ function viewInvoiceDetail(invoiceId) {
       <h3 style="color:#03121a;">${t('invoice_detail_title_prefix')}${inv.roomName}</h3>
       <div style="margin:1rem 0;">${t('tenant_colon_label')} <strong>${inv.tenant}</strong> (${inv.phone})</div>
       <table class="excel-table" style="color:#03121a;">
-        <tr><td>1. ${t('line_room_rent_short')}</td><td style="text-align:right;">${formatMoney(inv.baseRent)} đ</td></tr>
+        <tr><td>1. ${t('line_room_rent_short')}${room && room.roomType === 'dorm' ? `<br><small style="color:#687176;">${roomRentFormulaDescription(room, true)}</small>` : ''}</td><td style="text-align:right;">${formatMoney(inv.baseRent)} đ</td></tr>
         <tr><td>2. ⚡ ${t('line_electricity_short')} (${inv.elecUsage} kWh)
           <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${inv.id}')">
             <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
