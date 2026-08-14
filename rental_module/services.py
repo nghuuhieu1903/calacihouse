@@ -27,16 +27,16 @@ class RentalService:
 
     @staticmethod
     def utility_cost_for_room(expr, usage, is_elec, room):
-        """Dorm rooms (Phòng Ký Túc Xá) share one electricity meter across
-        several tenants billed individually — split the room's total
-        electricity cost evenly across headcount. Water & other services
-        are billed as entered, not split. Mirrors utilityCostForRoom() in
-        app.js exactly — this is the server-side path invoices are actually
-        persisted through."""
-        raw = RentalService.eval_custom_formula(expr, usage)
-        if is_elec and room.get('roomType') == 'dorm':
-            return round(raw / max(1, room.get('headcount') or 1))
-        return raw
+        """The room's invoice is one single bill covering every occupant, so
+        it must carry the full electricity cost regardless of room type —
+        dividing it here (as earlier versions did) undercounted a dorm
+        room's electricity by a factor of its headcount, since nothing ever
+        multiplied it back. Per-occupant electricity share is a display-only
+        concern, computed separately at render time (see
+        roomRentFormulaDescription()/the tenant invoice view in app.js) —
+        never subtracted from what's actually billed. Mirrors
+        utilityCostForRoom() in app.js exactly."""
+        return RentalService.eval_custom_formula(expr, usage)
 
     @staticmethod
     def room_rent_total(room):

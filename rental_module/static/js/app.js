@@ -2093,17 +2093,15 @@ function getFormulaDescription(formulaExpr, usage, splitHeadcount) {
   return base;
 }
 
-// Dorm rooms (Phòng Ký Túc Xá) share one electricity meter across several
-// tenants, each billed individually — so the room's total electricity cost
-// gets split evenly across its headcount before landing on the invoice.
-// Water and other services are per the room as entered, not split (see the
-// "Loại Phòng" hint text in the room config modal).
+// The room's invoice is one single bill covering every occupant, so it must
+// carry the full electricity cost regardless of room type — dividing it
+// here (as earlier versions did) undercounted a dorm room's electricity by
+// a factor of its headcount, since nothing ever multiplied it back.
+// Per-occupant electricity share is a display-only concern, computed
+// separately where needed (see the tenant invoice view) — never subtracted
+// from what's actually billed.
 function utilityCostForRoom(formulaExpr, usage, isElec, room) {
-  const raw = evalCustomFormula(formulaExpr, usage);
-  if (isElec && room && room.roomType === 'dorm') {
-    return Math.round(raw / Math.max(1, room.headcount || 1));
-  }
-  return raw;
+  return evalCustomFormula(formulaExpr, usage);
 }
 
 // Dorm rooms store baseRent as the per-person rate (see the room-type hint
@@ -3238,6 +3236,19 @@ function renderTenantInvoiceView() {
   const houseName = house ? house.name : 'CALACIHOUSE MANAGEMENT';
   const houseAddr = house ? house.address : t('default_house_addr_label');
 
+  // The invoice record holds the whole room's bill (one shared meter, one
+  // combined total). For a dorm room that isn't what any one tenant owes —
+  // each occupant pays their own rent and their share of electricity
+  // separately — so this page (unlike admin's, which needs the room-wide
+  // total) shows the individual's portion: per-person rent as configured,
+  // electricity divided across headcount, water/services unchanged (never
+  // split — see the room-type hint in the room form).
+  const isDorm = room && room.roomType === 'dorm';
+  const headcount = Math.max(1, (room && room.headcount) || 1);
+  const personalRent = isDorm ? (room.baseRent || 0) : invoice.baseRent;
+  const personalElec = isDorm ? Math.round((invoice.elecCost || 0) / headcount) : invoice.elecCost;
+  const personalTotal = personalRent + personalElec + (invoice.waterCost || 0) + (invoice.otherFees || 0);
+
   const autoCalc = room ? calculateRoomServiceTotal(room) : { items: [] };
   const itemsList = (invoice.serviceItems && invoice.serviceItems.length > 0) ? invoice.serviceItems : autoCalc.items;
 
@@ -3299,15 +3310,15 @@ function renderTenantInvoiceView() {
           </tr>
         </thead>
         <tbody>
-          <tr><td style="padding:0.75rem; font-weight:bold;">1. ${t('line_room_rent')}</td><td style="padding:0.75rem;">${roomRentFormulaDescription(room, false)}</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(invoice.baseRent)} đ</td></tr>
+          <tr><td style="padding:0.75rem; font-weight:bold;">1. ${t('line_room_rent')}</td><td style="padding:0.75rem;">${roomRentFormulaDescription(room, false)}</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(personalRent)} đ</td></tr>
           <tr>
             <td style="padding:0.75rem; font-weight:bold;">2. ⚡ ${t('line_electricity')}
               <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${invoice.id}')">
                 <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
               </button>
             </td>
-            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, room && room.roomType === 'dorm' ? room.headcount : 0)}</small></td>
-            <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(invoice.elecCost)} đ</td>
+            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, isDorm ? headcount : 0)}</small></td>
+            <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(personalElec)} đ</td>
           </tr>
           <tr>
             <td style="padding:0.75rem; font-weight:bold;">3. 💧 ${t('line_water')}
@@ -3325,7 +3336,7 @@ function renderTenantInvoiceView() {
 
       <div style="background:#f7f9fa; padding:1.25rem; border-radius:12px; text-align:right; border:1px solid #e5e9f0; margin-top:1.5rem;">
         <div style="font-size: 0.85rem; color: #687176;">${t('grand_total_label')}</div>
-        <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f;">${formatMoney(invoice.totalAmount)} VNĐ</div>
+        <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f;">${formatMoney(personalTotal)} VNĐ</div>
       </div>
     </div>
   `;
