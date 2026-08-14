@@ -392,6 +392,42 @@ class Storage:
             conn.close()
 
     @staticmethod
+    def create_user(u):
+        """Plain INSERT, never REPLACE — creating a user must never silently
+        delete-and-replace an existing row. `username` is a separate UNIQUE
+        column from the primary-key `id`, so if two "create account" clicks
+        for the same username land close enough together to both pass
+        create_user_by_admin()'s own uniqueness check before either
+        commits, a REPLACE INTO here would key off `id` (always distinct —
+        freshly generated per request) and silently delete the first
+        request's row to insert the second, erasing whatever the first
+        user already had (role, room, status). A plain INSERT instead lets
+        the table's own UNIQUE constraint reject the second one outright —
+        raised to the caller as pymysql.err.IntegrityError."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO users "
+                    "(id, username, password, full_name, role, room_id, house_id, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        u['id'],
+                        u['username'],
+                        u.get('password', ''),
+                        u.get('fullName', ''),
+                        u.get('role', 'tenant'),
+                        u.get('roomId', ''),
+                        u.get('houseId', ''),
+                        u.get('status', 'pending'),
+                        u.get('createdAt', '')
+                    )
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
     def delete_user(user_id):
         conn = get_db()
         try:

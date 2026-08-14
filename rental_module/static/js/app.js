@@ -1041,6 +1041,17 @@ let state = {
 
 const API_BASE = '/api';
 
+// Client-side id for a new record, sent to the server as-is (it becomes the
+// row's primary key — the backend only falls back to generating its own id
+// when this is omitted). Timestamp alone isn't enough: two records created
+// within the same millisecond (or, for the old room/ticket generators this
+// replaced, the same 10-second/9000-value window) would collide and one
+// would silently overwrite the other via REPLACE INTO. The random suffix
+// makes that practically impossible.
+function genId(prefix) {
+  return `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
 /* ==========================================================================
    AUTHENTICATION LOGIC
    ========================================================================== */
@@ -1672,7 +1683,7 @@ async function saveHouse(event) {
   const address = document.getElementById('house-address').value.trim();
   const description = document.getElementById('house-desc').value.trim();
 
-  const hObj = { id: id || `house_${Date.now()}`, name, address, description };
+  const hObj = { id: id || genId('house_'), name, address, description };
   const idx = state.houses.findIndex(h => h.id === hObj.id);
   if (idx >= 0) state.houses[idx] = hObj;
   else state.houses.push(hObj);
@@ -1986,7 +1997,7 @@ async function saveService(event) {
   const calcType = document.getElementById('service-calc-type').value;
 
   const houseId = selectedHouseIds.length === 1 ? selectedHouseIds[0] : 'all';
-  let sObj = { id: id || `srv_${Date.now()}`, houseId, houseIds: selectedHouseIds, roomIds: selectedRoomIds, name, icon, symbol, calcType };
+  let sObj = { id: id || genId('srv_'), houseId, houseIds: selectedHouseIds, roomIds: selectedRoomIds, name, icon, symbol, calcType };
 
   if (calcType === 'formula') {
     const customFormula = document.getElementById('service-custom-formula').value.trim();
@@ -2857,7 +2868,7 @@ async function submitInvestorExpense(event) {
   const description = document.getElementById('ie-description').value.trim();
   const amount = parseFloat(document.getElementById('ie-amount').value) || 0;
 
-  const eObj = { id: id || `exp_${Date.now()}`, houseId, month, description, amount };
+  const eObj = { id: id || genId('exp_'), houseId, month, description, amount };
   const idx = state.investorExpenses.findIndex(x => x.id === eObj.id);
   if (idx >= 0) state.investorExpenses[idx] = { ...state.investorExpenses[idx], ...eObj };
   else state.investorExpenses.push(eObj);
@@ -3148,7 +3159,7 @@ async function handleAdminCreateUser(event) {
   const roomId = role === 'tenant' ? document.getElementById('create-room-id').value : '';
   const houseId = role === 'investor' ? document.getElementById('create-house-id').value : '';
 
-  const newUser = { id: `usr_${Date.now()}`, username, password, fullName, role, roomId, houseId, status: 'approved', createdAt: 'Hôm nay' };
+  const newUser = { id: genId('usr_'), username, password, fullName, role, roomId, houseId, status: 'approved', createdAt: 'Hôm nay' };
   state.users.push(newUser);
 
   try {
@@ -4101,7 +4112,7 @@ async function handleTenantSubmitReport(event) {
   const now = new Date().toLocaleString('vi-VN');
 
   const newTicket = {
-    id: `TK-${Math.floor(1000 + Math.random() * 9000)}`,
+    id: genId('TK-'),
     roomId,
     roomName: room ? room.name : t('col_room'),
     tenant: user ? (user.fullName || user.username) : t('default_guest_label'),
@@ -4222,7 +4233,7 @@ async function saveRoomConfig(event) {
   const baseRent = parseFloat(document.getElementById('room-base-rent').value) || 0;
 
   const rObj = {
-    id: id || `R${Date.now().toString().slice(-4)}`,
+    id: id || genId('R'),
     houseId, name, tenant, phone, roomType, headcount, baseRent
   };
 

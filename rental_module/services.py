@@ -1,5 +1,6 @@
 from .storage import Storage
 from datetime import datetime
+import pymysql
 import re
 import uuid
 
@@ -262,7 +263,12 @@ class RentalService:
 
     @staticmethod
     def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None):
-        r_id = room_id or f"R{uuid.uuid4().hex[:4].upper()}"
+        # 6 hex chars (matches houses/services/formulas/tickets) — the old
+        # 4-char version only had 65,536 possible ids, giving a
+        # non-negligible birthday-paradox collision chance once a building
+        # has more than a couple hundred rooms; a collision would silently
+        # REPLACE INTO overwrite an existing room's config and tenant data.
+        r_id = room_id or f"R{uuid.uuid4().hex[:6].upper()}"
         # This form doesn't carry contract dates (set separately from the
         # "Ảnh Hợp Đồng" modal) — inherit whatever's already on the room
         # instead of wiping it out on every unrelated edit. Read-only lookup,
@@ -344,7 +350,13 @@ class RentalService:
             'status': 'approved',
             'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
-        Storage.save_user(new_user)
+        try:
+            Storage.create_user(new_user)
+        except pymysql.err.IntegrityError:
+            # Two "create" clicks for the same username close enough
+            # together both pass the check above before either commits —
+            # the table's own UNIQUE constraint is the real guard.
+            return None, 'Tên tài khoản đã tồn tại!'
         return new_user, None
 
     @staticmethod
@@ -436,8 +448,23 @@ class RentalService:
         rooms = Storage.get_rooms()
         services = Storage.get_services()
         readings = Storage.get_readings().get(month, {})
-        invoices = Storage.get_invoices()
 
+        # Regenerating carries every existing invoice's paid/unpaid status
+        # forward (see `status` below) — reading invoices outside the lock
+        # and writing the rebuilt list back unconditionally would let this
+        # (often slow — iterates every room) request overwrite a status
+        # someone else marks paid while it's mid-flight, silently reverting
+        # it back to "Chờ thanh toán". Building the whole list inside
+        # update_invoices' locked mutate keeps the read-then-write atomic.
+        def mutate(invoices):
+            RentalService._rebuild_invoices(invoices, month, rooms, services, readings)
+            return invoices
+
+        Storage.update_invoices(mutate)
+        return len(rooms)
+
+    @staticmethod
+    def _rebuild_invoices(invoices, month, rooms, services, readings):
         for r in rooms:
             srv_tot, prk_tot, item_list = RentalService.calculate_room_services_total(r, services)
             rd = readings.get(r['id'], {'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0})
@@ -513,9 +540,6 @@ class RentalService:
             else:
                 invoices.append(invoice_obj)
 
-        Storage.save_invoices(invoices)
-        return len(rooms)
-
     @staticmethod
     def mark_invoice_paid(invoice_id):
         def mutate(invoices):
@@ -556,7 +580,13 @@ class RentalService:
         tenant = room['tenant'] if room else 'Khách'
 
         ticket_obj = {
-            'id': ticket_id or f"TK-{datetime.now().strftime('%M%S')}",
+            # minute:second alone (the old format) repeats every 60 seconds
+            # and collides immediately under any real concurrent load —
+            # two tickets landing on the same id both get REPLACE INTO'd
+            # into ONE row, silently discarding whichever saved first. A
+            # uuid4 suffix matches how every other entity here (rooms,
+            # services, users, ...) generates its id.
+            'id': ticket_id or f"TK-{uuid.uuid4().hex[:6].upper()}",
             'roomId': room_id,
             'roomName': room_name,
             'tenant': tenant,
