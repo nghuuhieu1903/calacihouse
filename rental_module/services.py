@@ -395,35 +395,46 @@ class RentalService:
 
     @staticmethod
     def update_room_reading(month, room_id, field, value):
-        readings = Storage.get_readings()
-        if month not in readings:
-            readings[month] = {}
-        if room_id not in readings[month]:
-            rooms = Storage.get_rooms()
-            services = Storage.get_services()
-            r = next((x for x in rooms if x['id'] == room_id), {})
-            srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
-            readings[month][room_id] = {
-                'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
-                'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
-                'waterFormula': r.get('waterFormula', 'water_flat_18000'),
-                'serviceFee': srv_tot,
-                'parkingFee': prk_tot
-            }
+        # Reading edits (a meter number, then its confirmation photo) tend to
+        # fire back-to-back for the same room/month — the photo upload in
+        # particular is slow enough (compressed image over the wire) that
+        # its request can still be in flight when the next one starts. A
+        # plain get-then-save here would let the slower request's read (a
+        # stale copy taken before the earlier save committed) clobber the
+        # earlier edit back to its old value on write — e.g. a meter number
+        # "jumping back to 0" right after uploading its photo. Storage's
+        # locked read-modify-write forces these to serialize instead.
+        def mutate(readings):
+            if month not in readings:
+                readings[month] = {}
+            if room_id not in readings[month]:
+                rooms = Storage.get_rooms()
+                services = Storage.get_services()
+                r = next((x for x in rooms if x['id'] == room_id), {})
+                srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
+                readings[month][room_id] = {
+                    'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
+                    'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
+                    'waterFormula': r.get('waterFormula', 'water_flat_18000'),
+                    'serviceFee': srv_tot,
+                    'parkingFee': prk_tot
+                }
 
-        text_fields = [
-            'elecFormula', 'waterFormula',
-            'elecOldPhoto', 'elecNewPhoto', 'waterOldPhoto', 'waterNewPhoto'
-        ]
-        if field in text_fields:
-            readings[month][room_id][field] = value
-        else:
-            try:
-                readings[month][room_id][field] = float(value)
-            except (ValueError, TypeError):
-                readings[month][room_id][field] = 0
+            text_fields = [
+                'elecFormula', 'waterFormula',
+                'elecOldPhoto', 'elecNewPhoto', 'waterOldPhoto', 'waterNewPhoto'
+            ]
+            if field in text_fields:
+                readings[month][room_id][field] = value
+            else:
+                try:
+                    readings[month][room_id][field] = float(value)
+                except (ValueError, TypeError):
+                    readings[month][room_id][field] = 0
 
-        Storage.save_readings(readings)
+            return readings
+
+        readings = Storage.update_readings(mutate)
         return readings[month]
 
     @staticmethod

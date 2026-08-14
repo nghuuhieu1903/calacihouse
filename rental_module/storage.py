@@ -1,3 +1,4 @@
+import copy
 import json
 from .database import get_db
 
@@ -265,6 +266,31 @@ class Storage:
                     (key, json.dumps(value, ensure_ascii=False))
                 )
             conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def _kv_update(key, default, mutate):
+        """Read-modify-write a kv_store value inside one locked transaction,
+        so two near-simultaneous updates to the same key (e.g. saving a
+        meter number then immediately uploading its photo) can't race —
+        the second call blocks on `FOR UPDATE` until the first commits, then
+        starts from its result instead of a stale read that would otherwise
+        get overwritten back on top of it. `mutate(data)` returns the new
+        value to store."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT `value` FROM kv_store WHERE `key`=%s FOR UPDATE", (key,))
+                row = cur.fetchone()
+                data = json.loads(row['value']) if row else copy.deepcopy(default)
+                data = mutate(data)
+                cur.execute(
+                    "REPLACE INTO kv_store (`key`, `value`) VALUES (%s,%s)",
+                    (key, json.dumps(data, ensure_ascii=False))
+                )
+            conn.commit()
+            return data
         finally:
             conn.close()
 
@@ -600,6 +626,12 @@ class Storage:
     @staticmethod
     def save_readings(readings):
         Storage._kv_set('readings', readings)
+
+    @staticmethod
+    def update_readings(mutate):
+        """Locked read-modify-write variant of save_readings — see
+        _kv_update for why this matters for readings specifically."""
+        return Storage._kv_update('readings', DEFAULT_READINGS, mutate)
 
     # -- Invoices (list of complex objects → kv_store) ----------------------
 
