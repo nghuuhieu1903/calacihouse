@@ -103,6 +103,13 @@ body {
 
 .sidebar {
   width: 260px; background: var(--bg-surface); border-right: 1px solid var(--border-color); display: flex; flex-direction: column;
+  /* Pinned to the viewport instead of scrolling away with the page — stays
+     just below the sticky navbar and scrolls its own content internally if
+     the nav list itself is taller than the screen. align-self overrides the
+     flex row's default stretch, which would otherwise force this to match
+     main-content's (possibly much taller) height and break the sticking. */
+  position: sticky; top: var(--navbar-height, 64px); align-self: flex-start;
+  height: calc(100vh - var(--navbar-height, 64px)); overflow-y: auto;
 }
 
 .nav-section { padding: 1.25rem 0.85rem; display: flex; flex-direction: column; gap: 0.35rem; }
