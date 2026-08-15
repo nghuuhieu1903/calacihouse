@@ -3505,8 +3505,20 @@ function renderTenantInvoiceView() {
   const autoCalc = room ? calculateRoomServiceTotal(room) : { items: [] };
   const itemsList = (invoice.serviceItems && invoice.serviceItems.length > 0) ? invoice.serviceItems : autoCalc.items;
 
+  // elecFormula/waterFormula are only ever non-empty when a matching
+  // formula-type service was actually found for this room at invoice-
+  // generation time (see _rebuild_invoices in services.py) — an empty
+  // one means no such service is configured (deleted, or never set up;
+  // e.g. a room billed by "Tiền nước phòng" fixed fee instead of a
+  // by-meter service). These rows used to render unconditionally with a
+  // hardcoded "1."/"2."/"3." line numbering, showing a stale "Tiền Nước
+  // (0 m³)" line for rooms with no water-by-meter service at all.
+  let lineNo = 1;
+  const rentLineNo = lineNo++;
+  const elecLineNo = invoice.elecFormula ? lineNo++ : null;
+  const waterLineNo = invoice.waterFormula ? lineNo++ : null;
+
   let serviceRowsHtml = '';
-  let lineNo = 4;
   itemsList.forEach(item => {
     serviceRowsHtml += `
       <tr>
@@ -3563,25 +3575,27 @@ function renderTenantInvoiceView() {
           </tr>
         </thead>
         <tbody>
-          <tr><td style="padding:0.75rem; font-weight:bold;">1. ${t('line_room_rent')}</td><td style="padding:0.75rem;">${roomRentFormulaDescription(room, false)}</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(personalRent)} đ</td></tr>
+          <tr><td style="padding:0.75rem; font-weight:bold;">${rentLineNo}. ${t('line_room_rent')}</td><td style="padding:0.75rem;">${roomRentFormulaDescription(room, false)}</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(personalRent)} đ</td></tr>
+          ${elecLineNo ? `
           <tr>
-            <td style="padding:0.75rem; font-weight:bold;">2. ⚡ ${t('line_electricity')}
+            <td style="padding:0.75rem; font-weight:bold;">${elecLineNo}. ⚡ ${t('line_electricity')}
               <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${invoice.id}')">
                 <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
               </button>
             </td>
             <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, isDorm ? headcount : 0)}</small></td>
             <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(personalElec)} đ</td>
-          </tr>
+          </tr>` : ''}
+          ${waterLineNo ? `
           <tr>
-            <td style="padding:0.75rem; font-weight:bold;">3. 💧 ${t('line_water')}
+            <td style="padding:0.75rem; font-weight:bold;">${waterLineNo}. 💧 ${t('line_water')}
               <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${invoice.id}')">
                 <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
               </button>
             </td>
             <td style="padding:0.75rem;">${t('reading_label')} ${invoice.waterOld} ➔ ${invoice.waterNew} (${invoice.waterUsage} m³)<br><small style="color:#687176;">${getFormulaDescription(invoice.waterFormula, invoice.waterUsage)}</small></td>
             <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(invoice.waterCost)} đ</td>
-          </tr>
+          </tr>` : ''}
           ${serviceRowsHtml}
         </tbody>
       </table>
@@ -3621,8 +3635,17 @@ function viewInvoiceDetail(invoiceId) {
   const autoCalc = room ? calculateRoomServiceTotal(room) : { items: [] };
   const itemsList = (inv.serviceItems && inv.serviceItems.length > 0) ? inv.serviceItems : autoCalc.items;
 
+  // Same reasoning as renderTenantInvoiceView(): elecFormula/waterFormula
+  // are only non-empty when a matching formula-type service actually
+  // exists for this room — an empty one (e.g. water billed via "Tiền
+  // nước phòng" fixed fee, no by-meter service configured at all) used
+  // to still render a stale "Tiền nước (0 m³) — 0đ" row unconditionally.
+  let lineNo = 1;
+  const rentLineNo = lineNo++;
+  const elecLineNo = inv.elecFormula ? lineNo++ : null;
+  const waterLineNo = inv.waterFormula ? lineNo++ : null;
+
   let serviceRowsHtml = '';
-  let lineNo = 4;
   itemsList.forEach(item => {
     serviceRowsHtml += `<tr><td>${lineNo++}. ${item.symbol || '📦'} ${item.name} (${item.unit})</td><td style="text-align:right;">${formatMoney(item.total)} đ</td></tr>`;
   });
@@ -3632,17 +3655,19 @@ function viewInvoiceDetail(invoiceId) {
       <h3 style="color:#03121a;">${t('invoice_detail_title_prefix')}${inv.roomName}</h3>
       <div style="margin:1rem 0;">${t('tenant_colon_label')} <strong>${inv.tenant}</strong> (${inv.phone})</div>
       <table class="excel-table" style="color:#03121a;">
-        <tr><td>1. ${t('line_room_rent_short')}${room && room.roomType === 'dorm' ? `<br><small style="color:#687176;">${roomRentFormulaDescription(room, true)}</small>` : ''}</td><td style="text-align:right;">${formatMoney(inv.baseRent)} đ</td></tr>
-        <tr><td>2. ⚡ ${t('line_electricity_short')} (${inv.elecUsage} kWh)
+        <tr><td>${rentLineNo}. ${t('line_room_rent_short')}${room && room.roomType === 'dorm' ? `<br><small style="color:#687176;">${roomRentFormulaDescription(room, true)}</small>` : ''}</td><td style="text-align:right;">${formatMoney(inv.baseRent)} đ</td></tr>
+        ${elecLineNo ? `
+        <tr><td>${elecLineNo}. ⚡ ${t('line_electricity_short')} (${inv.elecUsage} kWh)
           <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${inv.id}')">
             <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
           </button>
-        </td><td style="text-align:right;">${formatMoney(inv.elecCost)} đ</td></tr>
-        <tr><td>3. 💧 ${t('line_water_short')} (${inv.waterUsage} m³)
+        </td><td style="text-align:right;">${formatMoney(inv.elecCost)} đ</td></tr>` : ''}
+        ${waterLineNo ? `
+        <tr><td>${waterLineNo}. 💧 ${t('line_water_short')} (${inv.waterUsage} m³)
           <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${inv.id}')">
             <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
           </button>
-        </td><td style="text-align:right;">${formatMoney(inv.waterCost)} đ</td></tr>
+        </td><td style="text-align:right;">${formatMoney(inv.waterCost)} đ</td></tr>` : ''}
         ${serviceRowsHtml}
         <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
       </table>
