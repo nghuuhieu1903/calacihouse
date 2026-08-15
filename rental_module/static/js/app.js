@@ -2607,6 +2607,12 @@ function renderSpreadsheet() {
     tr.innerHTML = rowHtml;
     tbody.appendChild(tr);
   });
+  // switchView() covers this on first navigating into this screen, but
+  // every edit (typing a reading, uploading a meter photo) calls
+  // renderSpreadsheet() again on its own afterward — without this, the
+  // freshly rebuilt <i data-lucide="camera/edit-3/eye"> tags stay
+  // un-rendered blank icons until the next full view switch.
+  lucide.createIcons();
 }
 
 function isReadingTextField(field) {
@@ -2802,6 +2808,7 @@ function renderAdminInvoices() {
     `;
     tbody.appendChild(tr);
   });
+  lucide.createIcons();
 }
 
 async function markInvoicePaidApi(invoiceId) {
