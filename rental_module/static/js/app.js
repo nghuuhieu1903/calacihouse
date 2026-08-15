@@ -2561,11 +2561,11 @@ function renderSpreadsheet() {
           rowHtml += `
             <td>
               <input type="number" class="excel-input" value="${oldVal || 0}" onchange="updateReadingApi('${r.id}', '${oldField}', this.value)">
-              ${meterPhotoButtonHtml(r.id, oldField, oldPhoto)}
+              ${meterPhotoButtonHtml(r.id, oldField + 'Photo', oldPhoto)}
             </td>
             <td>
               <input type="number" class="excel-input" value="${newVal || 0}" onchange="updateReadingApi('${r.id}', '${newField}', this.value)">
-              ${meterPhotoButtonHtml(r.id, newField, newPhoto)}
+              ${meterPhotoButtonHtml(r.id, newField + 'Photo', newPhoto)}
             </td>
             <td style="text-align: right; font-weight: 800; color: var(--cala-blue);">${usage}</td>
             <td style="text-align: right; font-weight: 700; color: var(--cala-blue);">${s.symbol || '🧮'} ${formatMoney(cost)} đ</td>
