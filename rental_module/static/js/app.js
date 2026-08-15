@@ -395,10 +395,11 @@ const I18N = {
     select_completion_photos: 'Chọn ảnh hoàn thành (tối đa 5 ảnh)',
     btn_send_reply: 'Gửi Phản Hồi',
     permissions_matrix_title: '🛠️ Bảng Phân Quyền Hạn Hệ Thống',
-    permissions_matrix_desc: 'Thiết lập quyền xem và chỉnh sửa dữ liệu cho từng nhóm tài khoản (Admin, Quản lý, Khách thuê)',
+    permissions_matrix_desc: 'Thiết lập quyền xem và chỉnh sửa dữ liệu cho từng nhóm tài khoản (Admin, Quản lý, Chủ đầu tư, Khách thuê)',
     th_permission_function: 'Quyền Hạn / Chức Năng',
     th_role_admin: '🔑 Quản Trị Viên (Admin)',
     th_role_manager: '💼 Quản Lý (Manager)',
+    th_role_investor: '🏘️ Chủ Đầu Tư (Investor)',
     th_role_tenant: '🏠 Khách Thuê (Tenant)',
     btn_save_permissions: 'Lưu Cấu Hình Phân Quyền',
     my_contract_title: 'Hợp Đồng & Tài Liệu Của Tôi',
@@ -886,10 +887,11 @@ const I18N = {
     select_completion_photos: 'Select completion photos (up to 5)',
     btn_send_reply: 'Send Reply',
     permissions_matrix_title: '🛠️ System Permissions Matrix',
-    permissions_matrix_desc: 'Set view and edit permissions for each account group (Admin, Manager, Tenant)',
+    permissions_matrix_desc: 'Set view and edit permissions for each account group (Admin, Manager, Investor, Tenant)',
     th_permission_function: 'Permission / Function',
     th_role_admin: '🔑 Administrator (Admin)',
     th_role_manager: '💼 Manager',
+    th_role_investor: '🏘️ Investor',
     th_role_tenant: '🏠 Tenant',
     btn_save_permissions: 'Save Permissions Configuration',
     my_contract_title: 'My Contract & Documents',
@@ -1316,6 +1318,7 @@ function setupUserRoleUI() {
     // admin-spreadsheet requires manage_services – managers are NOT allowed by default
     const tabs = {
       'admin-dashboard': '',
+      'admin-houses': 'manage_houses',
       'admin-spreadsheet': 'manage_services',
       'admin-invoices': 'view_all_invoices',
       'admin-investor-report': 'view_investor_report',
@@ -4732,6 +4735,9 @@ function renderAdminPermissions() {
       </td>
       <td style="text-align: center;">
         <input type="checkbox" data-permission="${p.key}" data-role="manager" ${p.manager ? 'checked' : ''}>
+      </td>
+      <td style="text-align: center;">
+        <input type="checkbox" data-permission="${p.key}" data-role="investor" ${p.investor ? 'checked' : ''}>
       </td>
       <td style="text-align: center;">
         <input type="checkbox" data-permission="${p.key}" data-role="tenant" ${p.tenant ? 'checked' : ''}>

@@ -126,15 +126,17 @@ DEFAULT_TICKETS = [
 ]
 
 DEFAULT_PERMISSIONS = [
-    {"key": "view_all_invoices", "name": "Xem tất cả hóa đơn các tòa nhà",          "admin": True, "manager": True,  "tenant": False},
-    {"key": "manage_invoices",   "name": "Tạo và sửa hóa đơn (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "tenant": False},
-    {"key": "view_all_tickets",  "name": "Xem tất cả báo lỗi (Tickets) các tòa nhà","admin": True, "manager": True,  "tenant": False},
-    {"key": "manage_tickets",    "name": "Bình luận và trả lời báo lỗi (Tickets)",   "admin": True, "manager": True,  "tenant": False},
-    {"key": "manage_rooms",      "name": "Quản lý phòng trọ - Thêm, Sửa (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "tenant": False},
-    {"key": "manage_services",   "name": "Cấu hình dịch vụ & công thức (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "tenant": False},
-    {"key": "manage_accounts",   "name": "Quản lý tài khoản người dùng (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "tenant": False},
-    {"key": "manage_permissions","name": "Quản lý phân quyền hệ thống",              "admin": True, "manager": False, "tenant": False},
-    {"key": "view_investor_report", "name": "Xem báo cáo chủ đầu tư",                "admin": True, "manager": False, "tenant": False}
+    {"key": "view_all_invoices", "name": "Xem tất cả hóa đơn các tòa nhà",          "admin": True, "manager": True,  "investor": False, "tenant": False},
+    {"key": "manage_invoices",   "name": "Tạo và sửa hóa đơn (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
+    {"key": "view_all_tickets",  "name": "Xem tất cả báo lỗi (Tickets) các tòa nhà","admin": True, "manager": True,  "investor": False, "tenant": False},
+    {"key": "manage_tickets",    "name": "Bình luận và trả lời báo lỗi (Tickets)",   "admin": True, "manager": True,  "investor": False, "tenant": False},
+    {"key": "manage_houses",     "name": "Quản lý tòa nhà - Thêm, Sửa (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
+    {"key": "manage_rooms",      "name": "Quản lý phòng trọ - Thêm, Sửa (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
+    {"key": "manage_services",   "name": "Cấu hình dịch vụ & công thức (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
+    {"key": "manage_accounts",   "name": "Quản lý tài khoản người dùng (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
+    {"key": "manage_permissions","name": "Quản lý phân quyền hệ thống",              "admin": True, "manager": False, "investor": False, "tenant": False},
+    {"key": "view_investor_report", "name": "Xem báo cáo chủ đầu tư",                "admin": True, "manager": False, "investor": False, "tenant": False},
+    {"key": "manage_investor_expenses", "name": "Quản lý chi phí đầu tư (lắp đặt/sửa chữa) (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False}
 ]
 
 DEFAULT_SITE_SETTINGS = {
@@ -856,7 +858,32 @@ class Storage:
 
     @staticmethod
     def get_permissions():
-        return Storage._kv_get('permissions', DEFAULT_PERMISSIONS)
+        """DEFAULT_PERMISSIONS only covers a brand-new install with no
+        'permissions' key saved yet — an existing install that already has
+        one keeps exactly that, verbatim, forever. That's right for values
+        an admin actually configured, but it also means a permission
+        row/role-column added here later (e.g. the "investor" column, or
+        the manage_houses/manage_investor_expenses rows) would silently
+        never appear for anyone who'd already saved the matrix once. Fill
+        in only what's missing — new rows appended, new per-role keys on
+        existing rows defaulted to False — without touching any value an
+        admin already set."""
+        stored = Storage._kv_get('permissions', None)
+        if stored is None:
+            return copy.deepcopy(DEFAULT_PERMISSIONS)
+
+        by_key = {p['key']: p for p in stored if 'key' in p}
+        merged = []
+        for default_row in DEFAULT_PERMISSIONS:
+            row = by_key.get(default_row['key'])
+            if row is None:
+                merged.append(copy.deepcopy(default_row))
+                continue
+            for role_key, default_value in default_row.items():
+                if role_key not in row:
+                    row[role_key] = default_value
+            merged.append(row)
+        return merged
 
     @staticmethod
     def save_permissions(permissions):
