@@ -665,19 +665,26 @@
         <div id="view-admin-permissions" class="view-panel" style="display: none;">
           <div style="margin-bottom: 1.5rem;">
             <h3 data-i18n="permissions_matrix_title">🛠️ Bảng Phân Quyền Hạn Hệ Thống</h3>
-            <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="permissions_matrix_desc">Thiết lập quyền xem và chỉnh sửa dữ liệu cho từng nhóm tài khoản (Admin, Quản lý, Chủ đầu tư, Khách thuê)</p>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="permissions_matrix_desc">Thiết lập quyền Xem / Thêm / Sửa cho từng nhóm tài khoản, theo từng chức năng (Quản lý, Chủ đầu tư, Khách thuê)</p>
           </div>
+
+          <div class="cala-card" style="background: var(--bg-base); margin-bottom: 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem; padding: 0.85rem 1.1rem;">
+            <i data-lucide="info" style="width: 16px; height: 16px; color: var(--cala-blue); flex-shrink: 0;"></i>
+            <span data-i18n="permissions_admin_note">🔑 Admin luôn có toàn quyền Xem/Thêm/Sửa ở mọi chức năng (trừ Xoá và bảng phân quyền này). Xoá chỉ dành riêng cho Super Admin, không thể cấp cho vai trò khác.</span>
+          </div>
+
+          <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;" id="permissions-role-tabs"></div>
 
           <div class="cala-card" style="padding: 1.25rem;">
             <div class="excel-table-wrapper">
               <table class="excel-table">
                 <thead>
                   <tr>
-                    <th style="width: 40%;" data-i18n="th_permission_function">Quyền Hạn / Chức Năng</th>
-                    <th style="text-align: center; width: 16%;" data-i18n="th_role_admin">🔑 Quản Trị Viên (Admin)</th>
-                    <th style="text-align: center; width: 16%;" data-i18n="th_role_manager">💼 Quản Lý (Manager)</th>
-                    <th style="text-align: center; width: 16%;" data-i18n="th_role_investor">🏘️ Chủ Đầu Tư (Investor)</th>
-                    <th style="text-align: center; width: 16%;" data-i18n="th_role_tenant">🏠 Khách Thuê (Tenant)</th>
+                    <th style="width: 40%;" data-i18n="th_permission_function">Chức Năng</th>
+                    <th style="text-align: center;" data-i18n="th_action_view">👁️ Xem</th>
+                    <th style="text-align: center;" data-i18n="th_action_create">➕ Thêm</th>
+                    <th style="text-align: center;" data-i18n="th_action_edit">✏️ Sửa</th>
+                    <th style="text-align: center;" data-i18n="th_action_delete">🗑️ Xoá</th>
                   </tr>
                 </thead>
                 <tbody id="permissions-matrix-tbody">

@@ -395,12 +395,21 @@ const I18N = {
     select_completion_photos: 'Chọn ảnh hoàn thành (tối đa 5 ảnh)',
     btn_send_reply: 'Gửi Phản Hồi',
     permissions_matrix_title: '🛠️ Bảng Phân Quyền Hạn Hệ Thống',
-    permissions_matrix_desc: 'Thiết lập quyền xem và chỉnh sửa dữ liệu cho từng nhóm tài khoản (Admin, Quản lý, Chủ đầu tư, Khách thuê)',
-    th_permission_function: 'Quyền Hạn / Chức Năng',
+    permissions_matrix_desc: 'Thiết lập quyền Xem / Thêm / Sửa cho từng nhóm tài khoản, theo từng chức năng (Quản lý, Chủ đầu tư, Khách thuê)',
+    permissions_admin_note: '🔑 Admin luôn có toàn quyền Xem/Thêm/Sửa ở mọi chức năng (trừ Xoá và bảng phân quyền này). Xoá chỉ dành riêng cho Super Admin, không thể cấp cho vai trò khác.',
+    th_permission_function: 'Chức Năng',
     th_role_admin: '🔑 Quản Trị Viên (Admin)',
     th_role_manager: '💼 Quản Lý (Manager)',
     th_role_investor: '🏘️ Chủ Đầu Tư (Investor)',
     th_role_tenant: '🏠 Khách Thuê (Tenant)',
+    th_action_view: '👁️ Xem',
+    th_action_create: '➕ Thêm',
+    th_action_edit: '✏️ Sửa',
+    th_action_delete: '🗑️ Xoá',
+    tab_role_manager: 'Quản Lý',
+    tab_role_investor: 'Chủ Đầu Tư',
+    tab_role_tenant: 'Khách Thuê',
+    hint_delete_superadmin_only: 'Chỉ Super Admin mới xoá được',
     btn_save_permissions: 'Lưu Cấu Hình Phân Quyền',
     my_contract_title: 'Hợp Đồng & Tài Liệu Của Tôi',
     my_contract_desc: 'Ảnh hợp đồng thuê nhà và các tài liệu liên quan do chủ nhà cung cấp',
@@ -887,12 +896,21 @@ const I18N = {
     select_completion_photos: 'Select completion photos (up to 5)',
     btn_send_reply: 'Send Reply',
     permissions_matrix_title: '🛠️ System Permissions Matrix',
-    permissions_matrix_desc: 'Set view and edit permissions for each account group (Admin, Manager, Investor, Tenant)',
-    th_permission_function: 'Permission / Function',
+    permissions_matrix_desc: 'Set View / Create / Edit permissions per account group and function (Manager, Investor, Tenant)',
+    permissions_admin_note: '🔑 Admin always has full View/Create/Edit access to every function (except Delete and this permissions screen itself). Delete is reserved for Super Admin only and can\'t be granted to any other role.',
+    th_permission_function: 'Function',
     th_role_admin: '🔑 Administrator (Admin)',
     th_role_manager: '💼 Manager',
     th_role_investor: '🏘️ Investor',
     th_role_tenant: '🏠 Tenant',
+    th_action_view: '👁️ View',
+    th_action_create: '➕ Create',
+    th_action_edit: '✏️ Edit',
+    th_action_delete: '🗑️ Delete',
+    tab_role_manager: 'Manager',
+    tab_role_investor: 'Investor',
+    tab_role_tenant: 'Tenant',
+    hint_delete_superadmin_only: 'Only Super Admin can delete',
     btn_save_permissions: 'Save Permissions Configuration',
     my_contract_title: 'My Contract & Documents',
     my_contract_desc: 'Rental contract photos and related documents provided by the landlord',
@@ -1257,22 +1275,24 @@ function canDelete() {
   return !!(state.currentUser && state.currentUser.role === 'superadmin');
 }
 
-function hasPermission(role, permissionKey) {
+// Feature x action(view/create/edit/delete) permissions — mirrors
+// permission_required() in auth.py exactly (same feature keys, same
+// role/action carve-outs), since this only drives what's SHOWN in the UI;
+// the backend decorator is the actual authority. 'delete' isn't stored in
+// the matrix at all (always superadmin-only, a fixed rule from the
+// original 5-role design) — canDelete() already covers that everywhere
+// this matters, so it's never passed as an action here.
+function hasPermission(role, featureKey, action) {
   if (role === 'superadmin') return true;
-  // "admin" sees/manages everything superadmin does except editing the
-  // permission matrix itself (that stays a superadmin-only lever) — this
-  // is unconditional, not driven by the matrix below, so promoting someone
-  // to admin never needs a matrix visit first.
-  if (role === 'admin') return permissionKey !== 'manage_permissions';
-  if (!state.permissions || state.permissions.length === 0) {
-    if (role === 'manager') {
-      // Manager mặc định: chỉ xem hóa đơn và ticket, không được cấu hình dịch vụ
-      return ['view_all_invoices', 'view_all_tickets', 'manage_tickets'].includes(permissionKey);
-    }
-    return false;
-  }
-  const perm = state.permissions.find(p => p.key === permissionKey);
-  return perm ? !!perm[role] : false;
+  // "admin" sees/manages everything superadmin does except deleting and
+  // editing the permission matrix itself — both unconditional, not driven
+  // by the matrix below, so promoting someone to admin never needs a
+  // matrix visit first.
+  if (role === 'admin') return true;
+  if (!state.permissions) return false;
+  const feature = state.permissions.find(p => p.key === featureKey);
+  if (!feature || !feature[role]) return false;
+  return !!feature[role][action];
 }
 
 function setupUserRoleUI() {
@@ -1314,26 +1334,27 @@ function setupUserRoleUI() {
     if (investorNav) investorNav.style.display = 'none';
     if (houseBox) houseBox.style.display = 'flex';
 
-    // Hide/show sidebar elements based on permissions
-    // admin-spreadsheet requires manage_services – managers are NOT allowed by default
+    // Hide/show sidebar elements based on permissions — each tab needs
+    // 'view' on the matching feature. admin-spreadsheet checks 'edit' on
+    // services instead: it's where readings actually get entered/changed,
+    // not just viewed, and managers are NOT allowed by default.
     const tabs = {
-      'admin-dashboard': '',
-      'admin-houses': 'manage_houses',
-      'admin-spreadsheet': 'manage_services',
-      'admin-invoices': 'view_all_invoices',
-      'admin-investor-report': 'view_investor_report',
-      'admin-rooms': 'manage_rooms',
-      'admin-tickets': 'view_all_tickets',
-      'admin-users': 'manage_accounts',
-      'admin-permissions': 'manage_permissions'
+      'admin-dashboard': null,
+      'admin-houses': ['houses', 'view'],
+      'admin-spreadsheet': ['services', 'edit'],
+      'admin-invoices': ['invoices', 'view'],
+      'admin-investor-report': ['investor_report', 'view'],
+      'admin-rooms': ['rooms', 'view'],
+      'admin-tickets': ['tickets', 'view'],
+      'admin-users': ['accounts', 'view']
     };
 
     let firstView = null;
     Object.keys(tabs).forEach(view => {
       const btn = document.querySelector(`.admin-nav [data-view="${view}"]`);
       if (btn) {
-        const key = tabs[view];
-        const allowed = !key || hasPermission(user.role, key);
+        const pair = tabs[view];
+        const allowed = !pair || hasPermission(user.role, pair[0], pair[1]);
         btn.style.display = allowed ? 'flex' : 'none';
         if (allowed && !firstView) {
           firstView = view;
@@ -1341,11 +1362,13 @@ function setupUserRoleUI() {
       }
     });
 
-    // Not part of the `tabs` map above since it opens a modal rather than
-    // switching to a view (no data-view attribute for that loop to find).
-    // Site-wide branding/SEO is superadmin-only, same sensitivity as
-    // Phân Quyền Hệ Thống — matches /api/settings/save's own
-    // @superadmin_required server-side.
+    // Phân Quyền Hệ Thống and Thiết Lập Trang aren't in the `tabs` map
+    // above — both are fixed superadmin-only levers, never driven by the
+    // matrix itself (you can't grant "edit the permission matrix" via the
+    // permission matrix), matching their routes' @superadmin_required
+    // server-side.
+    const permissionsNav = document.querySelector('.admin-nav [data-view="admin-permissions"]');
+    if (permissionsNav) permissionsNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
     const siteSettingsNav = document.getElementById('nav-site-settings');
     if (siteSettingsNav) siteSettingsNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
 
@@ -4721,46 +4744,76 @@ async function submitTenantTicketComment() {
   showToast(t('toast_comment_sent'), 'success');
 }
 
+// Feature x action(view/create/edit/delete) permissions, one role edited
+// at a time (role tabs, like the reference screenshot) rather than every
+// role crammed into one wide table. 'delete' is never a real checkbox —
+// it's a fixed superadmin-only rule from the original 5-role design, not
+// a per-role toggle — so that column always renders locked.
+const PERMISSION_ROLES = ['manager', 'investor', 'tenant'];
+let permissionsActiveRole = 'manager';
+
+// Reads the currently-visible tab's checkboxes back into state.permissions
+// before switching tabs or saving, so edits to a role you're not currently
+// looking at (already synced from an earlier tab visit) aren't lost.
+function syncPermissionsTabToState() {
+  const role = permissionsActiveRole;
+  document.querySelectorAll('#permissions-matrix-tbody input[type="checkbox"]').forEach(cb => {
+    const featureKey = cb.getAttribute('data-feature');
+    const action = cb.getAttribute('data-action');
+    const feature = state.permissions.find(p => p.key === featureKey);
+    if (feature && feature[role]) feature[role][action] = cb.checked;
+  });
+}
+
+function switchPermissionsRoleTab(role) {
+  syncPermissionsTabToState();
+  permissionsActiveRole = role;
+  renderAdminPermissions();
+}
+
 function renderAdminPermissions() {
+  const tabsContainer = document.getElementById('permissions-role-tabs');
+  const roleTabLabels = {
+    manager: `💼 ${t('tab_role_manager')}`,
+    investor: `🏘️ ${t('tab_role_investor')}`,
+    tenant: `🏠 ${t('tab_role_tenant')}`
+  };
+  if (tabsContainer) {
+    tabsContainer.innerHTML = PERMISSION_ROLES.map(role => `
+      <button type="button" class="btn ${role === permissionsActiveRole ? 'btn-blue' : 'btn-secondary'} btn-sm" onclick="switchPermissionsRoleTab('${role}')">
+        ${roleTabLabels[role]}
+      </button>
+    `).join('');
+  }
+
   const tbody = document.getElementById('permissions-matrix-tbody');
   if (!tbody) return;
+
+  const roleData = f => f[permissionsActiveRole] || {};
+  const cellHtml = (f, action) => {
+    const data = roleData(f);
+    if (!(action in data)) return `<td style="text-align:center; color:var(--text-muted);">—</td>`;
+    return `<td style="text-align:center;"><input type="checkbox" data-feature="${f.key}" data-action="${action}" ${data[action] ? 'checked' : ''}></td>`;
+  };
 
   tbody.innerHTML = '';
   state.permissions.forEach(p => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td style="font-weight: 600; padding: 0.75rem 1rem;">${p.name}</td>
-      <td style="text-align: center;">
-        <input type="checkbox" data-permission="${p.key}" data-role="admin" ${p.admin ? 'checked' : ''}>
-      </td>
-      <td style="text-align: center;">
-        <input type="checkbox" data-permission="${p.key}" data-role="manager" ${p.manager ? 'checked' : ''}>
-      </td>
-      <td style="text-align: center;">
-        <input type="checkbox" data-permission="${p.key}" data-role="investor" ${p.investor ? 'checked' : ''}>
-      </td>
-      <td style="text-align: center;">
-        <input type="checkbox" data-permission="${p.key}" data-role="tenant" ${p.tenant ? 'checked' : ''}>
-      </td>
+      ${cellHtml(p, 'view')}
+      ${cellHtml(p, 'create')}
+      ${cellHtml(p, 'edit')}
+      <td style="text-align:center; color:var(--text-muted);" title="${t('hint_delete_superadmin_only')}"><i data-lucide="lock" style="width:14px; height:14px;"></i></td>
     `;
     tbody.appendChild(tr);
   });
+  lucide.createIcons();
 }
 
 async function savePermissionsMatrix() {
-  const checkboxes = document.querySelectorAll('#permissions-matrix-tbody input[type="checkbox"]');
+  syncPermissionsTabToState();
   const matrix = JSON.parse(JSON.stringify(state.permissions));
-
-  checkboxes.forEach(cb => {
-    const permKey = cb.getAttribute('data-permission');
-    const role = cb.getAttribute('data-role');
-    const checked = cb.checked;
-    
-    const p = matrix.find(x => x.key === permKey);
-    if (p) {
-      p[role] = checked;
-    }
-  });
 
   try {
     await fetch(`${API_BASE}/permissions/save`, {

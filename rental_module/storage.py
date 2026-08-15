@@ -125,18 +125,66 @@ DEFAULT_TICKETS = [
     }
 ]
 
+
+# Feature x action(view/create/edit/delete) x role matrix — replaces the old
+# one-flat-checkbox-per-function shape. Delete isn't stored per role: it's
+# always superadmin-only everywhere (a fixed rule going back to the original
+# 5-role design, unrelated to this matrix), so it isn't a togglable value
+# here at all — the UI shows it locked, not editable. Admin/superadmin
+# aren't stored either: admin is unconditionally full access except delete
+# (hasPermission()/permission_required() special-case this), superadmin is
+# unconditionally everything. Only manager/investor/tenant are configurable.
+# investor_report has no create/edit — it's a read-only report, not a
+# feature with records to add/change.
 DEFAULT_PERMISSIONS = [
-    {"key": "view_all_invoices", "name": "Xem tất cả hóa đơn các tòa nhà",          "admin": True, "manager": True,  "investor": False, "tenant": False},
-    {"key": "manage_invoices",   "name": "Tạo và sửa hóa đơn (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
-    {"key": "view_all_tickets",  "name": "Xem tất cả báo lỗi (Tickets) các tòa nhà","admin": True, "manager": True,  "investor": False, "tenant": False},
-    {"key": "manage_tickets",    "name": "Bình luận và trả lời báo lỗi (Tickets)",   "admin": True, "manager": True,  "investor": False, "tenant": False},
-    {"key": "manage_houses",     "name": "Quản lý tòa nhà - Thêm, Sửa (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
-    {"key": "manage_rooms",      "name": "Quản lý phòng trọ - Thêm, Sửa (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
-    {"key": "manage_services",   "name": "Cấu hình dịch vụ & công thức (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
-    {"key": "manage_accounts",   "name": "Quản lý tài khoản người dùng (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False},
-    {"key": "manage_permissions","name": "Quản lý phân quyền hệ thống",              "admin": True, "manager": False, "investor": False, "tenant": False},
-    {"key": "view_investor_report", "name": "Xem báo cáo chủ đầu tư",                "admin": True, "manager": False, "investor": False, "tenant": False},
-    {"key": "manage_investor_expenses", "name": "Quản lý chi phí đầu tư (lắp đặt/sửa chữa) (Xóa luôn chỉ dành riêng cho Admin)", "admin": True, "manager": False, "investor": False, "tenant": False}
+    {
+        "key": "houses", "name": "Tòa Nhà",
+        "manager":  {"view": True,  "create": False, "edit": False},
+        "investor": {"view": False, "create": False, "edit": False},
+        "tenant":   {"view": False, "create": False, "edit": False}
+    },
+    {
+        "key": "rooms", "name": "Phòng",
+        "manager":  {"view": True,  "create": False, "edit": False},
+        "investor": {"view": False, "create": False, "edit": False},
+        "tenant":   {"view": False, "create": False, "edit": False}
+    },
+    {
+        "key": "services", "name": "Dịch Vụ & Công Thức",
+        "manager":  {"view": True,  "create": False, "edit": False},
+        "investor": {"view": False, "create": False, "edit": False},
+        "tenant":   {"view": False, "create": False, "edit": False}
+    },
+    {
+        "key": "invoices", "name": "Hóa Đơn",
+        "manager":  {"view": True,  "create": False, "edit": False},
+        "investor": {"view": False, "create": False, "edit": False},
+        "tenant":   {"view": False, "create": False, "edit": False}
+    },
+    {
+        "key": "tickets", "name": "Báo Lỗi (Tickets)",
+        "manager":  {"view": True,  "create": False, "edit": True},
+        "investor": {"view": False, "create": False, "edit": False},
+        "tenant":   {"view": False, "create": False, "edit": False}
+    },
+    {
+        "key": "accounts", "name": "Tài Khoản Người Dùng",
+        "manager":  {"view": False, "create": False, "edit": False},
+        "investor": {"view": False, "create": False, "edit": False},
+        "tenant":   {"view": False, "create": False, "edit": False}
+    },
+    {
+        "key": "investor_expenses", "name": "Chi Phí Đầu Tư (lắp đặt/sửa chữa)",
+        "manager":  {"view": False, "create": False, "edit": False},
+        "investor": {"view": False, "create": False, "edit": False},
+        "tenant":   {"view": False, "create": False, "edit": False}
+    },
+    {
+        "key": "investor_report", "name": "Báo Cáo Chủ Đầu Tư",
+        "manager":  {"view": False},
+        "investor": {"view": False},
+        "tenant":   {"view": False}
+    }
 ]
 
 DEFAULT_SITE_SETTINGS = {
@@ -861,13 +909,16 @@ class Storage:
         """DEFAULT_PERMISSIONS only covers a brand-new install with no
         'permissions' key saved yet — an existing install that already has
         one keeps exactly that, verbatim, forever. That's right for values
-        an admin actually configured, but it also means a permission
-        row/role-column added here later (e.g. the "investor" column, or
-        the manage_houses/manage_investor_expenses rows) would silently
-        never appear for anyone who'd already saved the matrix once. Fill
-        in only what's missing — new rows appended, new per-role keys on
-        existing rows defaulted to False — without touching any value an
-        admin already set."""
+        an admin actually configured, but it also means a feature row or
+        role/action added here later would silently never appear for
+        anyone who'd already saved the matrix once. Fill in only what's
+        missing — new rows appended, new roles/actions on an existing row
+        defaulted from DEFAULT_PERMISSIONS — without touching any value an
+        admin already set. A stored role value that isn't the expected
+        {view,create,edit,...} dict (the old flat-boolean matrix shape,
+        from before this feature/action/role structure existed) can't be
+        meaningfully migrated one-to-one, so it's replaced with that role's
+        fresh default rather than left in an inconsistent shape."""
         stored = Storage._kv_get('permissions', None)
         if stored is None:
             return copy.deepcopy(DEFAULT_PERMISSIONS)
@@ -879,10 +930,18 @@ class Storage:
             if row is None:
                 merged.append(copy.deepcopy(default_row))
                 continue
-            for role_key, default_value in default_row.items():
-                if role_key not in row:
-                    row[role_key] = default_value
-            merged.append(row)
+            merged_row = {'key': default_row['key'], 'name': row.get('name', default_row['name'])}
+            for role in ('manager', 'investor', 'tenant'):
+                if role not in default_row:
+                    continue
+                stored_role_val = row.get(role)
+                if isinstance(stored_role_val, dict):
+                    merged_actions = dict(default_row[role])
+                    merged_actions.update(stored_role_val)
+                    merged_row[role] = merged_actions
+                else:
+                    merged_row[role] = copy.deepcopy(default_row[role])
+            merged.append(merged_row)
         return merged
 
     @staticmethod
