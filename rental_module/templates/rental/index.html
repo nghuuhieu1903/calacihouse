@@ -920,6 +920,24 @@
           <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.4rem;" data-i18n="hint_custom_formula">Chỉ dùng số, chữ x, và các phép + − × ÷ ( ). Ví dụ: x*3500 (đơn giá cố định/đơn vị), (x-50)*3500 (trừ 50 đơn vị miễn phí).</p>
         </div>
 
+        <!-- INVESTOR REVENUE-SHARE SETTINGS — không áp dụng cho tiền phòng (luôn gửi đủ) -->
+        <div style="margin-bottom: 1.25rem; background: var(--bg-base); padding: 0.85rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; font-weight: 700; cursor: pointer;">
+            <input type="checkbox" id="service-investor-enabled" onchange="toggleServiceInvestorFields()">
+            <span data-i18n="lbl_investor_share_enabled">Gửi dịch vụ này cho Chủ Đầu Tư xem trong báo cáo</span>
+          </label>
+          <div id="box-service-investor-fields" style="display: none; margin-top: 0.75rem;">
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_investor_share_mode">Số tiền gửi cho Chủ Đầu Tư</label>
+            <select id="service-investor-mode" class="form-control" onchange="toggleServiceInvestorFields()" style="margin-bottom: 0.6rem;">
+              <option value="full" data-i18n="option_investor_full">Gửi toàn bộ (100%)</option>
+              <option value="percent" data-i18n="option_investor_percent">Theo phần trăm (%)</option>
+              <option value="fixed" data-i18n="option_investor_fixed">Số tiền cố định / tháng (VNĐ)</option>
+            </select>
+            <input type="number" id="service-investor-value" class="form-control" placeholder="VD: 50" style="display: none;">
+            <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.4rem;" data-i18n="hint_investor_share">Nếu không tích, dịch vụ này sẽ không xuất hiện trong báo cáo gửi Chủ Đầu Tư. Tiền phòng luôn được gửi đủ 100%, không cần cài đặt.</p>
+          </div>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modal-service-config')" data-i18n="btn_cancel">Hủy</button>
           <button type="submit" class="btn btn-orange" data-i18n="btn_save_service">Lưu Dịch Vụ</button>

@@ -238,7 +238,27 @@ def _room(row):
         'contractEnd': row.get('contract_end') or ''
     }
 
+def _default_investor_share(name, calc_type):
+    """A service saved before the investor-share feature existed has no
+    stored value at all — fall back to whatever the OLD hardcoded investor
+    report formula did for that kind of service, so nothing already being
+    shared with an investor silently drops to 0 the moment this ships:
+    electricity was always excluded ("đã được quản lý xử lý riêng"), water
+    was always shared at a flat 50%, and every other (fixed-price) service
+    was fully included via the old lump-sum "otherFees" total."""
+    is_electricity = calc_type == 'formula' and 'điện' in (name or '').lower()
+    if is_electricity:
+        return {'enabled': False, 'mode': 'full', 'value': 0}
+    is_water_formula = calc_type == 'formula'
+    if is_water_formula:
+        return {'enabled': True, 'mode': 'percent', 'value': 50}
+    return {'enabled': True, 'mode': 'full', 'value': 0}
+
+
 def _service(row):
+    investor_share = json.loads(row['investor_share']) if row.get('investor_share') else None
+    if investor_share is None:
+        investor_share = _default_investor_share(row['name'], row['calc_type'] or 'fixed')
     return {
         'id': row['id'],
         'houseId': row['house_id'] or '',
@@ -254,7 +274,8 @@ def _service(row):
         # the service's own inline expression string, e.g. "x*3500", instead
         # of a shared formula library id.
         'customFormula': row['formula_id'] or '',
-        'applyRooms': json.loads(row['apply_rooms']) if row['apply_rooms'] else []
+        'applyRooms': json.loads(row['apply_rooms']) if row['apply_rooms'] else [],
+        'investorShare': investor_share
     }
 
 def _formula(row):
@@ -602,10 +623,11 @@ class Storage:
         conn = get_db()
         try:
             with conn.cursor() as cur:
+                investor_share = s.get('investorShare') or _default_investor_share(s.get('name', ''), s.get('calcType', 'fixed'))
                 cur.execute(
                     "REPLACE INTO services "
-                    "(id, house_id, name, price, unit, icon, symbol, calc_type, formula_id, house_ids, room_ids, apply_rooms) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, house_id, name, price, unit, icon, symbol, calc_type, formula_id, house_ids, room_ids, apply_rooms, investor_share) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         s['id'],
                         s.get('houseId', ''),
@@ -618,7 +640,8 @@ class Storage:
                         s.get('customFormula') or '',
                         json.dumps(s.get('houseIds', ['all'])),
                         json.dumps(s.get('roomIds', ['all'])),
-                        json.dumps(s.get('applyRooms', []))
+                        json.dumps(s.get('applyRooms', [])),
+                        json.dumps(investor_share)
                     )
                 )
             conn.commit()

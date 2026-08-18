@@ -90,7 +90,8 @@ def save_service():
         data.get('customFormula'),
         data.get('icon'),
         data.get('symbol'),
-        data.get('roomIds')
+        data.get('roomIds'),
+        data.get('investorShare')
     )
     return jsonify({'success': True, 'service': s_obj})
 

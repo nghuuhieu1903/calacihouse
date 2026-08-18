@@ -99,7 +99,8 @@ SCHEMA_STATEMENTS = [
         formula_id   VARCHAR(191) DEFAULT '',
         house_ids    TEXT,
         room_ids     TEXT,
-        apply_rooms  TEXT
+        apply_rooms  TEXT,
+        investor_share TEXT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
     """
@@ -190,6 +191,7 @@ def init_db():
             _ensure_column(cur, 'rooms', 'room_type', "VARCHAR(32) DEFAULT 'single'")
             _ensure_column(cur, 'rooms', 'contract_start', "VARCHAR(10) DEFAULT ''")
             _ensure_column(cur, 'rooms', 'contract_end', "VARCHAR(10) DEFAULT ''")
+            _ensure_column(cur, 'services', 'investor_share', "TEXT")
             _promote_admins_to_superadmin(cur)
         conn.commit()
     finally:

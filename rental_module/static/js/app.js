@@ -353,6 +353,7 @@ const I18N = {
     ir_of_label: 'của',
     ir_line_elec_excluded: 'Tiền điện (không tính, đã xử lý riêng)',
     ir_not_counted_label: 'Không tính',
+    ir_fixed_amount_label: 'số tiền cố định',
     ir_line_expenses: 'Trừ chi phí lắp đặt / sửa chữa',
     ir_line_net_revenue: 'Doanh thu chia sẻ',
     ir_line_manager_share: 'Phần quản lý giữ lại',
@@ -854,6 +855,7 @@ const I18N = {
     ir_of_label: 'of',
     ir_line_elec_excluded: 'Electricity fee (excluded, handled separately)',
     ir_not_counted_label: 'Not counted',
+    ir_fixed_amount_label: 'fixed amount',
     ir_line_expenses: 'Less: installation / repair costs',
     ir_line_net_revenue: 'Shared revenue',
     ir_line_manager_share: 'Management share',
@@ -2100,6 +2102,17 @@ function toggleServiceCalcFields() {
   }
 }
 
+function toggleServiceInvestorFields() {
+  const enabled = document.getElementById('service-investor-enabled').checked;
+  const box = document.getElementById('box-service-investor-fields');
+  const mode = document.getElementById('service-investor-mode').value;
+  const valueInput = document.getElementById('service-investor-value');
+
+  box.style.display = enabled ? 'block' : 'none';
+  valueInput.style.display = mode === 'full' ? 'none' : 'block';
+  valueInput.placeholder = mode === 'percent' ? 'VD: 50' : 'VD: 50000';
+}
+
 function openAddServiceModal() {
   document.getElementById('service-id').value = '';
   document.getElementById('service-name').value = '';
@@ -2109,9 +2122,13 @@ function openAddServiceModal() {
   document.getElementById('service-price').value = '50000';
   document.getElementById('service-unit').value = 'Cố định / phòng';
   document.getElementById('service-custom-formula').value = '';
+  document.getElementById('service-investor-enabled').checked = true;
+  document.getElementById('service-investor-mode').value = 'full';
+  document.getElementById('service-investor-value').value = '';
 
   renderIconPicker('package');
   toggleServiceCalcFields();
+  toggleServiceInvestorFields();
 
   const initialHouseSelected = state.currentHouseId === 'all' ? ['all'] : [state.currentHouseId];
   const initialRoomSelected = state.currentRoomId === 'all' ? ['all'] : [state.currentRoomId];
@@ -2148,6 +2165,12 @@ function editService(srvId) {
     document.getElementById('service-unit').value = srv.unit || 'Cố định / phòng';
   }
 
+  const investorShare = srv.investorShare || { enabled: true, mode: 'full', value: 0 };
+  document.getElementById('service-investor-enabled').checked = !!investorShare.enabled;
+  document.getElementById('service-investor-mode').value = investorShare.mode || 'full';
+  document.getElementById('service-investor-value').value = investorShare.value || '';
+  toggleServiceInvestorFields();
+
   document.getElementById('modal-service-config').classList.add('active');
 }
 
@@ -2161,7 +2184,11 @@ async function saveService(event) {
   const calcType = document.getElementById('service-calc-type').value;
 
   const houseId = selectedHouseIds.length === 1 ? selectedHouseIds[0] : 'all';
-  let sObj = { id: id || genId('srv_'), houseId, houseIds: selectedHouseIds, roomIds: selectedRoomIds, name, icon, symbol, calcType };
+  const investorEnabled = document.getElementById('service-investor-enabled').checked;
+  const investorMode = document.getElementById('service-investor-mode').value;
+  const investorValue = parseFloat(document.getElementById('service-investor-value').value) || 0;
+  const investorShare = { enabled: investorEnabled, mode: investorMode, value: investorMode === 'full' ? 0 : investorValue };
+  let sObj = { id: id || genId('srv_'), houseId, houseIds: selectedHouseIds, roomIds: selectedRoomIds, name, icon, symbol, calcType, investorShare };
 
   if (calcType === 'formula') {
     const customFormula = document.getElementById('service-custom-formula').value.trim();
@@ -2843,24 +2870,66 @@ function updateInvestorFeePercent(value) {
   renderInvestorReport();
 }
 
+// Applies one service's investor-share config to an actually-billed amount:
+// disabled -> nothing sent to the investor; full -> the whole amount;
+// percent -> a configured % of it; fixed -> a flat VNĐ figure regardless of
+// the real amount (the gap is the admin's undisclosed profit margin).
+function investorShareForAmount(investorShare, actualAmount) {
+  if (!investorShare || !investorShare.enabled) return 0;
+  const mode = investorShare.mode || 'full';
+  if (mode === 'percent') return actualAmount * ((investorShare.value || 0) / 100);
+  if (mode === 'fixed') return investorShare.value || 0;
+  return actualAmount;
+}
+
 function computeInvestorReportData(houseId, month) {
   const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId);
+  // Room rent is always sent to the investor in full — it's not part of
+  // the per-service opt-in/opt-out system at all.
   const rent = invoices.reduce((s, i) => s + (i.baseRent || 0), 0);
-  const other = invoices.reduce((s, i) => s + (i.otherFees || 0), 0);
-  const water = invoices.reduce((s, i) => s + (i.waterCost || 0), 0);
-  const elec = invoices.reduce((s, i) => s + (i.elecCost || 0), 0);
-  const waterShare = water * 0.5;
+
+  const serviceTotals = {};
+  invoices.forEach(inv => {
+    // elecCost/waterCost aren't tagged with a service id on the invoice —
+    // re-derive which formula service produced each one the same way
+    // generateAndSendAllInvoices() does (name-contains-"Điện" convention).
+    const formulaServices = state.services.filter(s => s.calcType === 'formula' && serviceMatchesHouse(s, inv.houseId) && serviceMatchesRoom(s, inv.roomId));
+    formulaServices.forEach(s => {
+      if (!s.investorShare || !s.investorShare.enabled) return;
+      const isElec = s.name.includes('Điện');
+      const actual = isElec ? (inv.elecCost || 0) : (inv.waterCost || 0);
+      const key = s.id;
+      if (!serviceTotals[key]) {
+        serviceTotals[key] = { name: s.name, symbol: s.symbol || (isElec ? '⚡' : '💧'), mode: s.investorShare.mode || 'full', value: s.investorShare.value || 0, shared: 0 };
+      }
+      serviceTotals[key].shared += investorShareForAmount(s.investorShare, actual);
+    });
+
+    (inv.serviceItems || []).forEach(item => {
+      const s = state.services.find(sv => sv.id === item.id);
+      const investorShare = s ? s.investorShare : { enabled: true, mode: 'full', value: 0 };
+      if (!investorShare || !investorShare.enabled) return;
+      const key = item.id;
+      if (!serviceTotals[key]) {
+        serviceTotals[key] = { name: item.name, symbol: item.symbol || '📦', mode: investorShare.mode || 'full', value: investorShare.value || 0, shared: 0 };
+      }
+      serviceTotals[key].shared += investorShareForAmount(investorShare, item.total || 0);
+    });
+  });
+
+  const serviceBreakdown = Object.values(serviceTotals);
+  const servicesShared = serviceBreakdown.reduce((s, x) => s + x.shared, 0);
 
   const expenses = state.investorExpenses
     .filter(e => e.month === month && e.houseId === houseId)
     .reduce((s, e) => s + (e.amount || 0), 0);
 
-  const sharedRevenue = rent + other + waterShare - expenses;
+  const sharedRevenue = rent + servicesShared - expenses;
   const feePercent = state.investorFeePercent != null ? state.investorFeePercent : 20;
   const managerShare = sharedRevenue * (feePercent / 100);
   const investorShare = sharedRevenue - managerShare;
 
-  return { invoiceCount: invoices.length, rent, other, water, waterShare, elec, expenses, sharedRevenue, feePercent, managerShare, investorShare };
+  return { invoiceCount: invoices.length, rent, serviceBreakdown, servicesShared, expenses, sharedRevenue, feePercent, managerShare, investorShare };
 }
 
 function renderInvestorReportCard(house, d) {
@@ -2879,12 +2948,10 @@ function renderInvestorReportCard(house, d) {
 
       <div style="display:flex; flex-direction:column; gap:0.65rem; font-size:0.92rem;">
         ${line('🏠 ' + t('ir_line_rent'), d.rent)}
-        ${line('🧾 ' + t('ir_line_other_services'), d.other)}
-        ${line(`💧 ${t('ir_line_water_share')} (${t('ir_of_label')} ${formatMoney(d.water)}đ)`, d.waterShare, { prefix: '+' })}
-        <div style="display:flex; justify-content:space-between; gap:1rem; color:var(--text-muted);">
-          <span>⚡ ${t('ir_line_elec_excluded')} (${formatMoney(d.elec)}đ)</span>
-          <strong>${t('ir_not_counted_label')}</strong>
-        </div>
+        ${d.serviceBreakdown.map(sv => line(
+          `${sv.symbol} ${sv.name}${sv.mode !== 'full' ? ` <small style="color:var(--text-secondary);">(${sv.mode === 'percent' ? sv.value + '%' : t('ir_fixed_amount_label')})</small>` : ''}`,
+          sv.shared, { prefix: '+' }
+        )).join('')}
         ${line('🔧 ' + t('ir_line_expenses'), d.expenses, { prefix: '−', style: 'color:var(--cala-red);' })}
         <hr style="border-color:var(--border-color); width:100%;">
         ${line(t('ir_line_net_revenue'), d.sharedRevenue, { style: 'font-size:1.05rem; font-weight:800;' })}

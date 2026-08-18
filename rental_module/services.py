@@ -233,7 +233,7 @@ class RentalService:
         return True, None
 
     @staticmethod
-    def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None):
+    def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None, investor_share=None):
         srv_id = service_id or f"srv_{uuid.uuid4().hex[:6]}"
         # applyRooms is a leftover column from an older scoping mechanism
         # the current UI never sets — carrying it forward rather than
@@ -252,7 +252,8 @@ class RentalService:
             'customFormula': custom_formula,
             'price': float(price or 0),
             'unit': unit,
-            'applyRooms': existing.get('applyRooms', [])
+            'applyRooms': existing.get('applyRooms', []),
+            'investorShare': investor_share if investor_share is not None else existing.get('investorShare')
         }
         Storage.save_service(srv_obj)
         RentalService.sync_readings_with_services()
