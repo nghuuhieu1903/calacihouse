@@ -155,9 +155,13 @@ Mở trình duyệt vào `http://<ip-vps>` (hoặc domain/https nếu đã cấu
 
 ## Cập nhật code sau này
 
+> Ghi chú: VPS hiện tại chạy qua **aaPanel** (không dùng systemd service ở Bước 9) — gunicorn được aaPanel khởi chạy trực tiếp, nên lệnh khởi động lại đúng là gửi tín hiệu `HUP` cho tiến trình master để nó tự nạp lại code, không phải `systemctl restart`.
+
 ```bash
 cd /opt/calacihouse
 git pull                                   # hoặc rsync lại code mới
 .venv/bin/pip install -r requirements.txt  # nếu có thêm thư viện mới
-systemctl restart rental-house
+pkill -HUP -f gunicorn
 ```
+
+Nếu VPS của bạn được cài theo đúng Bước 9 (systemd service `rental-house`, không qua aaPanel), dùng `systemctl restart rental-house` thay cho `pkill -HUP -f gunicorn`.
