@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, render_template, request, jsonify, session
 from .services import RentalService
 from .storage import Storage
@@ -11,9 +12,26 @@ rental_bp = Blueprint(
     static_url_path='/rental_static'
 )
 
+def _static_file_version(filename):
+    """Cache-busting query string for app.js/styles.css — without this,
+    browsers (and some reverse-proxy/panel configs) keep serving a cached
+    copy of the old JS/CSS after a deploy, so a user can pull + restart the
+    server and still see stale behavior until they hard-refresh. Using the
+    file's own mtime means the URL only changes when the file actually
+    does, so normal caching still works between deploys."""
+    path = os.path.join(os.path.dirname(__file__), 'static', filename)
+    try:
+        return int(os.path.getmtime(path))
+    except OSError:
+        return 0
+
 @rental_bp.route('/')
 def index():
-    return render_template('rental/index.html')
+    return render_template(
+        'rental/index.html',
+        asset_version_js=_static_file_version('js/app.js'),
+        asset_version_css=_static_file_version('css/styles.css')
+    )
 
 @rental_bp.route('/api/data', methods=['GET'])
 @login_required

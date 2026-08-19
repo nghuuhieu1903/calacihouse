@@ -20,7 +20,7 @@
 
   <!-- External Stylesheet (single source of truth — do not duplicate rules inline,
        an inline copy would win the cascade over this file's @media rules) -->
-  <link rel="stylesheet" href="{{ url_for('rental.static', filename='css/styles.css') }}">
+  <link rel="stylesheet" href="{{ url_for('rental.static', filename='css/styles.css') }}?v={{ asset_version_css }}">
 </head>
 <body>
 
@@ -1292,6 +1292,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Application Logic JS -->
-  <script src="{{ url_for('rental.static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('rental.static', filename='js/app.js') }}?v={{ asset_version_js }}"></script>
 </body>
 </html>
