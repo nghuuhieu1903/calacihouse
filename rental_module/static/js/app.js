@@ -2392,15 +2392,21 @@ function renderInvestorDashboard() {
     totalRent += roomRentTotal(r);
 
     const rd = monthReadings[r.id] || {};
-    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id));
+    // Only services checked "gửi cho Chủ Đầu Tư" count toward what the
+    // investor's own dashboard shows — this is their own account, so
+    // anything left unchecked must stay invisible here too, not just on
+    // the admin-facing report.
+    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id) && s.investorShare && s.investorShare.enabled);
     houseServices.forEach(s => {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
         const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
         const cost = utilityCostForRoom(s.customFormula, usage, isElec, r);
-        if (isElec) totalElec += cost; else totalWater += cost;
+        const shared = investorShareForAmount(s.investorShare, cost);
+        if (isElec) totalElec += shared; else totalWater += shared;
       } else {
-        totalService += calculateServiceCostForRoom(s, r);
+        const cost = calculateServiceCostForRoom(s, r);
+        totalService += investorShareForAmount(s.investorShare, cost);
       }
     });
   });
@@ -2410,8 +2416,8 @@ function renderInvestorDashboard() {
   const monthInvoices = state.invoices.filter(inv => inv.month === state.currentMonth && (state.currentHouseId === 'all' || inv.houseId === state.currentHouseId));
   const paidInvoices = monthInvoices.filter(i => i.status === 'Đã thanh toán');
   const pendingInvoices = monthInvoices.filter(i => i.status !== 'Đã thanh toán');
-  const collectedAmount = paidInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
-  const outstandingAmount = pendingInvoices.reduce((sum, i) => sum + (i.totalAmount || 0), 0);
+  const collectedAmount = paidInvoices.reduce((sum, i) => sum + computeInvestorInvoiceBreakdown(i).total, 0);
+  const outstandingAmount = pendingInvoices.reduce((sum, i) => sum + computeInvestorInvoiceBreakdown(i).total, 0);
 
   const openTickets = state.tickets.filter(tk => tk.status !== 'Đã hoàn thành').length;
   const occupancyRate = activeRooms.length ? Math.round((occupiedCount / activeRooms.length) * 100) : 0;
@@ -2454,7 +2460,7 @@ function renderInvestorDashboard() {
     } else {
       tbody.innerHTML = activeRooms.map(r => {
         const inv = monthInvoices.find(i => i.roomId === r.id);
-        const total = inv ? inv.totalAmount : roomRentTotal(r);
+        const total = inv ? computeInvestorInvoiceBreakdown(inv).total : roomRentTotal(r);
         const statusBadge = inv
           ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
           : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`;
@@ -2467,7 +2473,7 @@ function renderInvestorDashboard() {
             <td>${formatMoney(roomRentTotal(r))} đ</td>
             <td style="font-weight:800; color:var(--cala-orange);">${formatMoney(total)} đ</td>
             <td>${statusBadge}</td>
-            <td>${inv ? `<button class="btn btn-secondary btn-sm" onclick="viewInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i> ${t('btn_view_details')}</button>` : ''}</td>
+            <td>${inv ? `<button class="btn btn-secondary btn-sm" onclick="viewInvestorInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i> ${t('btn_view_details')}</button>` : ''}</td>
           </tr>
         `;
       }).join('');
@@ -2482,7 +2488,7 @@ function renderInvestorDashboard() {
       houseBreakdownCard.style.display = 'block';
       houseBreakdownBody.innerHTML = state.houses.map(h => {
         const houseInvoices = state.invoices.filter(i => i.month === state.currentMonth && i.houseId === h.id);
-        const houseTotal = houseInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
+        const houseTotal = houseInvoices.reduce((s, i) => s + computeInvestorInvoiceBreakdown(i).total, 0);
         const houseRooms = state.rooms.filter(r => r.houseId === h.id);
         const houseOccupied = houseRooms.filter(r => r.tenant).length;
         return `
@@ -2882,6 +2888,54 @@ function investorShareForAmount(investorShare, actualAmount) {
   return actualAmount;
 }
 
+// Computes what a single invoice looks like once every service's
+// investor-share config is applied — room rent always in full, each
+// elec/water/fixed service either dropped (disabled), shown in full,
+// shown as a %, or shown as a flat configured figure. Shared by the
+// admin-facing investor report, the investor's own dashboard totals, and
+// the investor's own invoice-detail modal, so all three always agree.
+function computeInvestorInvoiceBreakdown(inv) {
+  const rent = inv.baseRent || 0;
+  const services = [];
+
+  // elecCost/waterCost aren't tagged with a service id on the invoice —
+  // re-derive which formula service produced each one the same way
+  // generateAndSendAllInvoices() does (name-contains-"Điện" convention).
+  const formulaServices = state.services.filter(s => s.calcType === 'formula' && serviceMatchesHouse(s, inv.houseId) && serviceMatchesRoom(s, inv.roomId));
+  formulaServices.forEach(s => {
+    if (!s.investorShare || !s.investorShare.enabled) return;
+    const isElec = s.name.includes('Điện');
+    const actual = isElec ? (inv.elecCost || 0) : (inv.waterCost || 0);
+    services.push({
+      id: s.id,
+      name: s.name,
+      symbol: s.symbol || (isElec ? '⚡' : '💧'),
+      unit: isElec ? `${inv.elecUsage || 0} kWh` : `${inv.waterUsage || 0} m³`,
+      mode: s.investorShare.mode || 'full',
+      value: s.investorShare.value || 0,
+      shared: investorShareForAmount(s.investorShare, actual)
+    });
+  });
+
+  (inv.serviceItems || []).forEach(item => {
+    const s = state.services.find(sv => sv.id === item.id);
+    const investorShare = s ? s.investorShare : { enabled: true, mode: 'full', value: 0 };
+    if (!investorShare || !investorShare.enabled) return;
+    services.push({
+      id: item.id,
+      name: item.name,
+      symbol: item.symbol || '📦',
+      unit: item.unit,
+      mode: investorShare.mode || 'full',
+      value: investorShare.value || 0,
+      shared: investorShareForAmount(investorShare, item.total || 0)
+    });
+  });
+
+  const total = rent + services.reduce((s, x) => s + x.shared, 0);
+  return { rent, services, total };
+}
+
 function computeInvestorReportData(houseId, month) {
   const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId);
   // Room rent is always sent to the investor in full — it's not part of
@@ -2890,30 +2944,11 @@ function computeInvestorReportData(houseId, month) {
 
   const serviceTotals = {};
   invoices.forEach(inv => {
-    // elecCost/waterCost aren't tagged with a service id on the invoice —
-    // re-derive which formula service produced each one the same way
-    // generateAndSendAllInvoices() does (name-contains-"Điện" convention).
-    const formulaServices = state.services.filter(s => s.calcType === 'formula' && serviceMatchesHouse(s, inv.houseId) && serviceMatchesRoom(s, inv.roomId));
-    formulaServices.forEach(s => {
-      if (!s.investorShare || !s.investorShare.enabled) return;
-      const isElec = s.name.includes('Điện');
-      const actual = isElec ? (inv.elecCost || 0) : (inv.waterCost || 0);
-      const key = s.id;
-      if (!serviceTotals[key]) {
-        serviceTotals[key] = { name: s.name, symbol: s.symbol || (isElec ? '⚡' : '💧'), mode: s.investorShare.mode || 'full', value: s.investorShare.value || 0, shared: 0 };
+    computeInvestorInvoiceBreakdown(inv).services.forEach(sv => {
+      if (!serviceTotals[sv.id]) {
+        serviceTotals[sv.id] = { name: sv.name, symbol: sv.symbol, mode: sv.mode, value: sv.value, shared: 0 };
       }
-      serviceTotals[key].shared += investorShareForAmount(s.investorShare, actual);
-    });
-
-    (inv.serviceItems || []).forEach(item => {
-      const s = state.services.find(sv => sv.id === item.id);
-      const investorShare = s ? s.investorShare : { enabled: true, mode: 'full', value: 0 };
-      if (!investorShare || !investorShare.enabled) return;
-      const key = item.id;
-      if (!serviceTotals[key]) {
-        serviceTotals[key] = { name: item.name, symbol: item.symbol || '📦', mode: investorShare.mode || 'full', value: investorShare.value || 0, shared: 0 };
-      }
-      serviceTotals[key].shared += investorShareForAmount(investorShare, item.total || 0);
+      serviceTotals[sv.id].shared += sv.shared;
     });
   });
 
@@ -3737,6 +3772,36 @@ function viewInvoiceDetail(invoiceId) {
         </td><td style="text-align:right;">${formatMoney(inv.waterCost)} đ</td></tr>` : ''}
         ${serviceRowsHtml}
         <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
+      </table>
+    </div>
+  `;
+  document.getElementById('modal-invoice-detail').classList.add('active');
+  lucide.createIcons();
+}
+
+// Investor-facing counterpart to viewInvoiceDetail() — the investor's own
+// account must only ever see what's actually configured to be shared with
+// them (room rent always in full, each service per its investorShare
+// setting), never the tenant's real total.
+function viewInvestorInvoiceDetail(invoiceId) {
+  const inv = state.invoices.find(i => i.id === invoiceId);
+  if (!inv) return;
+  const content = document.getElementById('modal-invoice-content');
+  const breakdown = computeInvestorInvoiceBreakdown(inv);
+
+  let lineNo = 1;
+  let rowsHtml = `<tr><td>${lineNo++}. 🏠 ${t('line_room_rent_short')}</td><td style="text-align:right;">${formatMoney(breakdown.rent)} đ</td></tr>`;
+  breakdown.services.forEach(sv => {
+    rowsHtml += `<tr><td>${lineNo++}. ${sv.symbol} ${sv.name}${sv.unit ? ` (${sv.unit})` : ''}</td><td style="text-align:right;">${formatMoney(sv.shared)} đ</td></tr>`;
+  });
+
+  content.innerHTML = `
+    <div class="invoice-paper" style="box-shadow:none; border:1px solid var(--border-color);">
+      <h3 style="color:#03121a;">${t('invoice_detail_title_prefix')}${inv.roomName}</h3>
+      <div style="margin:1rem 0;">${t('tenant_colon_label')} <strong>${inv.tenant}</strong></div>
+      <table class="excel-table" style="color:#03121a;">
+        ${rowsHtml}
+        <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(breakdown.total)} đ</td></tr>
       </table>
     </div>
   `;
