@@ -3847,6 +3847,25 @@ function renderRoomsManagement() {
     byHouse[hid].push(r);
   });
 
+  // Sort by the numeric part of the room name (e.g. "Phòng 4401" -> 4401)
+  // so rooms read in ascending order instead of whatever order they were
+  // created/saved in. Falls back to plain text comparison for names with
+  // no digits at all.
+  const roomSortKey = r => {
+    const match = (r.name || '').match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+  };
+  Object.keys(byHouse).forEach(hid => {
+    byHouse[hid].sort((a, b) => {
+      const numA = roomSortKey(a);
+      const numB = roomSortKey(b);
+      if (numA !== null && numB !== null && numA !== numB) return numA - numB;
+      if (numA !== null && numB === null) return -1;
+      if (numA === null && numB !== null) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  });
+
   let html = '';
   Object.keys(byHouse).forEach(hid => {
     const house = state.houses.find(h => h.id === hid);
