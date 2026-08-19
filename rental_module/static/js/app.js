@@ -1407,7 +1407,7 @@ function renderHouseSelector() {
   // đầu tư) and the one inside trang Quản Lý Hóa Đơn (Admin/Quản lý). Only
   // one is ever visible per role, but keep both populated/in sync so
   // switching roles or views never shows a stale selector.
-  ['select-house', 'invoices-select-house'].forEach(id => {
+  ['select-house', 'invoices-select-house', 'spreadsheet-select-house'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
   });
@@ -1433,7 +1433,7 @@ function handleHouseChange(sourceEl) {
   const value = sourceEl ? sourceEl.value : document.getElementById('select-house').value;
   state.currentHouseId = value;
   state.currentRoomId = 'all';
-  ['select-house', 'invoices-select-house'].forEach(id => {
+  ['select-house', 'invoices-select-house', 'spreadsheet-select-house'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el !== sourceEl) el.value = value;
   });
@@ -4704,7 +4704,7 @@ async function saveRoomConfig(event) {
 function handleMonthChange(sourceEl) {
   const value = sourceEl ? sourceEl.value : document.getElementById('select-month').value;
   state.currentMonth = value;
-  ['select-month', 'invoices-select-month'].forEach(id => {
+  ['select-month', 'invoices-select-month', 'spreadsheet-select-month'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el !== sourceEl) el.value = value;
   });

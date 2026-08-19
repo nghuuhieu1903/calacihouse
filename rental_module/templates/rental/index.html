@@ -438,6 +438,25 @@
             </div>
           </div>
 
+          <!-- Tòa Nhà & Kỳ hóa đơn — cùng bộ lọc như trang Quản Lý Hóa Đơn,
+               để kiểm soát đúng phòng/kỳ đang nhập chỉ số ở đây luôn. -->
+          <div class="cala-card" style="display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-bottom: 1.25rem; padding: 0.85rem 1.1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="lbl_select_house">🏢 Chọn Tòa Nhà:</label>
+              <select id="spreadsheet-select-house" class="form-control" style="width: auto; min-width: 160px; max-width: 100%; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 800;" onchange="handleHouseChange(this)">
+                <!-- Houses populated dynamically -->
+              </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="billing_period">Kỳ:</label>
+              <select id="spreadsheet-select-month" class="form-control" style="width: auto; min-width: 150px; max-width: 100%; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleMonthChange(this)">
+                <option value="2026-08" selected>Tháng 08/2026</option>
+                <option value="2026-07">Tháng 07/2026</option>
+                <option value="2026-06">Tháng 06/2026</option>
+              </select>
+            </div>
+          </div>
+
           <div class="excel-table-wrapper">
             <table class="excel-table">
               <thead>
