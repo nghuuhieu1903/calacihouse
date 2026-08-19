@@ -227,7 +227,7 @@
         <!-- TAB: UNIFIED ADMIN SERVICES CONFIG (INCLUDING ELECTRICITY & WATER & ICON PICKER) -->
         <div id="view-admin-services" class="view-panel" style="display: none;">
           <div class="cala-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
               <h3><i data-lucide="sliders" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="services_config_title">Bảng Cấu Hình Dịch Vụ & Điện Nước</span> (<span id="current-house-name-label" style="color: var(--cala-blue);">Tất Cả Tòa Nhà</span>)</h3>
               <button class="btn btn-orange btn-sm" onclick="openAddServiceModal()">
                 <i data-lucide="plus"></i> <span data-i18n="btn_add_service">Thêm Dịch Vụ Mới</span>
@@ -252,7 +252,7 @@
             </div>
           </div>
 
-          <div class="cala-card" style="background: linear-gradient(135deg, var(--cala-blue-light) 0%, #ffffff 100%); border: 1px solid #bce2fd; margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+          <div class="cala-card" style="background: linear-gradient(135deg, var(--cala-blue-light) 0%, #ffffff 100%); border: 1px solid #bce2fd; margin-top: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;">
             <div>
               <h4 style="font-weight: 800; color: var(--cala-blue-dark); font-size: 1.1rem;" data-i18n="services_done_title">Đã hoàn tất cấu hình Dịch vụ & Điện nước?</h4>
               <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;" data-i18n="services_done_desc">Chuyển sang Bảng Tính Điện Nước để nhập chỉ số cũ/mới tháng này.</p>
@@ -423,12 +423,12 @@
 
         <!-- SPREADSHEET VIEW WITH DYNAMIC MATCHED SERVICE COLUMNS -->
         <div id="view-admin-spreadsheet" class="view-panel" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
             <div>
               <h3 data-i18n="spreadsheet_title">Bảng Báo Chỉ Số Điện Nước & Tự Động Tính Tiền</h3>
               <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="spreadsheet_subtitle">Đang xem phòng của: <strong id="spreadsheet-house-label" style="color: var(--cala-blue);">Tất Cả Tòa Nhà</strong></p>
             </div>
-            <div style="display: flex; gap: 0.75rem;">
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
               <button class="btn btn-secondary" onclick="switchView('admin-services')">
                 <i data-lucide="sliders"></i> <span data-i18n="nav_services">Cấu Hình Dịch Vụ & Điện Nước</span>
               </button>
@@ -539,7 +539,7 @@
 
         <!-- HOUSE / BUILDING MANAGEMENT VIEW -->
         <div id="view-admin-houses" class="view-panel" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
             <div>
               <h3 data-i18n="houses_mgmt_title">🏢 Quản Lý Tòa Nhà</h3>
               <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="houses_mgmt_desc">Thêm, sửa tên và địa chỉ các tòa nhà / dãy trọ trong hệ thống.</p>
@@ -553,7 +553,7 @@
 
         <!-- ROOM MANAGEMENT VIEW -->
         <div id="view-admin-rooms" class="view-panel" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
             <div>
               <h3 data-i18n="rooms_mgmt_title">🚪 Quản Lý Phòng Trọ</h3>
               <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="rooms_mgmt_desc">Thêm, sửa, xóa phòng trong các tòa nhà. Cấu hình giá thuê và công thức tính tiền.</p>
@@ -656,7 +656,7 @@
         </div>
 
         <div id="view-admin-users" class="view-panel" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
             <div>
               <h3 data-i18n="users_title">Quản Lý Tài Khoản Khách Thuê & Duyệt Đăng Ký</h3>
               <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="users_subtitle">Duyệt tài khoản mới đăng ký, gán phòng hoặc tạo tài khoản mới</p>
