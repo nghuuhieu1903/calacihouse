@@ -1305,6 +1305,7 @@ function setupUserRoleUI() {
   const tenantNav = document.querySelector('.tenant-nav');
   const investorNav = document.querySelector('.investor-nav');
   const houseBox = document.getElementById('nav-house-box');
+  const monthBox = document.getElementById('nav-month-box');
   const avatarText = document.getElementById('user-avatar-text');
   const nameEl = document.getElementById('user-display-name');
   const roleEl = document.getElementById('user-display-role');
@@ -1334,7 +1335,10 @@ function setupUserRoleUI() {
     adminNav.style.display = 'flex';
     tenantNav.style.display = 'none';
     if (investorNav) investorNav.style.display = 'none';
-    if (houseBox) houseBox.style.display = 'flex';
+    // Admin/Quản lý chọn Tòa Nhà & Kỳ ngay trong trang Quản Lý Hóa Đơn thay
+    // vì navbar — bớt chiếm chỗ trên các trang khác.
+    if (houseBox) houseBox.style.display = 'none';
+    if (monthBox) monthBox.style.display = 'none';
 
     // Hide/show sidebar elements based on permissions — each tab needs
     // 'view' on the matching feature. admin-spreadsheet checks 'edit' on
@@ -1395,14 +1399,18 @@ function setupUserRoleUI() {
 }
 
 function renderHouseSelector() {
-  const select = document.getElementById('select-house');
-  if (!select) return;
-
   let html = `<option value="all" ${state.currentHouseId === 'all' ? 'selected' : ''}>🏢 Tất Cả Tòa Nhà</option>`;
   state.houses.forEach(h => {
     html += `<option value="${h.id}" ${state.currentHouseId === h.id ? 'selected' : ''}>📍 ${h.name}</option>`;
   });
-  select.innerHTML = html;
+  // Two copies exist in the DOM at once — the navbar one (Khách thuê/Chủ
+  // đầu tư) and the one inside trang Quản Lý Hóa Đơn (Admin/Quản lý). Only
+  // one is ever visible per role, but keep both populated/in sync so
+  // switching roles or views never shows a stale selector.
+  ['select-house', 'invoices-select-house'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  });
   renderRoomSelector();
 }
 
@@ -1421,10 +1429,14 @@ function renderRoomSelector() {
   select.innerHTML = html;
 }
 
-function handleHouseChange() {
-  const select = document.getElementById('select-house');
-  state.currentHouseId = select.value;
+function handleHouseChange(sourceEl) {
+  const value = sourceEl ? sourceEl.value : document.getElementById('select-house').value;
+  state.currentHouseId = value;
   state.currentRoomId = 'all';
+  ['select-house', 'invoices-select-house'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el !== sourceEl) el.value = value;
+  });
   renderRoomSelector();
   renderCurrentView();
 }
@@ -4670,8 +4682,13 @@ async function saveRoomConfig(event) {
   renderCurrentView();
 }
 
-function handleMonthChange() {
-  state.currentMonth = document.getElementById('select-month').value;
+function handleMonthChange(sourceEl) {
+  const value = sourceEl ? sourceEl.value : document.getElementById('select-month').value;
+  state.currentMonth = value;
+  ['select-month', 'invoices-select-month'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el !== sourceEl) el.value = value;
+  });
   fetchState();
 }
 

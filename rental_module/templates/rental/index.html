@@ -88,15 +88,17 @@
            having those actions here too was confusing) -->
       <div style="display: flex; align-items: center; gap: 0.5rem;" id="nav-house-box">
         <label style="font-size: 0.85rem; font-weight: 700; color: white;" data-i18n="lbl_select_house">🏢 Chọn Tòa Nhà:</label>
-        <select id="select-house" class="form-control" style="width: 185px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 800;" onchange="handleHouseChange()">
+        <select id="select-house" class="form-control" style="width: 185px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 800;" onchange="handleHouseChange(this)">
           <!-- Houses populated dynamically -->
         </select>
       </div>
 
-      <!-- Month Selector -->
-      <div style="display: flex; align-items: center; gap: 0.5rem;">
+      <!-- Month Selector — hidden for Admin/Quản lý (moved into trang Quản
+           Lý Hóa Đơn instead); stays here for Khách thuê & Chủ đầu tư, who
+           have no other page to change it from. -->
+      <div style="display: flex; align-items: center; gap: 0.5rem;" id="nav-month-box">
         <label style="font-size: 0.85rem; font-weight: 700; color: white;" data-i18n="billing_period">Kỳ:</label>
-        <select id="select-month" class="form-control" style="width: 170px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleMonthChange()">
+        <select id="select-month" class="form-control" style="width: 170px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleMonthChange(this)">
           <option value="2026-08" selected>Tháng 08/2026</option>
           <option value="2026-07">Tháng 07/2026</option>
           <option value="2026-06">Tháng 06/2026</option>
@@ -449,11 +451,31 @@
         </div>
 
         <div id="view-admin-invoices" class="view-panel" style="display: none;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;">
             <h3 data-i18n="invoices_title">Danh Sách Hóa Đơn Đã Phát Hành</h3>
             <button class="btn btn-orange" onclick="generateAndSendAllInvoices()">
               <i data-lucide="refresh-cw"></i> <span data-i18n="btn_refresh_invoices">Cập Nhật Hóa Đơn</span>
             </button>
+          </div>
+
+          <!-- Tòa Nhà & Kỳ hóa đơn được chuyển từ navbar xuống đây cho admin —
+               đây là trang thao tác hóa đơn chính nên lọc ngay tại chỗ này
+               cho tiện, thay vì chiếm chỗ trên thanh navbar ở mọi trang khác. -->
+          <div class="cala-card" style="display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-bottom: 1.25rem; padding: 0.85rem 1.1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="lbl_select_house">🏢 Chọn Tòa Nhà:</label>
+              <select id="invoices-select-house" class="form-control" style="width: 185px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 800;" onchange="handleHouseChange(this)">
+                <!-- Houses populated dynamically -->
+              </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="billing_period">Kỳ:</label>
+              <select id="invoices-select-month" class="form-control" style="width: 170px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleMonthChange(this)">
+                <option value="2026-08" selected>Tháng 08/2026</option>
+                <option value="2026-07">Tháng 07/2026</option>
+                <option value="2026-06">Tháng 06/2026</option>
+              </select>
+            </div>
           </div>
 
           <div class="excel-table-wrapper">
