@@ -44,8 +44,6 @@ const I18N = {
     toast_photo_added: 'Đã thêm ảnh phòng!',
     toast_photo_deleted: 'Đã xoá ảnh phòng!',
     confirm_delete_photo: 'Bạn có chắc muốn xoá ảnh này?',
-    status_active_room: 'Đang thuê',
-    status_inactive_room: 'Trống',
     tooltip_activate_room: 'Bấm để kích hoạt (nhập thông tin khách thuê)',
     tooltip_deactivate_room: 'Bấm để bỏ kích hoạt (đánh dấu phòng trống, hiện cho Saler)',
     confirm_deactivate_room: 'Bỏ kích hoạt phòng này? Phòng sẽ được đánh dấu Trống và hiện ra cho các bạn Saler.',
@@ -585,8 +583,6 @@ const I18N = {
     toast_photo_added: 'Room photo added!',
     toast_photo_deleted: 'Room photo deleted!',
     confirm_delete_photo: 'Are you sure you want to delete this photo?',
-    status_active_room: 'Occupied',
-    status_inactive_room: 'Vacant',
     tooltip_activate_room: 'Click to activate (enter tenant info)',
     tooltip_deactivate_room: 'Click to deactivate (mark as vacant, visible to Saler)',
     confirm_deactivate_room: 'Deactivate this room? It will be marked Vacant and shown to salers.',
@@ -4082,13 +4078,10 @@ function renderRoomsManagement() {
                   <div style="font-weight:800; font-size:1rem;">${r.name}</div>
                   <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || t('no_tenant_label')} ${r.phone ? '· ' + r.phone : ''}</div>
                 </div>
-                <div style="display:flex; align-items:center; gap:0.45rem;">
-                  <span style="font-size:0.75rem; font-weight:700; color:${r.tenant ? 'var(--cala-emerald)' : 'var(--text-muted)'};">${r.tenant ? t('status_active_room') : t('status_inactive_room')}</span>
-                  <label class="switch-toggle" onclick="event.preventDefault(); toggleRoomActive('${r.id}');" title="${r.tenant ? t('tooltip_deactivate_room') : t('tooltip_activate_room')}">
-                    <input type="checkbox" ${r.tenant ? 'checked' : ''} readonly>
-                    <span class="switch-slider"></span>
-                  </label>
-                </div>
+                <label class="switch-toggle" onclick="event.preventDefault(); toggleRoomActive('${r.id}');" title="${r.tenant ? t('tooltip_deactivate_room') : t('tooltip_activate_room')}">
+                  <input type="checkbox" ${r.tenant ? 'checked' : ''} readonly>
+                  <span class="switch-slider"></span>
+                </label>
               </div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
                 <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
