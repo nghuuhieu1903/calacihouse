@@ -312,7 +312,7 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None, area=None, description=None):
+    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None, area=None, description=None, capacity=None):
         # 6 hex chars (matches houses/services/formulas/tickets) — the old
         # 4-char version only had 65,536 possible ids, giving a
         # non-negligible birthday-paradox collision chance once a building
@@ -340,7 +340,10 @@ class RentalService:
             'contractStart': existing.get('contractStart', ''),
             'contractEnd': existing.get('contractEnd', ''),
             'area': float(area) if area not in (None, '') else existing.get('area', 0),
-            'description': description if description is not None else existing.get('description', '')
+            'description': description if description is not None else existing.get('description', ''),
+            # Total bed capacity — informational only (see storage._room()),
+            # never used in room_rent_total/calculate_room_services_total.
+            'capacity': int(capacity) if capacity not in (None, '') else existing.get('capacity', 0)
         }
         Storage.save_room(r_obj)
         RentalService.sync_readings_with_services()

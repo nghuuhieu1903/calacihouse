@@ -36,6 +36,8 @@ const I18N = {
     saler_services_label: 'Dịch vụ / Điện nước áp dụng',
     saler_area_label: 'Diện tích',
     lbl_room_area: 'Diện Tích (m²)',
+    lbl_room_capacity: 'Số Người Tổng (Sức chứa — chỉ để tham khảo, không tính vào công thức)',
+    capacity_label: 'Sức chứa:',
     lbl_room_description: 'Mô Tả / Ghi Chú Phòng (hiển thị công khai cho Saler)',
     btn_room_photos: 'Ảnh Phòng (Saler xem được)',
     select_room_photo: 'Chọn ảnh phòng',
@@ -52,6 +54,10 @@ const I18N = {
     btn_deactivate_room: 'Bỏ Kích Hoạt',
     btn_confirm: 'Xác Nhận',
     confirm_modal_default_title: 'Xác Nhận',
+    modal_activate_room_title: 'Kích Hoạt Phòng',
+    btn_activate_room: 'Kích Hoạt',
+    toast_tenant_name_required: 'Vui lòng nhập tên khách thuê để kích hoạt phòng!',
+    toast_room_activated: 'Đã kích hoạt phòng — phòng không còn hiện cho Saler.',
     inv_stat_revenue: 'Doanh thu tháng này',
     inv_stat_occupancy: 'Tỷ lệ lấp đầy',
     inv_stat_collected: 'Đã thu tháng này',
@@ -575,6 +581,8 @@ const I18N = {
     saler_services_label: 'Applicable services / utilities',
     saler_area_label: 'Area',
     lbl_room_area: 'Area (m²)',
+    lbl_room_capacity: 'Total Capacity (informational only, not used in any formula)',
+    capacity_label: 'Capacity:',
     lbl_room_description: 'Room description / notes (publicly shown to Saler)',
     btn_room_photos: 'Room Photos (visible to Saler)',
     select_room_photo: 'Choose room photo',
@@ -591,6 +599,10 @@ const I18N = {
     btn_deactivate_room: 'Deactivate',
     btn_confirm: 'Confirm',
     confirm_modal_default_title: 'Confirm',
+    modal_activate_room_title: 'Activate Room',
+    btn_activate_room: 'Activate',
+    toast_tenant_name_required: 'Please enter a tenant name to activate this room!',
+    toast_room_activated: 'Room activated — no longer shown to salers.',
     inv_stat_revenue: 'Revenue this month',
     inv_stat_occupancy: 'Occupancy rate',
     inv_stat_collected: 'Collected this month',
@@ -4086,6 +4098,7 @@ function renderRoomsManagement() {
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
                 <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
                 <div><span style="color:var(--text-muted);">${t('headcount_label')}</span><br><strong>${r.headcount || 1} ${t('formula_per_person_label')}</strong></div>
+                ${r.roomType === 'dorm' && r.capacity ? `<div><span style="color:var(--text-muted);">${t('capacity_label')}</span><br><strong>${r.capacity} ${t('formula_per_person_label')}</strong></div>` : ''}
               </div>
               ${r.contractStart || r.contractEnd ? `
                 <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.75rem;">
@@ -4537,7 +4550,51 @@ async function toggleRoomActive(roomId) {
       showToast(t('toast_server_connection_error'), 'error');
     }
   } else {
-    openEditRoomModal(roomId);
+    openActivateRoomModal(roomId);
+  }
+}
+
+let _activateRoomId = null;
+
+// Turning the switch back on needs a tenant name (occupancy is derived
+// from that field, see get_full_state's saler filter), but re-opening the
+// full "Sửa Phòng" form just to type one name felt like the switch didn't
+// do anything — a lot of unrelated fields (loại phòng, giá, diện tích...)
+// for what should be a one-step un-deactivate. This is the same
+// tenant/phone-only shortcut, just scoped to activation.
+function openActivateRoomModal(roomId) {
+  _activateRoomId = roomId;
+  document.getElementById('activate-room-tenant').value = '';
+  document.getElementById('activate-room-phone').value = '';
+  document.getElementById('modal-activate-room').classList.add('active');
+}
+
+async function submitActivateRoom() {
+  if (!_activateRoomId) return;
+  const r = state.rooms.find(x => x.id === _activateRoomId);
+  if (!r) return;
+
+  const tenant = document.getElementById('activate-room-tenant').value.trim();
+  const phone = document.getElementById('activate-room-phone').value.trim();
+  if (!tenant) {
+    showToast(t('toast_tenant_name_required'), 'error');
+    return;
+  }
+
+  const rObj = { ...r, tenant, phone };
+  try {
+    await fetch(`${API_BASE}/rooms/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(rObj)
+    });
+    r.tenant = tenant;
+    r.phone = phone;
+    closeModal('modal-activate-room');
+    renderRoomsManagement();
+    showToast(t('toast_room_activated'), 'success');
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
   }
 }
 
@@ -5074,8 +5131,10 @@ function toggleRoomTypeHint() {
   const isDorm = document.getElementById('room-type').value === 'dorm';
   const hint = document.getElementById('room-type-hint');
   const rentLabel = document.getElementById('lbl-room-base-rent');
+  const capacityBox = document.getElementById('box-room-capacity');
   if (hint) hint.style.display = isDorm ? 'block' : 'none';
   if (rentLabel) rentLabel.innerText = isDorm ? t('lbl_room_rent_price_dorm') : t('lbl_room_rent_price');
+  if (capacityBox) capacityBox.style.display = isDorm ? 'block' : 'none';
 }
 
 function openAddRoomModal() {
@@ -5088,6 +5147,7 @@ function openAddRoomModal() {
   document.getElementById('room-base-rent').value = '3500000';
   document.getElementById('room-area').value = '';
   document.getElementById('room-description').value = '';
+  document.getElementById('room-capacity').value = '';
   toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
@@ -5110,6 +5170,7 @@ function openEditRoomModal(roomId) {
   document.getElementById('room-base-rent').value = r.baseRent || 0;
   document.getElementById('room-area').value = r.area || '';
   document.getElementById('room-description').value = r.description || '';
+  document.getElementById('room-capacity').value = r.capacity || '';
   toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
@@ -5130,10 +5191,11 @@ async function saveRoomConfig(event) {
   const baseRent = parseFloat(document.getElementById('room-base-rent').value) || 0;
   const area = parseFloat(document.getElementById('room-area').value) || 0;
   const description = document.getElementById('room-description').value.trim();
+  const capacity = parseInt(document.getElementById('room-capacity').value) || 0;
 
   const rObj = {
     id: id || genId('R'),
-    houseId, name, tenant, phone, roomType, headcount, baseRent, area, description
+    houseId, name, tenant, phone, roomType, headcount, baseRent, area, description, capacity
   };
 
   const idx = state.rooms.findIndex(r => r.id === rObj.id);

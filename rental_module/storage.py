@@ -237,7 +237,12 @@ def _room(row):
         'contractStart': row.get('contract_start') or '',
         'contractEnd': row.get('contract_end') or '',
         'area': row.get('area') or 0,
-        'description': row.get('description') or ''
+        'description': row.get('description') or '',
+        # Total bed capacity for a dorm room — purely informational (e.g.
+        # so an admin/saler can see how many spots are free), never fed
+        # into rent/service/electricity math. That still uses `headcount`
+        # (how many people currently live there), unchanged.
+        'capacity': row.get('capacity') or 0
     }
 
 def _default_investor_share(name, calc_type):
@@ -544,8 +549,8 @@ class Storage:
             with conn.cursor() as cur:
                 cur.execute(
                     "REPLACE INTO rooms "
-                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description, capacity) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         r['id'],
                         r.get('houseId', ''),
@@ -560,7 +565,8 @@ class Storage:
                         r.get('contractStart', ''),
                         r.get('contractEnd', ''),
                         r.get('area', 0),
-                        r.get('description', '')
+                        r.get('description', ''),
+                        r.get('capacity', 0)
                     )
                 )
             conn.commit()

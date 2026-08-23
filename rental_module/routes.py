@@ -163,7 +163,8 @@ def save_room():
         data.get('elecFormula'),
         data.get('waterFormula'),
         data.get('area'),
-        data.get('description')
+        data.get('description'),
+        data.get('capacity')
     )
     return jsonify({'success': True, 'room': r_obj})
 

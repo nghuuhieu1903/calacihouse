@@ -1245,6 +1245,11 @@
           </div>
         </div>
 
+        <div style="margin-bottom: 1rem; display: none;" id="box-room-capacity">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_capacity">Số Người Tổng (Sức chứa — chỉ để tham khảo, không tính vào công thức)</label>
+          <input type="number" id="room-capacity" class="form-control" min="0" placeholder="4">
+        </div>
+
         <div style="margin-bottom: 1rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_area">Diện Tích (m²)</label>
           <input type="number" id="room-area" class="form-control" placeholder="20" step="0.1" min="0">
@@ -1359,6 +1364,30 @@
       <div style="display:flex; justify-content:flex-end; gap:0.75rem;">
         <button type="button" class="btn btn-secondary" onclick="resolveConfirmModal(false)" data-i18n="btn_cancel">Hủy</button>
         <button type="button" class="btn btn-orange" id="confirm-modal-ok-btn" onclick="resolveConfirmModal(true)"></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick "Kích Hoạt Phòng" popup — just enough to turn the switch back
+       on (tenant name + phone). Anything else about the room (name, type,
+       rent, area...) is still edited via the full "Sửa" form. -->
+  <div class="modal-backdrop" id="modal-activate-room">
+    <div class="modal-card" style="max-width: 420px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="power" style="color: var(--cala-emerald); vertical-align: middle;"></i> <span data-i18n="modal_activate_room_title">Kích Hoạt Phòng</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-activate-room')"><i data-lucide="x"></i></button>
+      </div>
+      <div style="margin-bottom: 1rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_tenant_name">Tên Khách Thuê</label>
+        <input type="text" id="activate-room-tenant" class="form-control" placeholder="Nguyễn Văn A">
+      </div>
+      <div style="margin-bottom: 1.5rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_phone_number">Số Điện Thoại</label>
+        <input type="text" id="activate-room-phone" class="form-control" placeholder="0901234567">
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('modal-activate-room')" data-i18n="btn_cancel">Hủy</button>
+        <button type="button" class="btn btn-orange" onclick="submitActivateRoom()" data-i18n="btn_activate_room">Kích Hoạt</button>
       </div>
     </div>
   </div>
