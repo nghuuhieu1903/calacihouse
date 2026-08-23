@@ -193,6 +193,13 @@ class RentalService:
             room_ids = {r['id'] for r in rooms}
             services = [s for s in services if any(RentalService.service_matches_house(s, r['houseId']) for r in rooms)]
             room_photos = {rid: p for rid, p in room_photos.items() if rid in room_ids}
+            # headcount/phone belong to whoever last lived there — not
+            # meaningful for a vacant room and never something to expose to
+            # a saler, even if a stale value somehow survived (e.g. cleared
+            # by hand instead of through the app's own deactivate flow).
+            # `capacity` (the public max-beds figure) is the one meant to be
+            # shown, so it stays untouched.
+            rooms = [{k: v for k, v in r.items() if k not in ('headcount', 'phone')} for r in rooms]
             users = []
             invoices = []
             tickets = []
