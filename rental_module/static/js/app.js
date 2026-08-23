@@ -34,6 +34,11 @@ const I18N = {
     saler_rooms_empty_state: 'Hiện không có phòng trống nào.',
     saler_vacant_unit_label: 'phòng trống',
     saler_services_label: 'Dịch vụ / Điện nước áp dụng',
+    saler_missing_label: 'Còn thiếu',
+    saler_commission_label: 'Hoa hồng dự kiến khi giới thiệu thành công',
+    lbl_saler_commission_percent: 'Hoa Hồng Saler (% của Tiền Cọc):',
+    lbl_room_deposit: 'Tiền Cọc (VNĐ) — dùng để tính hoa hồng Saler',
+    toast_commission_saved: 'Đã lưu tỷ lệ hoa hồng!',
     saler_area_label: 'Diện tích',
     lbl_room_area: 'Diện Tích (m²)',
     lbl_room_capacity: 'Số Người Tổng (Sức chứa — chỉ để tham khảo, không tính vào công thức)',
@@ -579,6 +584,11 @@ const I18N = {
     saler_rooms_empty_state: 'No vacant rooms right now.',
     saler_vacant_unit_label: 'vacant',
     saler_services_label: 'Applicable services / utilities',
+    saler_missing_label: 'Still needed',
+    saler_commission_label: 'Commission if you bring a tenant',
+    lbl_saler_commission_percent: 'Saler Commission (% of Deposit):',
+    lbl_room_deposit: 'Deposit (VNĐ) — used to compute the saler commission',
+    toast_commission_saved: 'Commission rate saved!',
     saler_area_label: 'Area',
     lbl_room_area: 'Area (m²)',
     lbl_room_capacity: 'Total Capacity (informational only, not used in any formula)',
@@ -1182,6 +1192,7 @@ let state = {
   tickets: [],
   roomDocuments: {},
   roomPhotos: {},
+  salerCommissionPercent: 0,
   investorExpenses: [],
   investorFeePercent: 20,
   siteSettings: { siteName: 'CalaciHouse', title: 'CalaciHouse - Hệ Thống Quản Lý Phòng Trọ', description: '', keywords: '', shareImage: '', favicon: '' },
@@ -1610,6 +1621,7 @@ async function fetchState() {
       state.permissions = data.permissions || state.permissions;
       state.roomDocuments = data.roomDocuments || state.roomDocuments;
       state.roomPhotos = data.roomPhotos || state.roomPhotos;
+      state.salerCommissionPercent = data.salerCommissionPercent || 0;
       state.investorExpenses = data.investorExpenses || state.investorExpenses;
       state.customIcons = data.customIcons || state.customIcons;
       if (data.siteSettings) applySiteSettings(data.siteSettings);
@@ -4036,6 +4048,11 @@ function previewRoomInvoice(roomId) {
    ROOM MANAGEMENT VIEW
 ===================================================================== */
 function renderRoomsManagement() {
+  const commissionInput = document.getElementById('saler-commission-percent');
+  if (commissionInput && document.activeElement !== commissionInput) {
+    commissionInput.value = state.salerCommissionPercent || '';
+  }
+
   const container = document.getElementById('rooms-management-container');
   if (!container) return;
 
@@ -4198,13 +4215,20 @@ function renderSalerRooms() {
               ` : ''}
               <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
                 <div style="font-weight:800; font-size:1rem;">${r.name}</div>
-                <span class="badge badge-open" style="font-size:0.7rem;">${t('vacant_label')}</span>
+                <span class="badge badge-open" style="font-size:0.7rem;">${typeof r.missingCount === 'number' ? `${t('saler_missing_label')} ${r.missingCount}` : t('vacant_label')}</span>
               </div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
                 <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
                 ${r.capacity ? `<div><span style="color:var(--text-muted);">${t('capacity_label')}</span><br><strong>${r.capacity} ${t('formula_per_person_label')}</strong></div>` : ''}
+                ${typeof r.missingCount === 'number' ? `<div><span style="color:var(--text-muted);">${t('saler_missing_label')}</span><br><strong style="color:var(--cala-red);">${r.missingCount} ${t('formula_per_person_label')}</strong></div>` : ''}
                 ${r.area ? `<div><span style="color:var(--text-muted);">${t('saler_area_label')}</span><br><strong>${r.area} m²</strong></div>` : ''}
               </div>
+              ${r.deposit && state.salerCommissionPercent ? `
+                <div class="cala-card" style="background: var(--cala-blue-light); padding:0.6rem 0.85rem; margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-size:0.78rem; color:var(--cala-blue-dark);">${t('saler_commission_label')}</span>
+                  <strong style="color:var(--cala-blue-dark);">${formatMoney(r.deposit * state.salerCommissionPercent / 100)}đ</strong>
+                </div>
+              ` : ''}
               ${r.description ? `<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.75rem; white-space:pre-wrap;">${r.description}</div>` : ''}
               ${roomServices.length ? `
                 <div style="border-top: 1px solid var(--border-color); padding-top:0.6rem;">
@@ -5137,6 +5161,27 @@ function toggleRoomTypeHint() {
   if (capacityBox) capacityBox.style.display = isDorm ? 'block' : 'none';
 }
 
+async function saveSalerCommissionPercent() {
+  const input = document.getElementById('saler-commission-percent');
+  const percent = parseFloat(input.value) || 0;
+  try {
+    const res = await fetch(`${API_BASE}/settings/saler-commission/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ percent })
+    });
+    const data = await res.json();
+    if (data.success) {
+      state.salerCommissionPercent = data.percent;
+      showToast(t('toast_commission_saved'), 'success');
+    } else {
+      showToast(data.error || t('toast_server_connection_error'), 'error');
+    }
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+}
+
 function openAddRoomModal() {
   document.getElementById('room-id').value = '';
   document.getElementById('room-name').value = '';
@@ -5148,6 +5193,7 @@ function openAddRoomModal() {
   document.getElementById('room-area').value = '';
   document.getElementById('room-description').value = '';
   document.getElementById('room-capacity').value = '';
+  document.getElementById('room-deposit').value = '';
   toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
@@ -5171,6 +5217,7 @@ function openEditRoomModal(roomId) {
   document.getElementById('room-area').value = r.area || '';
   document.getElementById('room-description').value = r.description || '';
   document.getElementById('room-capacity').value = r.capacity || '';
+  document.getElementById('room-deposit').value = r.deposit || '';
   toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
@@ -5192,10 +5239,11 @@ async function saveRoomConfig(event) {
   const area = parseFloat(document.getElementById('room-area').value) || 0;
   const description = document.getElementById('room-description').value.trim();
   const capacity = parseInt(document.getElementById('room-capacity').value) || 0;
+  const deposit = parseFloat(document.getElementById('room-deposit').value) || 0;
 
   const rObj = {
     id: id || genId('R'),
-    houseId, name, tenant, phone, roomType, headcount, baseRent, area, description, capacity
+    houseId, name, tenant, phone, roomType, headcount, baseRent, area, description, capacity, deposit
   };
 
   const idx = state.rooms.findIndex(r => r.id === rObj.id);

@@ -598,6 +598,16 @@
               <i data-lucide="plus-circle"></i> <span data-i18n="btn_add_room">Thêm Phòng Mới</span>
             </button>
           </div>
+
+          <div class="cala-card" style="margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+            <i data-lucide="percent" style="color: var(--cala-orange); flex-shrink: 0;"></i>
+            <label style="font-size: 0.85rem; font-weight: 700; white-space: nowrap;" data-i18n="lbl_saler_commission_percent">Hoa Hồng Saler (% của Tiền Cọc):</label>
+            <input type="number" id="saler-commission-percent" class="form-control" style="max-width: 120px;" min="0" max="100" step="0.1">
+            <button class="btn btn-blue btn-sm" onclick="saveSalerCommissionPercent()">
+              <i data-lucide="save"></i> <span data-i18n="btn_save">Lưu</span>
+            </button>
+          </div>
+
           <div id="rooms-management-container"></div>
         </div>
 
@@ -1243,6 +1253,11 @@
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" id="lbl-room-base-rent" data-i18n="lbl_room_rent_price">Giá Tiền Thuê Phòng (VNĐ/tháng)</label>
             <input type="number" id="room-base-rent" class="form-control" placeholder="3500000" required>
           </div>
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_deposit">Tiền Cọc (VNĐ) — dùng để tính hoa hồng Saler</label>
+          <input type="number" id="room-deposit" class="form-control" placeholder="3500000" min="0">
         </div>
 
         <div style="margin-bottom: 1rem; display: none;" id="box-room-capacity">

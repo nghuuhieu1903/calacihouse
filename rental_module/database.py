@@ -86,7 +86,8 @@ SCHEMA_STATEMENTS = [
         contract_end   VARCHAR(10) DEFAULT '',
         area           DOUBLE DEFAULT 0,
         description    TEXT,
-        capacity       INT DEFAULT 0
+        capacity       INT DEFAULT 0,
+        deposit        DOUBLE DEFAULT 0
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
     """
@@ -197,6 +198,7 @@ def init_db():
             _ensure_column(cur, 'rooms', 'area', "DOUBLE DEFAULT 0")
             _ensure_column(cur, 'rooms', 'description', "TEXT")
             _ensure_column(cur, 'rooms', 'capacity', "INT DEFAULT 0")
+            _ensure_column(cur, 'rooms', 'deposit', "DOUBLE DEFAULT 0")
             _ensure_column(cur, 'services', 'investor_share', "TEXT")
             _promote_admins_to_superadmin(cur)
         conn.commit()

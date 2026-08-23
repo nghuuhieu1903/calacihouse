@@ -242,7 +242,11 @@ def _room(row):
         # so an admin/saler can see how many spots are free), never fed
         # into rent/service/electricity math. That still uses `headcount`
         # (how many people currently live there), unchanged.
-        'capacity': row.get('capacity') or 0
+        'capacity': row.get('capacity') or 0,
+        # Deposit — the basis for the saler commission calculation
+        # (commission = deposit x global commission %). Public info shown
+        # to salers alongside rent/services, same as baseRent.
+        'deposit': row.get('deposit') or 0
     }
 
 def _default_investor_share(name, calc_type):
@@ -549,8 +553,8 @@ class Storage:
             with conn.cursor() as cur:
                 cur.execute(
                     "REPLACE INTO rooms "
-                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description, capacity) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description, capacity, deposit) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         r['id'],
                         r.get('houseId', ''),
@@ -566,7 +570,8 @@ class Storage:
                         r.get('contractEnd', ''),
                         r.get('area', 0),
                         r.get('description', ''),
-                        r.get('capacity', 0)
+                        r.get('capacity', 0),
+                        r.get('deposit', 0)
                     )
                 )
             conn.commit()
@@ -1001,6 +1006,16 @@ class Storage:
     @staticmethod
     def save_custom_icons(icons):
         Storage._kv_set('custom_icons', icons)
+
+    # -- Saler commission rate (single global % applied to a room's deposit) -
+
+    @staticmethod
+    def get_saler_commission_percent():
+        return Storage._kv_get('saler_commission_percent', 0)
+
+    @staticmethod
+    def save_saler_commission_percent(percent):
+        Storage._kv_set('saler_commission_percent', percent)
 
     # -- Room Documents (contract & related images, keyed by roomId) --------
 

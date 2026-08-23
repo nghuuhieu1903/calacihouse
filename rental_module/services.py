@@ -184,22 +184,41 @@ class RentalService:
                 room_photos = {rid: p for rid, p in room_photos.items() if rid in room_ids}
             users = []  # investor dashboard has no need for the account directory
 
-        # Salers only need to spot vacant rooms and their public pricing —
-        # occupied rooms, tenant/account data, invoices, tickets and contract
-        # photos are all out of scope for this role. Listing photos (room_photos)
-        # ARE meant to be public, so those stay — just narrowed to vacant rooms.
+        # Salers need to spot rooms/beds they can still fill and their public
+        # pricing — occupied single rooms, tenant/account data, invoices,
+        # tickets and contract photos are all out of scope for this role.
+        # Listing photos (room_photos) ARE meant to be public, so those stay
+        # — just narrowed to whatever rooms end up recruitable below.
+        saler_commission_percent = Storage.get_saler_commission_percent()
         if current_user and current_user.get('role') == 'saler':
-            rooms = [r for r in rooms if not r.get('tenant')]
+            def is_recruitable(r):
+                # A dorm room can be PARTIALLY filled — still worth showing
+                # to salers (with however many spots remain) as long as it
+                # hasn't hit its total capacity. A single room is strictly
+                # binary: recruitable only once its one tenant slot is
+                # cleared (has_tenant is False).
+                if r.get('roomType') == 'dorm' and (r.get('capacity') or 0) > 0:
+                    return (r.get('headcount') or 0) < r.get('capacity')
+                return not r.get('tenant')
+
+            def to_saler_room(r):
+                capacity = r.get('capacity') or 0
+                headcount = r.get('headcount') or 0
+                # tenant/phone/headcount identify or count whoever's already
+                # there — never shown to a saler, even for a partially-filled
+                # dorm room they can otherwise see. missingCount (how many
+                # more people are needed) replaces raw headcount for dorms.
+                out = {k: v for k, v in r.items() if k not in ('headcount', 'phone', 'tenant')}
+                out['tenant'] = ''
+                if r.get('roomType') == 'dorm' and capacity:
+                    out['missingCount'] = max(0, capacity - headcount)
+                return out
+
+            rooms = [r for r in rooms if is_recruitable(r)]
             room_ids = {r['id'] for r in rooms}
             services = [s for s in services if any(RentalService.service_matches_house(s, r['houseId']) for r in rooms)]
             room_photos = {rid: p for rid, p in room_photos.items() if rid in room_ids}
-            # headcount/phone belong to whoever last lived there — not
-            # meaningful for a vacant room and never something to expose to
-            # a saler, even if a stale value somehow survived (e.g. cleared
-            # by hand instead of through the app's own deactivate flow).
-            # `capacity` (the public max-beds figure) is the one meant to be
-            # shown, so it stays untouched.
-            rooms = [{k: v for k, v in r.items() if k not in ('headcount', 'phone')} for r in rooms]
+            rooms = [to_saler_room(r) for r in rooms]
             users = []
             invoices = []
             tickets = []
@@ -230,6 +249,7 @@ class RentalService:
             'customIcons': custom_icons,
             'roomDocuments': room_documents,
             'roomPhotos': room_photos,
+            'salerCommissionPercent': saler_commission_percent,
             'investorExpenses': investor_expenses,
             'currentMonth': month
         }
@@ -319,7 +339,7 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None, area=None, description=None, capacity=None):
+    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None, area=None, description=None, capacity=None, deposit=None):
         # 6 hex chars (matches houses/services/formulas/tickets) — the old
         # 4-char version only had 65,536 possible ids, giving a
         # non-negligible birthday-paradox collision chance once a building
@@ -350,7 +370,10 @@ class RentalService:
             'description': description if description is not None else existing.get('description', ''),
             # Total bed capacity — informational only (see storage._room()),
             # never used in room_rent_total/calculate_room_services_total.
-            'capacity': int(capacity) if capacity not in (None, '') else existing.get('capacity', 0)
+            'capacity': int(capacity) if capacity not in (None, '') else existing.get('capacity', 0),
+            # Basis for the saler commission figure (commission = deposit x
+            # the global saler_commission_percent setting).
+            'deposit': float(deposit) if deposit not in (None, '') else existing.get('deposit', 0)
         }
         Storage.save_room(r_obj)
         RentalService.sync_readings_with_services()
@@ -767,6 +790,12 @@ class RentalService:
             })
         Storage.save_custom_icons(cleaned)
         return cleaned
+
+    @staticmethod
+    def save_saler_commission_percent(percent):
+        pct = max(0, float(percent or 0))
+        Storage.save_saler_commission_percent(pct)
+        return pct
 
     @staticmethod
     def get_ticket_detail(ticket_id):

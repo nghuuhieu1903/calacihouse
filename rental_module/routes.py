@@ -164,9 +164,17 @@ def save_room():
         data.get('waterFormula'),
         data.get('area'),
         data.get('description'),
-        data.get('capacity')
+        data.get('capacity'),
+        data.get('deposit')
     )
     return jsonify({'success': True, 'room': r_obj})
+
+@rental_bp.route('/api/settings/saler-commission/save', methods=['POST'])
+@admin_required
+def save_saler_commission():
+    data = request.json or {}
+    percent = RentalService.save_saler_commission_percent(data.get('percent'))
+    return jsonify({'success': True, 'percent': percent})
 
 @rental_bp.route('/api/rooms/contract/save', methods=['POST'])
 @permission_required('rooms', 'edit')
