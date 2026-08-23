@@ -50,6 +50,10 @@ const I18N = {
     tooltip_deactivate_room: 'Bấm để bỏ kích hoạt (đánh dấu phòng trống, hiện cho Saler)',
     confirm_deactivate_room: 'Bỏ kích hoạt phòng này? Phòng sẽ được đánh dấu Trống và hiện ra cho các bạn Saler.',
     toast_room_deactivated: 'Đã đánh dấu phòng Trống — Saler có thể thấy phòng này.',
+    confirm_deactivate_room_title: 'Bỏ Kích Hoạt Phòng?',
+    btn_deactivate_room: 'Bỏ Kích Hoạt',
+    btn_confirm: 'Xác Nhận',
+    confirm_modal_default_title: 'Xác Nhận',
     inv_stat_revenue: 'Doanh thu tháng này',
     inv_stat_occupancy: 'Tỷ lệ lấp đầy',
     inv_stat_collected: 'Đã thu tháng này',
@@ -587,6 +591,10 @@ const I18N = {
     tooltip_deactivate_room: 'Click to deactivate (mark as vacant, visible to Saler)',
     confirm_deactivate_room: 'Deactivate this room? It will be marked Vacant and shown to salers.',
     toast_room_deactivated: 'Room marked Vacant — salers can now see it.',
+    confirm_deactivate_room_title: 'Deactivate Room?',
+    btn_deactivate_room: 'Deactivate',
+    btn_confirm: 'Confirm',
+    confirm_modal_default_title: 'Confirm',
     inv_stat_revenue: 'Revenue this month',
     inv_stat_occupancy: 'Occupancy rate',
     inv_stat_collected: 'Collected this month',
@@ -4511,7 +4519,12 @@ async function toggleRoomActive(roomId) {
   if (!r) return;
 
   if (r.tenant) {
-    if (!confirm(t('confirm_deactivate_room'))) return;
+    const ok = await showConfirmModal(t('confirm_deactivate_room'), {
+      title: t('confirm_deactivate_room_title'),
+      okLabel: t('btn_deactivate_room'),
+      danger: true
+    });
+    if (!ok) return;
     const rObj = { ...r, tenant: '', phone: '' };
     try {
       await fetch(`${API_BASE}/rooms/save`, {
@@ -5166,6 +5179,39 @@ function toggleTheme() {
 
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
+}
+
+// In-app replacement for the browser's native confirm() — same yes/no
+// question, styled to match the rest of the app instead of the unstyled
+// top-of-viewport browser dialog. Returns a Promise<boolean>, so callers
+// just `await` it where they used to check confirm()'s return value.
+let _confirmModalResolve = null;
+
+function showConfirmModal(message, options = {}) {
+  return new Promise(resolve => {
+    _confirmModalResolve = resolve;
+    document.getElementById('confirm-modal-title').innerText = options.title || t('confirm_modal_default_title');
+    document.getElementById('confirm-modal-message').innerText = message;
+    const okBtn = document.getElementById('confirm-modal-ok-btn');
+    okBtn.innerText = options.okLabel || t('btn_confirm');
+    okBtn.className = `btn ${options.danger ? 'btn-secondary' : 'btn-orange'}`;
+    okBtn.style.color = options.danger ? 'var(--color-danger)' : '';
+    okBtn.style.borderColor = options.danger ? 'var(--color-danger)' : '';
+    const iconBox = document.getElementById('confirm-modal-icon-box');
+    iconBox.style.background = options.danger ? '#ffecee' : '#fff2ec';
+    iconBox.style.color = options.danger ? 'var(--cala-red)' : 'var(--cala-orange)';
+    document.getElementById('modal-confirm').classList.add('active');
+    lucide.createIcons();
+  });
+}
+
+function resolveConfirmModal(result) {
+  document.getElementById('modal-confirm').classList.remove('active');
+  if (_confirmModalResolve) {
+    const resolve = _confirmModalResolve;
+    _confirmModalResolve = null;
+    resolve(result);
+  }
 }
 
 /* ==========================================================================
