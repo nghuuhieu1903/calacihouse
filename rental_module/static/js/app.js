@@ -4082,9 +4082,13 @@ function renderRoomsManagement() {
                   <div style="font-weight:800; font-size:1rem;">${r.name}</div>
                   <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || t('no_tenant_label')} ${r.phone ? '· ' + r.phone : ''}</div>
                 </div>
-                <button type="button" class="badge ${r.tenant ? 'badge-paid' : 'badge-open'}" style="font-size:0.7rem; border:none; cursor:pointer;" onclick="toggleRoomActive('${r.id}')" title="${r.tenant ? t('tooltip_deactivate_room') : t('tooltip_activate_room')}">
-                  ${r.tenant ? t('status_active_room') : t('status_inactive_room')}
-                </button>
+                <div style="display:flex; flex-direction:column; align-items:flex-end; gap:0.3rem;">
+                  <label class="switch-toggle" onclick="event.preventDefault(); toggleRoomActive('${r.id}');" title="${r.tenant ? t('tooltip_deactivate_room') : t('tooltip_activate_room')}">
+                    <input type="checkbox" ${r.tenant ? 'checked' : ''} readonly>
+                    <span class="switch-slider"></span>
+                  </label>
+                  <span style="font-size:0.68rem; font-weight:700; color:${r.tenant ? 'var(--cala-emerald)' : 'var(--text-muted)'};">${r.tenant ? t('status_active_room') : t('status_inactive_room')}</span>
+                </div>
               </div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
                 <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>

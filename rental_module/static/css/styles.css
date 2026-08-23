@@ -224,6 +224,18 @@ select.form-control { padding-right: 2.25rem; }
 .badge-open { background: #ffecee; color: var(--cala-red); border: 1px solid #ffc2c9; }
 .badge-resolved { background: var(--cala-blue-light); color: var(--cala-blue); border: 1px solid #bce2fd; }
 
+/* Active/Inactive toggle switch (room occupancy — see toggleRoomActive() in
+   app.js). The click is intercepted in JS (preventDefault + a confirm modal
+   for turning off), so the checkbox itself is never actually driven by the
+   browser's native toggling — its `checked` state is fully re-rendered from
+   state.rooms after every action instead. */
+.switch-toggle { position: relative; display: inline-block; width: 42px; height: 23px; cursor: pointer; flex-shrink: 0; }
+.switch-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.switch-toggle .switch-slider { position: absolute; inset: 0; background-color: #ffc2c9; transition: 0.2s; border-radius: 999px; }
+.switch-toggle .switch-slider::before { content: ""; position: absolute; height: 17px; width: 17px; left: 3px; top: 3px; background-color: #fff; transition: 0.2s; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
+.switch-toggle input:checked + .switch-slider { background-color: var(--cala-emerald); }
+.switch-toggle input:checked + .switch-slider::before { transform: translateX(19px); }
+
 /* TICKET SUMMARY CARD (mobile/tablet-portrait ticket list — see the
    .tickets-mobile-cards toggle above) */
 .tickets-mobile-cards { display: none; }
