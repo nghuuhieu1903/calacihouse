@@ -235,7 +235,9 @@ def _room(row):
         'elecFormula': row['elec_formula'] or '',
         'waterFormula': row['water_formula'] or '',
         'contractStart': row.get('contract_start') or '',
-        'contractEnd': row.get('contract_end') or ''
+        'contractEnd': row.get('contract_end') or '',
+        'area': row.get('area') or 0,
+        'description': row.get('description') or ''
     }
 
 def _default_investor_share(name, calc_type):
@@ -542,8 +544,8 @@ class Storage:
             with conn.cursor() as cur:
                 cur.execute(
                     "REPLACE INTO rooms "
-                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         r['id'],
                         r.get('houseId', ''),
@@ -556,7 +558,9 @@ class Storage:
                         r.get('elecFormula', ''),
                         r.get('waterFormula', ''),
                         r.get('contractStart', ''),
-                        r.get('contractEnd', '')
+                        r.get('contractEnd', ''),
+                        r.get('area', 0),
+                        r.get('description', '')
                     )
                 )
             conn.commit()
@@ -1009,3 +1013,20 @@ class Storage:
         photos back-to-back for the same room fires overlapping requests
         that would otherwise clobber each other's saved document."""
         return Storage._kv_update('room_documents', {}, mutate)
+
+    # -- Room Photos (public listing photos, keyed by roomId) ---------------
+    # Separate from room_documents: those are private (contract/CCCD scans,
+    # never shown outside admin/tenant), these are marketing photos meant to
+    # be shipped to the saler role's public room listing.
+
+    @staticmethod
+    def get_room_photos():
+        return Storage._kv_get('room_photos', {})
+
+    @staticmethod
+    def save_room_photos(photos):
+        Storage._kv_set('room_photos', photos)
+
+    @staticmethod
+    def update_room_photos(mutate):
+        return Storage._kv_update('room_photos', {}, mutate)

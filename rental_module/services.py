@@ -158,6 +158,7 @@ class RentalService:
         site_settings = Storage.get_site_settings()
         custom_icons = Storage.get_custom_icons()
         room_documents = Storage.get_room_documents()
+        room_photos = Storage.get_room_photos()
         # Investor payout math is internal to admin/manager — never shipped to
         # an investor or tenant session (see role filtering below).
         investor_expenses = Storage.get_investor_expenses()
@@ -180,7 +181,24 @@ class RentalService:
                     for m, month_readings in readings.items()
                 }
                 room_documents = {rid: docs for rid, docs in room_documents.items() if rid in room_ids}
+                room_photos = {rid: p for rid, p in room_photos.items() if rid in room_ids}
             users = []  # investor dashboard has no need for the account directory
+
+        # Salers only need to spot vacant rooms and their public pricing —
+        # occupied rooms, tenant/account data, invoices, tickets and contract
+        # photos are all out of scope for this role. Listing photos (room_photos)
+        # ARE meant to be public, so those stay — just narrowed to vacant rooms.
+        if current_user and current_user.get('role') == 'saler':
+            rooms = [r for r in rooms if not r.get('tenant')]
+            room_ids = {r['id'] for r in rooms}
+            services = [s for s in services if any(RentalService.service_matches_house(s, r['houseId']) for r in rooms)]
+            room_photos = {rid: p for rid, p in room_photos.items() if rid in room_ids}
+            users = []
+            invoices = []
+            tickets = []
+            readings = {}
+            room_documents = {}
+            investor_expenses = []
 
         # The investor payout report is an admin/manager-only tool — an investor
         # or tenant session must never receive these figures, regardless of the
@@ -204,6 +222,7 @@ class RentalService:
             'siteSettings': site_settings,
             'customIcons': custom_icons,
             'roomDocuments': room_documents,
+            'roomPhotos': room_photos,
             'investorExpenses': investor_expenses,
             'currentMonth': month
         }
@@ -293,7 +312,7 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None):
+    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None, area=None, description=None):
         # 6 hex chars (matches houses/services/formulas/tickets) — the old
         # 4-char version only had 65,536 possible ids, giving a
         # non-negligible birthday-paradox collision chance once a building
@@ -319,7 +338,9 @@ class RentalService:
             'elecFormula': elec_formula or 'elec_flat_3500',
             'waterFormula': water_formula or 'water_flat_18000',
             'contractStart': existing.get('contractStart', ''),
-            'contractEnd': existing.get('contractEnd', '')
+            'contractEnd': existing.get('contractEnd', ''),
+            'area': float(area) if area not in (None, '') else existing.get('area', 0),
+            'description': description if description is not None else existing.get('description', '')
         }
         Storage.save_room(r_obj)
         RentalService.sync_readings_with_services()
@@ -781,4 +802,39 @@ class RentalService:
             return documents
 
         Storage.update_room_documents(mutate)
+        return True
+
+    @staticmethod
+    def save_room_photo(room_id, photo_id, label, data_url):
+        if not room_id or not data_url:
+            return None
+        p_id = photo_id or f"photo_{uuid.uuid4().hex[:8]}"
+        p_obj = {
+            'id': p_id,
+            'label': label or '',
+            'dataUrl': data_url,
+            'uploadedAt': datetime.now().strftime('%Y-%m-%d %H:%M')
+        }
+
+        def mutate(photos):
+            room_photos = photos.get(room_id, [])
+            idx = next((i for i, p in enumerate(room_photos) if p['id'] == p_id), -1)
+            if idx >= 0:
+                room_photos[idx] = p_obj
+            else:
+                room_photos.append(p_obj)
+            photos[room_id] = room_photos
+            return photos
+
+        Storage.update_room_photos(mutate)
+        return p_obj
+
+    @staticmethod
+    def delete_room_photo(room_id, photo_id):
+        def mutate(photos):
+            room_photos = photos.get(room_id, [])
+            photos[room_id] = [p for p in room_photos if p['id'] != photo_id]
+            return photos
+
+        Storage.update_room_photos(mutate)
         return True

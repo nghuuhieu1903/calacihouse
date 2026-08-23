@@ -161,7 +161,9 @@ def save_room():
         data.get('headcount'),
         data.get('roomType'),
         data.get('elecFormula'),
-        data.get('waterFormula')
+        data.get('waterFormula'),
+        data.get('area'),
+        data.get('description')
     )
     return jsonify({'success': True, 'room': r_obj})
 
@@ -382,4 +384,25 @@ def upload_room_document():
 def delete_room_document():
     data = request.json or {}
     success = RentalService.delete_room_document(data.get('roomId'), data.get('id'))
+    return jsonify({'success': success})
+
+@rental_bp.route('/api/rooms/photos/upload', methods=['POST'])
+@permission_required('rooms', 'edit')
+def upload_room_photo():
+    data = request.json or {}
+    photo = RentalService.save_room_photo(
+        data.get('roomId'),
+        data.get('id'),
+        data.get('label'),
+        data.get('dataUrl')
+    )
+    if not photo:
+        return jsonify({'success': False, 'error': 'Thiếu roomId hoặc dữ liệu ảnh'}), 400
+    return jsonify({'success': True, 'photo': photo})
+
+@rental_bp.route('/api/rooms/photos/delete', methods=['POST'])
+@superadmin_required
+def delete_room_photo():
+    data = request.json or {}
+    success = RentalService.delete_room_photo(data.get('roomId'), data.get('id'))
     return jsonify({'success': success})

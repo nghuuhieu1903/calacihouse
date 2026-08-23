@@ -25,6 +25,31 @@ const I18N = {
     view_investor_dashboard_subtitle: 'Số liệu thống kê & doanh thu tổng hợp của tòa nhà bạn đầu tư',
     role_investor_label: 'Chủ đầu tư',
     option_role_investor: 'Chủ Đầu Tư (Investor)',
+    menu_saler: 'Cổng Kinh Doanh',
+    nav_saler_rooms: 'Phòng Trống',
+    saler_rooms_subtitle: 'Danh sách phòng còn trống kèm giá phòng và bảng giá dịch vụ áp dụng',
+    role_saler_label: 'Nhân viên kinh doanh',
+    option_role_saler: 'Nhân Viên Kinh Doanh (Saler)',
+    saler_rooms_title: 'Danh Sách Phòng Trống',
+    saler_rooms_empty_state: 'Hiện không có phòng trống nào.',
+    saler_vacant_unit_label: 'phòng trống',
+    saler_services_label: 'Dịch vụ / Điện nước áp dụng',
+    saler_area_label: 'Diện tích',
+    lbl_room_area: 'Diện Tích (m²)',
+    lbl_room_description: 'Mô Tả / Ghi Chú Phòng (hiển thị công khai cho Saler)',
+    btn_room_photos: 'Ảnh Phòng (Saler xem được)',
+    select_room_photo: 'Chọn ảnh phòng',
+    lbl_saler_photos_list: 'Danh Sách Ảnh (Saler xem được)',
+    room_photos_empty_state: 'Chưa có ảnh phòng nào.',
+    toast_photo_added: 'Đã thêm ảnh phòng!',
+    toast_photo_deleted: 'Đã xoá ảnh phòng!',
+    confirm_delete_photo: 'Bạn có chắc muốn xoá ảnh này?',
+    status_active_room: 'Đang Thuê (Kích Hoạt)',
+    status_inactive_room: 'Trống (Chưa Kích Hoạt)',
+    tooltip_activate_room: 'Bấm để kích hoạt (nhập thông tin khách thuê)',
+    tooltip_deactivate_room: 'Bấm để bỏ kích hoạt (đánh dấu phòng trống, hiện cho Saler)',
+    confirm_deactivate_room: 'Bỏ kích hoạt phòng này? Phòng sẽ được đánh dấu Trống và hiện ra cho các bạn Saler.',
+    toast_room_deactivated: 'Đã đánh dấu phòng Trống — Saler có thể thấy phòng này.',
     inv_stat_revenue: 'Doanh thu tháng này',
     inv_stat_occupancy: 'Tỷ lệ lấp đầy',
     inv_stat_collected: 'Đã thu tháng này',
@@ -537,6 +562,31 @@ const I18N = {
     view_investor_dashboard_subtitle: 'Statistics and consolidated revenue for the building(s) you invested in',
     role_investor_label: 'Investor',
     option_role_investor: 'Investor',
+    menu_saler: 'Sales Portal',
+    nav_saler_rooms: 'Vacant Rooms',
+    saler_rooms_subtitle: 'List of currently vacant rooms with pricing and applicable service fees',
+    role_saler_label: 'Saler',
+    option_role_saler: 'Saler',
+    saler_rooms_title: 'Vacant Rooms',
+    saler_rooms_empty_state: 'No vacant rooms right now.',
+    saler_vacant_unit_label: 'vacant',
+    saler_services_label: 'Applicable services / utilities',
+    saler_area_label: 'Area',
+    lbl_room_area: 'Area (m²)',
+    lbl_room_description: 'Room description / notes (publicly shown to Saler)',
+    btn_room_photos: 'Room Photos (visible to Saler)',
+    select_room_photo: 'Choose room photo',
+    lbl_saler_photos_list: 'Photo List (visible to Saler)',
+    room_photos_empty_state: 'No room photos yet.',
+    toast_photo_added: 'Room photo added!',
+    toast_photo_deleted: 'Room photo deleted!',
+    confirm_delete_photo: 'Are you sure you want to delete this photo?',
+    status_active_room: 'Occupied (Active)',
+    status_inactive_room: 'Vacant (Inactive)',
+    tooltip_activate_room: 'Click to activate (enter tenant info)',
+    tooltip_deactivate_room: 'Click to deactivate (mark as vacant, visible to Saler)',
+    confirm_deactivate_room: 'Deactivate this room? It will be marked Vacant and shown to salers.',
+    toast_room_deactivated: 'Room marked Vacant — salers can now see it.',
     inv_stat_revenue: 'Revenue this month',
     inv_stat_occupancy: 'Occupancy rate',
     inv_stat_collected: 'Collected this month',
@@ -1115,6 +1165,7 @@ let state = {
   invoices: [],
   tickets: [],
   roomDocuments: {},
+  roomPhotos: {},
   investorExpenses: [],
   investorFeePercent: 20,
   siteSettings: { siteName: 'CalaciHouse', title: 'CalaciHouse - Hệ Thống Quản Lý Phòng Trọ', description: '', keywords: '', shareImage: '', favicon: '' },
@@ -1325,6 +1376,7 @@ function setupUserRoleUI() {
   const adminNav = document.querySelector('.admin-nav');
   const tenantNav = document.querySelector('.tenant-nav');
   const investorNav = document.querySelector('.investor-nav');
+  const salerNav = document.querySelector('.saler-nav');
   const houseBox = document.getElementById('nav-house-box');
   const monthBox = document.getElementById('nav-month-box');
   const avatarText = document.getElementById('user-avatar-text');
@@ -1344,6 +1396,9 @@ function setupUserRoleUI() {
   } else if (user.role === 'investor') {
     avatarText.innerText = 'CD';
     roleEl.innerText = t('role_investor_label');
+  } else if (user.role === 'saler') {
+    avatarText.innerText = 'KD';
+    roleEl.innerText = t('role_saler_label');
   } else {
     avatarText.innerText = user.username.substring(0, 2).toUpperCase();
     roleEl.innerText = user.roomId ? `${t('col_room')} ${user.roomId.replace('R', '')}` : t('role_tenant_label');
@@ -1408,12 +1463,21 @@ function setupUserRoleUI() {
     adminNav.style.display = 'none';
     tenantNav.style.display = 'none';
     if (investorNav) investorNav.style.display = 'flex';
+    if (salerNav) salerNav.style.display = 'none';
     if (houseBox) houseBox.style.display = 'flex';
     switchView('investor-dashboard');
+  } else if (user.role === 'saler') {
+    adminNav.style.display = 'none';
+    tenantNav.style.display = 'none';
+    if (investorNav) investorNav.style.display = 'none';
+    if (salerNav) salerNav.style.display = 'flex';
+    if (houseBox) houseBox.style.display = 'none';
+    switchView('saler-rooms');
   } else {
     adminNav.style.display = 'none';
     tenantNav.style.display = 'flex';
     if (investorNav) investorNav.style.display = 'none';
+    if (salerNav) salerNav.style.display = 'none';
     if (houseBox) houseBox.style.display = 'none';
     switchView('tenant-invoices');
   }
@@ -1529,6 +1593,7 @@ async function fetchState() {
       state.tickets = data.tickets || state.tickets;
       state.permissions = data.permissions || state.permissions;
       state.roomDocuments = data.roomDocuments || state.roomDocuments;
+      state.roomPhotos = data.roomPhotos || state.roomPhotos;
       state.investorExpenses = data.investorExpenses || state.investorExpenses;
       state.customIcons = data.customIcons || state.customIcons;
       if (data.siteSettings) applySiteSettings(data.siteSettings);
@@ -1620,6 +1685,11 @@ function switchView(viewId) {
       titleEl.innerText = dict.nav_investor_dashboard;
       subtitleEl.innerText = dict.view_investor_dashboard_subtitle;
       renderInvestorDashboard();
+      break;
+    case 'saler-rooms':
+      titleEl.innerText = dict.nav_saler_rooms;
+      subtitleEl.innerText = dict.saler_rooms_subtitle;
+      renderSalerRooms();
       break;
     case 'tenant-invoices':
       titleEl.innerText = dict.my_invoice_title;
@@ -4004,7 +4074,9 @@ function renderRoomsManagement() {
                   <div style="font-weight:800; font-size:1rem;">${r.name}</div>
                   <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || t('no_tenant_label')} ${r.phone ? '· ' + r.phone : ''}</div>
                 </div>
-                <span class="badge ${r.tenant ? 'badge-paid' : 'badge-open'}" style="font-size:0.7rem;">${r.tenant ? t('status_occupied') : t('vacant_label')}</span>
+                <button type="button" class="badge ${r.tenant ? 'badge-paid' : 'badge-open'}" style="font-size:0.7rem; border:none; cursor:pointer;" onclick="toggleRoomActive('${r.id}')" title="${r.tenant ? t('tooltip_deactivate_room') : t('tooltip_activate_room')}">
+                  ${r.tenant ? t('status_active_room') : t('status_inactive_room')}
+                </button>
               </div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
                 <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
@@ -4017,7 +4089,7 @@ function renderRoomsManagement() {
                   ${contractStatusBadgeHtml(r)}
                 </div>
               ` : ''}
-              <div style="display:flex; gap:0.5rem;">
+              <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
                 <button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditRoomModal('${r.id}')">
                   <i data-lucide="edit-2"></i> ${t('btn_edit')}
                 </button>
@@ -4028,8 +4100,109 @@ function renderRoomsManagement() {
                   <i data-lucide="trash-2"></i>
                 </button>` : ''}
               </div>
+              <button class="btn btn-secondary btn-sm" style="width:100%; justify-content:center; margin-top:0.5rem;" onclick="openRoomPhotosModal('${r.id}')">
+                <i data-lucide="camera"></i> ${t('btn_room_photos')}${(state.roomPhotos[r.id] || []).length ? ` (${(state.roomPhotos[r.id] || []).length})` : ''}
+              </button>
             </div>
           `).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  lucide.createIcons();
+}
+
+// Saler portal — the backend already filters state.rooms down to vacant
+// rooms only (see get_full_state's 'saler' branch in services.py), so
+// everything here is public-safe: no tenant/phone/contract data ever
+// reaches this render.
+function renderSalerRooms() {
+  const container = document.getElementById('saler-rooms-container');
+  if (!container) return;
+
+  if (state.rooms.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-secondary);">${t('saler_rooms_empty_state')}</div>`;
+    return;
+  }
+
+  const byHouse = {};
+  state.rooms.forEach(r => {
+    const hid = r.houseId || 'unknown';
+    if (!byHouse[hid]) byHouse[hid] = [];
+    byHouse[hid].push(r);
+  });
+
+  const roomSortKey = r => {
+    const match = (r.name || '').match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+  };
+  Object.keys(byHouse).forEach(hid => {
+    byHouse[hid].sort((a, b) => {
+      const numA = roomSortKey(a);
+      const numB = roomSortKey(b);
+      if (numA !== null && numB !== null && numA !== numB) return numA - numB;
+      if (numA !== null && numB === null) return -1;
+      if (numA === null && numB !== null) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  });
+
+  const servicePriceHtml = s => {
+    if (s.calcType === 'formula') {
+      return `<span class="badge badge-pending" style="font-size:0.68rem;">🧮 x = ${s.customFormula || '?'}</span>`;
+    }
+    return `<span class="badge badge-paid" style="font-size:0.68rem;">${formatMoney(s.price)} đ${s.unit ? ' / ' + s.unit : ''}</span>`;
+  };
+
+  let html = '';
+  Object.keys(byHouse).forEach(hid => {
+    const house = state.houses.find(h => h.id === hid);
+    const rooms = byHouse[hid];
+    html += `
+      <div style="margin-bottom: 1.5rem;">
+        <div style="font-size: 1rem; font-weight: 800; color: var(--cala-blue); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i data-lucide="building-2" style="width:18px;height:18px;"></i>
+          ${house ? house.name : hid}
+          <span class="badge badge-open" style="font-size:0.7rem;">${rooms.length} ${t('saler_vacant_unit_label')}</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
+          ${rooms.map(r => {
+            const roomServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id));
+            const photos = state.roomPhotos[r.id] || [];
+            return `
+            <div class="cala-card" style="padding: 1.1rem 1.25rem;">
+              ${photos.length ? `
+                <div style="display:flex; gap:0.4rem; overflow-x:auto; margin-bottom:0.75rem;">
+                  ${photos.map(p => `<img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:84px; height:84px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">`).join('')}
+                </div>
+              ` : ''}
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
+                <div style="font-weight:800; font-size:1rem;">${r.name}</div>
+                <span class="badge badge-open" style="font-size:0.7rem;">${t('vacant_label')}</span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
+                <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
+                <div><span style="color:var(--text-muted);">${t('headcount_label')}</span><br><strong>${r.headcount || 1} ${t('formula_per_person_label')}</strong></div>
+                ${r.area ? `<div><span style="color:var(--text-muted);">${t('saler_area_label')}</span><br><strong>${r.area} m²</strong></div>` : ''}
+              </div>
+              ${r.description ? `<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.75rem; white-space:pre-wrap;">${r.description}</div>` : ''}
+              ${roomServices.length ? `
+                <div style="border-top: 1px solid var(--border-color); padding-top:0.6rem;">
+                  <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.4rem;">${t('saler_services_label')}</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
+                    ${roomServices.map(s => `
+                      <span style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.78rem;">
+                        ${s.symbol || '📦'} ${s.name} ${servicePriceHtml(s)}
+                      </span>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          `;
+          }).join('')}
         </div>
       </div>
     `;
@@ -4208,6 +4381,153 @@ function viewDocumentFullSize(dataUrl) {
   const win = window.open('');
   if (win) {
     win.document.write(`<img src="${dataUrl}" style="max-width:100%; display:block; margin:0 auto;">`);
+  }
+}
+
+/* =====================================================================
+   ROOM PHOTOS — PUBLIC LISTING PHOTOS SHOWN TO THE SALER ROLE
+   (separate from room documents above, which are private contract scans)
+===================================================================== */
+let _currentPhotoRoomId = null;
+let _pendingPhotoDataUrl = null;
+
+function openRoomPhotosModal(roomId) {
+  _currentPhotoRoomId = roomId;
+  _pendingPhotoDataUrl = null;
+  const room = state.rooms.find(r => r.id === roomId);
+  const titleEl = document.getElementById('room-photos-modal-title');
+  if (titleEl) titleEl.innerText = room ? `${t('btn_room_photos')} - ${room.name}` : t('btn_room_photos');
+
+  const labelInput = document.getElementById('room-photo-label');
+  if (labelInput) labelInput.value = '';
+  const previewEl = document.getElementById('room-photo-pending-preview');
+  if (previewEl) previewEl.innerHTML = '';
+
+  renderRoomPhotosList();
+  document.getElementById('modal-room-photos').classList.add('active');
+  lucide.createIcons();
+}
+
+async function handleRoomPhotoSelect(event) {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    _pendingPhotoDataUrl = await compressImageFile(file);
+    const previewEl = document.getElementById('room-photo-pending-preview');
+    if (previewEl) {
+      previewEl.innerHTML = `<img src="${_pendingPhotoDataUrl}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--cala-blue);">`;
+    }
+  } catch (err) {
+    showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+  }
+}
+
+async function uploadRoomPhoto() {
+  if (!_currentPhotoRoomId) return;
+  if (!_pendingPhotoDataUrl) { showToast(t('toast_select_image_first'), 'error'); return; }
+
+  const labelInput = document.getElementById('room-photo-label');
+  const label = (labelInput && labelInput.value.trim()) || '';
+
+  try {
+    const res = await fetch(`${API_BASE}/rooms/photos/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: _currentPhotoRoomId, label, dataUrl: _pendingPhotoDataUrl })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (!state.roomPhotos[_currentPhotoRoomId]) state.roomPhotos[_currentPhotoRoomId] = [];
+      state.roomPhotos[_currentPhotoRoomId].push(data.photo);
+      _pendingPhotoDataUrl = null;
+      if (labelInput) labelInput.value = '';
+      const previewEl = document.getElementById('room-photo-pending-preview');
+      if (previewEl) previewEl.innerHTML = '';
+      renderRoomPhotosList();
+      renderRoomsManagement();
+      showToast(t('toast_photo_added'), 'success');
+    } else {
+      showToast(data.error || t('toast_upload_error'), 'error');
+    }
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+}
+
+async function deleteRoomPhoto(photoId) {
+  if (!_currentPhotoRoomId) return;
+  if (!confirm(t('confirm_delete_photo'))) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/rooms/photos/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roomId: _currentPhotoRoomId, id: photoId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      state.roomPhotos[_currentPhotoRoomId] = (state.roomPhotos[_currentPhotoRoomId] || []).filter(p => p.id !== photoId);
+      renderRoomPhotosList();
+      renderRoomsManagement();
+      showToast(t('toast_photo_deleted'), 'success');
+    }
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+}
+
+function renderRoomPhotosList() {
+  const container = document.getElementById('room-photos-list');
+  if (!container || !_currentPhotoRoomId) return;
+  const photos = state.roomPhotos[_currentPhotoRoomId] || [];
+
+  if (photos.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:1.5rem; color:var(--text-secondary); font-size:0.85rem;">${t('room_photos_empty_state')}</div>`;
+    return;
+  }
+
+  container.innerHTML = photos.map(p => `
+    <div class="cala-card" style="padding:0.75rem; display:flex; align-items:center; gap:0.75rem; margin-bottom:0.6rem;">
+      <img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:56px; height:56px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">
+      <div style="flex:1; min-width:0;">
+        <div style="font-weight:700; font-size:0.9rem;">${p.label || t('btn_room_photos')}</div>
+        <div style="font-size:0.75rem; color:var(--text-muted);">${p.uploadedAt}</div>
+      </div>
+      ${canDelete() ? `<button type="button" class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoomPhoto('${p.id}')">
+        <i data-lucide="trash-2"></i>
+      </button>` : ''}
+    </div>
+  `).join('');
+  lucide.createIcons();
+}
+
+// Toggles a room's occupancy: has a tenant name ⇒ "Active" (hidden from
+// Saler); tenant cleared ⇒ "Inactive/Vacant" (shown to Saler). Deactivating
+// just needs a confirm + clearing tenant/phone; activating needs a tenant
+// name, so it opens the normal edit form instead of guessing one.
+async function toggleRoomActive(roomId) {
+  const r = state.rooms.find(x => x.id === roomId);
+  if (!r) return;
+
+  if (r.tenant) {
+    if (!confirm(t('confirm_deactivate_room'))) return;
+    const rObj = { ...r, tenant: '', phone: '' };
+    try {
+      await fetch(`${API_BASE}/rooms/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(rObj)
+      });
+      r.tenant = '';
+      r.phone = '';
+      renderRoomsManagement();
+      showToast(t('toast_room_deactivated'), 'success');
+    } catch (err) {
+      showToast(t('toast_server_connection_error'), 'error');
+    }
+  } else {
+    openEditRoomModal(roomId);
   }
 }
 
@@ -4756,6 +5076,8 @@ function openAddRoomModal() {
   document.getElementById('room-type').value = 'single';
   document.getElementById('room-headcount').value = '1';
   document.getElementById('room-base-rent').value = '3500000';
+  document.getElementById('room-area').value = '';
+  document.getElementById('room-description').value = '';
   toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
@@ -4776,6 +5098,8 @@ function openEditRoomModal(roomId) {
   document.getElementById('room-type').value = r.roomType || 'single';
   document.getElementById('room-headcount').value = r.headcount || 1;
   document.getElementById('room-base-rent').value = r.baseRent || 0;
+  document.getElementById('room-area').value = r.area || '';
+  document.getElementById('room-description').value = r.description || '';
   toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
@@ -4794,10 +5118,12 @@ async function saveRoomConfig(event) {
   const roomType = document.getElementById('room-type').value;
   const headcount = parseInt(document.getElementById('room-headcount').value) || 1;
   const baseRent = parseFloat(document.getElementById('room-base-rent').value) || 0;
+  const area = parseFloat(document.getElementById('room-area').value) || 0;
+  const description = document.getElementById('room-description').value.trim();
 
   const rObj = {
     id: id || genId('R'),
-    houseId, name, tenant, phone, roomType, headcount, baseRent
+    houseId, name, tenant, phone, roomType, headcount, baseRent, area, description
   };
 
   const idx = state.rooms.findIndex(r => r.id === rObj.id);

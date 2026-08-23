@@ -83,7 +83,9 @@ SCHEMA_STATEMENTS = [
         elec_formula   VARCHAR(191) DEFAULT '',
         water_formula  VARCHAR(191) DEFAULT '',
         contract_start VARCHAR(10) DEFAULT '',
-        contract_end   VARCHAR(10) DEFAULT ''
+        contract_end   VARCHAR(10) DEFAULT '',
+        area           DOUBLE DEFAULT 0,
+        description    TEXT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
     """
@@ -191,6 +193,8 @@ def init_db():
             _ensure_column(cur, 'rooms', 'room_type', "VARCHAR(32) DEFAULT 'single'")
             _ensure_column(cur, 'rooms', 'contract_start', "VARCHAR(10) DEFAULT ''")
             _ensure_column(cur, 'rooms', 'contract_end', "VARCHAR(10) DEFAULT ''")
+            _ensure_column(cur, 'rooms', 'area', "DOUBLE DEFAULT 0")
+            _ensure_column(cur, 'rooms', 'description', "TEXT")
             _ensure_column(cur, 'services', 'investor_share', "TEXT")
             _promote_admins_to_superadmin(cur)
         conn.commit()

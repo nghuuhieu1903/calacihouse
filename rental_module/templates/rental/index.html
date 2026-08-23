@@ -186,6 +186,14 @@
         </a>
       </div>
 
+      <div class="nav-section saler-nav" style="display: none;">
+        <div class="nav-label" data-i18n="menu_saler">Cổng Kinh Doanh</div>
+        <a class="nav-item" data-view="saler-rooms">
+          <i data-lucide="door-open"></i>
+          <span data-i18n="nav_saler_rooms">Phòng Trống</span>
+        </a>
+      </div>
+
       <div class="nav-section tenant-nav" style="display: none;">
         <div class="nav-label" data-i18n="menu_tenant">Cổng Khách Thuê</div>
         <a class="nav-item" data-view="tenant-invoices">
@@ -418,6 +426,15 @@
                 <tbody id="investor-rooms-table-body"></tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <!-- SALER PORTAL — READ-ONLY LIST OF VACANT ROOMS WITH PUBLIC PRICING -->
+        <div id="view-saler-rooms" class="view-panel" style="display: none;">
+          <div class="cala-card">
+            <h3 style="margin-bottom: 0.5rem;"><i data-lucide="door-open" style="color: var(--cala-blue); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="saler_rooms_title">Danh Sách Phòng Trống</span></h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;" data-i18n="saler_rooms_subtitle">Các phòng chưa có khách thuê, kèm giá phòng và bảng giá dịch vụ/điện nước áp dụng.</p>
+            <div id="saler-rooms-container"></div>
           </div>
         </div>
 
@@ -1044,6 +1061,7 @@
             <option value="admin" data-i18n="option_role_admin">Quản Trị Viên (Admin - không xoá được)</option>
             <option value="manager" data-i18n="option_role_manager">Quản Lý (Manager)</option>
             <option value="investor" data-i18n="option_role_investor">Chủ Đầu Tư (Investor)</option>
+            <option value="saler" data-i18n="option_role_saler">Nhân Viên Kinh Doanh (Saler)</option>
           </select>
         </div>
         <div style="margin-bottom: 1rem;" id="box-create-assign-house">
@@ -1085,6 +1103,7 @@
             <option value="admin" data-i18n="option_role_admin">Quản Trị Viên (Admin - không xoá được)</option>
             <option value="manager" data-i18n="option_role_manager">Quản Lý (Manager)</option>
             <option value="investor" data-i18n="option_role_investor">Chủ Đầu Tư (Investor)</option>
+            <option value="saler" data-i18n="option_role_saler">Nhân Viên Kinh Doanh (Saler)</option>
           </select>
         </div>
         <div style="margin-bottom: 1rem;" id="box-edit-assign-house">
@@ -1226,6 +1245,16 @@
           </div>
         </div>
 
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_area">Diện Tích (m²)</label>
+          <input type="number" id="room-area" class="form-control" placeholder="20" step="0.1" min="0">
+        </div>
+
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_description">Mô Tả / Ghi Chú Phòng (hiển thị công khai cho Saler)</label>
+          <textarea id="room-description" class="form-control" rows="2" placeholder="Vị trí, nội thất, tiện ích xung quanh..."></textarea>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modal-room-config')" data-i18n="btn_cancel">Hủy</button>
           <button type="submit" class="btn btn-orange" data-i18n="btn_save_room_config">Lưu Cấu Hình Phòng</button>
@@ -1278,6 +1307,37 @@
       <div>
         <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_saved_photos_list">Danh Sách Ảnh Đã Lưu (Khách thuê xem được)</label>
         <div id="room-documents-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Room Photos (public listing photos shown to the Saler role) -->
+  <div class="modal-backdrop" id="modal-room-photos">
+    <div class="modal-card">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3 id="room-photos-modal-title"><i data-lucide="camera" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="btn_room_photos">Ảnh Phòng (Saler xem được)</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-room-photos')"><i data-lucide="x"></i></button>
+      </div>
+
+      <div class="cala-card" style="background: var(--bg-base); margin-bottom: 1.25rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_add_new_photo">Thêm Ảnh Mới</label>
+        <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+          <div id="room-photo-upload-area" onclick="document.getElementById('room-photo-input').click()" style="border: 2px dashed var(--border-color); border-radius: var(--radius-md); padding: 0.85rem; text-align: center; cursor: pointer; background: var(--bg-surface); color: var(--text-secondary); font-size: 0.8rem; flex: 1;">
+            <i data-lucide="upload" style="width:20px; height:20px; display:block; margin: 0 auto 0.3rem;"></i>
+            <span data-i18n="select_room_photo">Chọn ảnh phòng</span>
+          </div>
+          <div id="room-photo-pending-preview"></div>
+        </div>
+        <input type="file" id="room-photo-input" accept="image/*" style="display:none;" onchange="handleRoomPhotoSelect(event)">
+        <input type="text" id="room-photo-label" class="form-control" placeholder="Nhãn (VD: Toàn cảnh phòng, Ban công...)" style="margin-top: 0.75rem;">
+        <button type="button" class="btn btn-orange btn-sm" style="margin-top: 0.75rem; width: 100%; justify-content: center;" onclick="uploadRoomPhoto()">
+          <i data-lucide="plus"></i> <span data-i18n="btn_add_to_list">Thêm Vào Danh Sách</span>
+        </button>
+      </div>
+
+      <div>
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_saler_photos_list">Danh Sách Ảnh (Saler xem được)</label>
+        <div id="room-photos-list"></div>
       </div>
     </div>
   </div>
