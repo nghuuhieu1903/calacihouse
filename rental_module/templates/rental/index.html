@@ -987,6 +987,36 @@
     </div>
   </div>
 
+  <!-- ADD/EDIT CUSTOM SERVICE ICON — the emoji-only icon library the admin
+       can extend beyond ICON_LIBRARY's fixed 10 built-ins (see renderIconPicker). -->
+  <div class="modal-backdrop" id="modal-custom-icon">
+    <div class="modal-card" style="max-width: 400px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3 id="modal-custom-icon-title"><i data-lucide="smile-plus" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="modal_add_icon_title">Thêm Biểu Tượng Icon</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-custom-icon')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-custom-icon" onsubmit="saveCustomIcon(event)">
+        <input type="hidden" id="custom-icon-id">
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_icon_emoji">Emoji</label>
+          <input type="text" id="custom-icon-symbol" class="form-control" style="font-size: 1.5rem; text-align: center;" placeholder="🛠️" maxlength="8" required>
+          <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.4rem;" data-i18n="hint_icon_emoji">Dán 1 emoji bất kỳ vào đây (bàn phím điện thoại/Windows đều có sẵn bảng emoji).</p>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_icon_label">Tên gọi</label>
+          <input type="text" id="custom-icon-label" class="form-control" placeholder="VD: Thang máy" required>
+        </div>
+        <div style="display: flex; justify-content: space-between; gap: 0.75rem;">
+          <button type="button" id="btn-delete-custom-icon" class="btn btn-secondary" style="color: var(--cala-red); display: none;" onclick="deleteCustomIcon()"><i data-lucide="trash-2"></i> <span data-i18n="btn_delete">Xóa</span></button>
+          <div style="display: flex; gap: 0.75rem; margin-left: auto;">
+            <button type="button" class="btn btn-secondary" onclick="closeModal('modal-custom-icon')" data-i18n="btn_cancel">Hủy</button>
+            <button type="submit" class="btn btn-orange" data-i18n="btn_save_icon">Lưu</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="modal-create-user">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">

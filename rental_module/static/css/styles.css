@@ -172,6 +172,15 @@ select.form-control { padding-right: 2.25rem; }
 }
 .icon-picker-option:hover { border-color: var(--cala-blue); background: var(--cala-blue-light); }
 .icon-picker-option.selected { border-color: var(--cala-blue); background: var(--cala-blue-light); box-shadow: 0 0 0 2px rgba(1, 148, 243, 0.2); }
+.icon-picker-option.icon-picker-add { color: var(--text-secondary); border-style: dashed; }
+.icon-picker-option.icon-picker-add:hover { color: var(--cala-blue); }
+.icon-picker-mini-btn {
+  width: 18px; height: 18px; padding: 0; border: none; border-radius: 50%;
+  background: var(--bg-card); color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: var(--shadow-sm);
+}
+.icon-picker-mini-btn:hover { background: var(--cala-blue); color: #ffffff; }
+.icon-picker-mini-btn svg { width: 11px; height: 11px; pointer-events: none; }
 
 /* STATS GRID */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1.25rem; margin-bottom: 1.5rem; }

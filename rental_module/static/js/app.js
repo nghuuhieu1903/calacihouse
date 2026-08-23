@@ -346,6 +346,16 @@ const I18N = {
     toast_expense_saved: 'Đã lưu khoản chi phí!',
     toast_expense_deleted: 'Đã xóa khoản chi phí!',
     confirm_delete_expense: 'Bạn chắc chắn muốn xóa khoản chi phí này?',
+    modal_add_icon_title: 'Thêm Biểu Tượng Icon',
+    modal_edit_icon_title: 'Sửa Biểu Tượng Icon',
+    lbl_icon_emoji: 'Emoji',
+    hint_icon_emoji: 'Dán 1 emoji bất kỳ vào đây (bàn phím điện thoại/Windows đều có sẵn bảng emoji).',
+    lbl_icon_label: 'Tên gọi',
+    btn_save_icon: 'Lưu',
+    btn_add_custom_icon: 'Thêm mới',
+    toast_icon_saved: 'Đã lưu biểu tượng icon!',
+    toast_icon_deleted: 'Đã xóa biểu tượng icon!',
+    confirm_delete_icon: 'Bạn chắc chắn muốn xóa biểu tượng icon này?',
     ir_invoices_counted_label: 'hóa đơn được tính trong tháng này',
     ir_line_rent: 'Tổng tiền nhà',
     ir_line_other_services: 'Dịch vụ khác (internet, rác, gửi xe...)',
@@ -848,6 +858,16 @@ const I18N = {
     toast_expense_saved: 'Cost saved!',
     toast_expense_deleted: 'Cost deleted!',
     confirm_delete_expense: 'Are you sure you want to delete this cost?',
+    modal_add_icon_title: 'Add Icon',
+    modal_edit_icon_title: 'Edit Icon',
+    lbl_icon_emoji: 'Emoji',
+    hint_icon_emoji: 'Paste any emoji here (your phone/Windows keyboard has an emoji picker built in).',
+    lbl_icon_label: 'Label',
+    btn_save_icon: 'Save',
+    btn_add_custom_icon: 'Add new',
+    toast_icon_saved: 'Icon saved!',
+    toast_icon_deleted: 'Icon deleted!',
+    confirm_delete_icon: 'Are you sure you want to delete this icon?',
     ir_invoices_counted_label: 'invoices counted this month',
     ir_line_rent: 'Total room rent',
     ir_line_other_services: 'Other services (internet, trash, parking...)',
@@ -1097,7 +1117,8 @@ let state = {
   roomDocuments: {},
   investorExpenses: [],
   investorFeePercent: 20,
-  siteSettings: { siteName: 'CalaciHouse', title: 'CalaciHouse - Hệ Thống Quản Lý Phòng Trọ', description: '', keywords: '', shareImage: '', favicon: '' }
+  siteSettings: { siteName: 'CalaciHouse', title: 'CalaciHouse - Hệ Thống Quản Lý Phòng Trọ', description: '', keywords: '', shareImage: '', favicon: '' },
+  customIcons: []
 };
 
 const API_BASE = '/api';
@@ -1509,6 +1530,7 @@ async function fetchState() {
       state.permissions = data.permissions || state.permissions;
       state.roomDocuments = data.roomDocuments || state.roomDocuments;
       state.investorExpenses = data.investorExpenses || state.investorExpenses;
+      state.customIcons = data.customIcons || state.customIcons;
       if (data.siteSettings) applySiteSettings(data.siteSettings);
       renderHouseSelector();
       renderCurrentView();
@@ -1797,13 +1819,110 @@ function renderIconPicker(selectedIcon = 'package') {
       </div>
     `;
   });
+
+  // Admin-added icons on top of the fixed built-in set above — editable/
+  // deletable in place (built-ins stay fixed since other default services
+  // already reference their icon ids and translated labels).
+  (state.customIcons || []).forEach(item => {
+    const isSelected = item.id === selectedIcon;
+    html += `
+      <div class="icon-picker-option ${isSelected ? 'selected' : ''}" style="position:relative;" onclick="selectServiceIcon('${item.id}', '${item.symbol}')">
+        <div style="position:absolute; top:3px; right:3px; display:flex; gap:3px;">
+          <button type="button" class="icon-picker-mini-btn" title="${t('btn_edit')}" onclick="event.stopPropagation(); openEditCustomIconPrompt('${item.id}')"><i data-lucide="pencil"></i></button>
+        </div>
+        <span style="font-size:1.3rem;">${item.symbol}</span>
+        <span style="font-size:0.7rem; color:var(--text-secondary); margin-top:2px;">${item.label}</span>
+      </div>
+    `;
+  });
+
+  html += `
+    <div class="icon-picker-option icon-picker-add" onclick="openAddCustomIconPrompt()">
+      <span style="font-size:1.3rem;">+</span>
+      <span style="font-size:0.7rem; margin-top:2px;">${t('btn_add_custom_icon')}</span>
+    </div>
+  `;
+
   container.innerHTML = html;
+  lucide.createIcons();
 }
 
 function selectServiceIcon(iconName, symbolStr) {
   document.getElementById('service-icon').value = iconName;
   document.getElementById('service-symbol').value = symbolStr;
   renderIconPicker(iconName);
+}
+
+function openAddCustomIconPrompt() {
+  document.getElementById('custom-icon-id').value = '';
+  document.getElementById('custom-icon-symbol').value = '';
+  document.getElementById('custom-icon-label').value = '';
+  document.getElementById('modal-custom-icon-title').querySelector('span').innerText = t('modal_add_icon_title');
+  document.getElementById('btn-delete-custom-icon').style.display = 'none';
+  document.getElementById('modal-custom-icon').classList.add('active');
+}
+
+function openEditCustomIconPrompt(iconId) {
+  const item = (state.customIcons || []).find(i => i.id === iconId);
+  if (!item) return;
+  document.getElementById('custom-icon-id').value = item.id;
+  document.getElementById('custom-icon-symbol').value = item.symbol;
+  document.getElementById('custom-icon-label').value = item.label;
+  document.getElementById('modal-custom-icon-title').querySelector('span').innerText = t('modal_edit_icon_title');
+  document.getElementById('btn-delete-custom-icon').style.display = 'inline-flex';
+  document.getElementById('modal-custom-icon').classList.add('active');
+}
+
+async function persistCustomIcons() {
+  try {
+    await fetch(`${API_BASE}/custom-icons/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ icons: state.customIcons })
+    });
+  } catch (err) {
+    console.warn('Custom icons saved locally:', err);
+  }
+}
+
+function saveCustomIcon(event) {
+  event.preventDefault();
+  const id = document.getElementById('custom-icon-id').value;
+  const symbol = document.getElementById('custom-icon-symbol').value.trim();
+  const label = document.getElementById('custom-icon-label').value.trim();
+  if (!symbol || !label) return;
+
+  if (id) {
+    const item = state.customIcons.find(i => i.id === id);
+    if (item) { item.symbol = symbol; item.label = label; }
+  } else {
+    const newItem = { id: genId('icon_'), symbol, label };
+    state.customIcons.push(newItem);
+    selectServiceIcon(newItem.id, newItem.symbol);
+  }
+
+  persistCustomIcons();
+  renderIconPicker(document.getElementById('service-icon').value);
+  closeModal('modal-custom-icon');
+  showToast(t('toast_icon_saved'), 'success');
+}
+
+function deleteCustomIcon() {
+  const id = document.getElementById('custom-icon-id').value;
+  if (!id) return;
+  if (!confirm(t('confirm_delete_icon'))) return;
+
+  state.customIcons = state.customIcons.filter(i => i.id !== id);
+  // The service currently being edited might have this icon selected —
+  // fall back to the default so the form isn't left pointing at a symbol
+  // that no longer exists in the picker.
+  if (document.getElementById('service-icon').value === id) {
+    selectServiceIcon('package', '📦');
+  }
+  persistCustomIcons();
+  renderIconPicker(document.getElementById('service-icon').value);
+  closeModal('modal-custom-icon');
+  showToast(t('toast_icon_deleted'), 'success');
 }
 
 function openAddHouseModal() {

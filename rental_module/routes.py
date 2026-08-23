@@ -113,6 +113,13 @@ def save_service():
     )
     return jsonify({'success': True, 'service': s_obj})
 
+@rental_bp.route('/api/custom-icons/save', methods=['POST'])
+@permission_required('services', 'edit')
+def save_custom_icons():
+    data = request.json or {}
+    icons = RentalService.save_custom_icons(data.get('icons'))
+    return jsonify({'success': True, 'icons': icons})
+
 @rental_bp.route('/api/services/delete', methods=['POST'])
 @superadmin_required
 def delete_service():

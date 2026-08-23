@@ -156,6 +156,7 @@ class RentalService:
         tickets = Storage.get_tickets_light()
         permissions = Storage.get_permissions()
         site_settings = Storage.get_site_settings()
+        custom_icons = Storage.get_custom_icons()
         room_documents = Storage.get_room_documents()
         # Investor payout math is internal to admin/manager — never shipped to
         # an investor or tenant session (see role filtering below).
@@ -201,6 +202,7 @@ class RentalService:
             'tickets': tickets,
             'permissions': permissions,
             'siteSettings': site_settings,
+            'customIcons': custom_icons,
             'roomDocuments': room_documents,
             'investorExpenses': investor_expenses,
             'currentMonth': month
@@ -714,6 +716,26 @@ class RentalService:
         }
         Storage.save_site_settings(settings)
         return settings
+
+    @staticmethod
+    def save_custom_icons(icons):
+        # Client sends the whole list back on every add/edit/delete (same
+        # wholesale-replace approach as the permission matrix) — the list is
+        # short (a handful of admin-added emoji) so there's no races-on-one-
+        # row concern that would justify a per-item id-keyed save here.
+        cleaned = []
+        for item in (icons or []):
+            symbol = (item.get('symbol') or '').strip()
+            label = (item.get('label') or '').strip()
+            if not symbol or not label:
+                continue
+            cleaned.append({
+                'id': item.get('id') or f"icon_{uuid.uuid4().hex[:8]}",
+                'symbol': symbol,
+                'label': label
+            })
+        Storage.save_custom_icons(cleaned)
+        return cleaned
 
     @staticmethod
     def get_ticket_detail(ticket_id):

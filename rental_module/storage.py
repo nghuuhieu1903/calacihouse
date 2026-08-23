@@ -981,6 +981,17 @@ class Storage:
     def save_site_settings(settings):
         Storage._kv_set('site_settings', settings)
 
+    # -- Custom Service Icons (admin-defined emoji added on top of the
+    # built-in ICON_LIBRARY in app.js — one global list, shared by everyone) --
+
+    @staticmethod
+    def get_custom_icons():
+        return Storage._kv_get('custom_icons', [])
+
+    @staticmethod
+    def save_custom_icons(icons):
+        Storage._kv_set('custom_icons', icons)
+
     # -- Room Documents (contract & related images, keyed by roomId) --------
 
     @staticmethod
