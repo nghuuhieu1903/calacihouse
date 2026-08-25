@@ -4173,26 +4173,25 @@ function renderSalerRooms() {
     return;
   }
 
-  const byHouse = {};
-  state.rooms.forEach(r => {
-    const hid = r.houseId || 'unknown';
-    if (!byHouse[hid]) byHouse[hid] = [];
-    byHouse[hid].push(r);
-  });
-
   const roomSortKey = r => {
     const match = (r.name || '').match(/\d+/);
     return match ? parseInt(match[0], 10) : null;
   };
-  Object.keys(byHouse).forEach(hid => {
-    byHouse[hid].sort((a, b) => {
-      const numA = roomSortKey(a);
-      const numB = roomSortKey(b);
-      if (numA !== null && numB !== null && numA !== numB) return numA - numB;
-      if (numA !== null && numB === null) return -1;
-      if (numA === null && numB !== null) return 1;
-      return (a.name || '').localeCompare(b.name || '');
-    });
+  // One flat overview list (not grouped into per-house sections) — house
+  // name is shown inline on each row instead, since a saler scans across
+  // all houses at once looking for "which room, what price" first and
+  // only expands the ones worth a closer look.
+  const rooms = state.rooms.slice().sort((a, b) => {
+    const houseA = state.houses.find(h => h.id === a.houseId);
+    const houseB = state.houses.find(h => h.id === b.houseId);
+    const houseCmp = (houseA ? houseA.name : '').localeCompare(houseB ? houseB.name : '');
+    if (houseCmp !== 0) return houseCmp;
+    const numA = roomSortKey(a);
+    const numB = roomSortKey(b);
+    if (numA !== null && numB !== null && numA !== numB) return numA - numB;
+    if (numA !== null && numB === null) return -1;
+    if (numA === null && numB !== null) return 1;
+    return (a.name || '').localeCompare(b.name || '');
   });
 
   const servicePriceHtml = s => {
@@ -4202,67 +4201,76 @@ function renderSalerRooms() {
     return `<span class="badge badge-paid" style="font-size:0.68rem;">${formatMoney(s.price)} đ${s.unit ? ' / ' + s.unit : ''}</span>`;
   };
 
-  let html = '';
-  Object.keys(byHouse).forEach(hid => {
-    const house = state.houses.find(h => h.id === hid);
-    const rooms = byHouse[hid];
-    html += `
-      <div style="margin-bottom: 1.5rem;">
-        <div style="font-size: 1rem; font-weight: 800; color: var(--cala-blue); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
-          <i data-lucide="building-2" style="width:18px;height:18px;"></i>
-          ${house ? house.name : hid}
-          <span class="badge badge-open" style="font-size:0.7rem;">${rooms.length} ${t('saler_vacant_unit_label')}</span>
-        </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
-          ${rooms.map(r => {
-            const roomServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id));
-            const photos = state.roomPhotos[r.id] || [];
-            return `
-            <div class="cala-card" style="padding: 1.1rem 1.25rem;">
-              ${photos.length ? `
-                <div style="display:flex; gap:0.4rem; overflow-x:auto; margin-bottom:0.75rem;">
-                  ${photos.map(p => `<img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:84px; height:84px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">`).join('')}
-                </div>
-              ` : ''}
-              <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
-                <div style="font-weight:800; font-size:1rem;">${r.name}</div>
-                <span class="badge badge-open" style="font-size:0.7rem;">${typeof r.missingCount === 'number' ? `${t('saler_missing_label')} ${r.missingCount}` : t('vacant_label')}</span>
-              </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
-                <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
-                ${r.capacity ? `<div><span style="color:var(--text-muted);">${t('capacity_label')}</span><br><strong>${r.capacity} ${t('formula_per_person_label')}</strong></div>` : ''}
-                ${typeof r.missingCount === 'number' ? `<div><span style="color:var(--text-muted);">${t('saler_missing_label')}</span><br><strong style="color:var(--cala-red);">${r.missingCount} ${t('formula_per_person_label')}</strong></div>` : ''}
-                ${r.area ? `<div><span style="color:var(--text-muted);">${t('saler_area_label')}</span><br><strong>${r.area} m²</strong></div>` : ''}
-              </div>
-              ${r.deposit && state.salerCommissionPercent ? `
-                <div class="cala-card" style="background: var(--cala-blue-light); padding:0.6rem 0.85rem; margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-size:0.78rem; color:var(--cala-blue-dark);">${t('saler_commission_label')}</span>
-                  <strong style="color:var(--cala-blue-dark);">${formatMoney(r.deposit * state.salerCommissionPercent / 100)}đ</strong>
-                </div>
-              ` : ''}
-              ${r.description ? `<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.75rem; white-space:pre-wrap;">${r.description}</div>` : ''}
-              ${roomServices.length ? `
-                <div style="border-top: 1px solid var(--border-color); padding-top:0.6rem;">
-                  <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.4rem;">${t('saler_services_label')}</div>
-                  <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
-                    ${roomServices.map(s => `
-                      <span style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.78rem;">
-                        ${s.symbol || '📦'} ${s.name} ${servicePriceHtml(s)}
-                      </span>
-                    `).join('')}
-                  </div>
-                </div>
-              ` : ''}
+  container.innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:0.75rem;">
+      ${rooms.map(r => {
+        const house = state.houses.find(h => h.id === r.houseId);
+        const roomServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id));
+        const photos = state.roomPhotos[r.id] || [];
+        return `
+        <div class="cala-card" style="padding: 0; overflow: hidden;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; padding:1rem 1.25rem; cursor:pointer;" onclick="toggleSalerRoomDetail('${r.id}')">
+            <div style="display:flex; align-items:center; gap:0.75rem; min-width:0;">
+              <div style="font-weight:800; font-size:1rem; white-space:nowrap;">${r.name}</div>
+              <span style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><i data-lucide="building-2" style="width:13px; height:13px; vertical-align:-2px;"></i> ${house ? house.name : ''}</span>
             </div>
-          `;
-          }).join('')}
+            <div style="display:flex; align-items:center; gap:0.85rem; flex-shrink:0;">
+              <strong style="color:var(--cala-orange); white-space:nowrap;">${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong>
+              <button type="button" class="btn btn-secondary btn-sm" id="saler-room-toggle-${r.id}" style="padding:0.35rem; transition: transform 0.15s ease;">
+                <i data-lucide="chevron-down" style="pointer-events:none;"></i>
+              </button>
+            </div>
+          </div>
+          <div id="saler-room-detail-${r.id}" style="display:none; padding: 0 1.25rem 1.25rem; border-top:1px solid var(--border-color);">
+            ${photos.length ? `
+              <div style="display:flex; gap:0.4rem; overflow-x:auto; margin:0.9rem 0 0.75rem;">
+                ${photos.map(p => `<img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:84px; height:84px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">`).join('')}
+              </div>
+            ` : '<div style="margin-top:0.9rem;"></div>'}
+            <div style="display:flex; justify-content:flex-end; margin-bottom:0.6rem;">
+              <span class="badge badge-open" style="font-size:0.7rem;">${typeof r.missingCount === 'number' ? `${t('saler_missing_label')} ${r.missingCount}` : t('vacant_label')}</span>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
+              <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
+              ${r.capacity ? `<div><span style="color:var(--text-muted);">${t('capacity_label')}</span><br><strong>${r.capacity} ${t('formula_per_person_label')}</strong></div>` : ''}
+              ${typeof r.missingCount === 'number' ? `<div><span style="color:var(--text-muted);">${t('saler_missing_label')}</span><br><strong style="color:var(--cala-red);">${r.missingCount} ${t('formula_per_person_label')}</strong></div>` : ''}
+              ${r.area ? `<div><span style="color:var(--text-muted);">${t('saler_area_label')}</span><br><strong>${r.area} m²</strong></div>` : ''}
+            </div>
+            ${r.deposit && state.salerCommissionPercent ? `
+              <div class="cala-card" style="background: var(--cala-blue-light); padding:0.6rem 0.85rem; margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.78rem; color:var(--cala-blue-dark);">${t('saler_commission_label')}</span>
+                <strong style="color:var(--cala-blue-dark);">${formatMoney(r.deposit * state.salerCommissionPercent / 100)}đ</strong>
+              </div>
+            ` : ''}
+            ${r.description ? `<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.75rem; white-space:pre-wrap;">${r.description}</div>` : ''}
+            ${roomServices.length ? `
+              <div style="border-top: 1px solid var(--border-color); padding-top:0.6rem;">
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-bottom:0.4rem;">${t('saler_services_label')}</div>
+                <div style="display:flex; flex-wrap:wrap; gap:0.4rem;">
+                  ${roomServices.map(s => `
+                    <span style="display:inline-flex; align-items:center; gap:0.3rem; font-size:0.78rem;">
+                      ${s.symbol || '📦'} ${s.name} ${servicePriceHtml(s)}
+                    </span>
+                  `).join('')}
+                </div>
+              </div>
+            ` : ''}
+          </div>
         </div>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
+      `;
+      }).join('')}
+    </div>
+  `;
   lucide.createIcons();
+}
+
+function toggleSalerRoomDetail(roomId) {
+  const detail = document.getElementById(`saler-room-detail-${roomId}`);
+  const toggleBtn = document.getElementById(`saler-room-toggle-${roomId}`);
+  if (!detail) return;
+  const isOpen = detail.style.display !== 'none';
+  detail.style.display = isOpen ? 'none' : 'block';
+  if (toggleBtn) toggleBtn.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
 }
 
 /* =====================================================================
