@@ -1252,6 +1252,13 @@ async function handleLogin(event) {
       document.getElementById('app-container').style.display = 'flex';
       setupUserRoleUI();
       await fetchState();
+      // setupUserRoleUI()'s permission-gated nav items (rooms/houses/
+      // invoices/tickets/accounts/...) read state.permissions, which is
+      // still the empty [] default at the call above — every one of those
+      // tabs evaluates to hidden. Re-run now that fetchState() has loaded
+      // the real matrix, or a manager account never sees anything beyond
+      // Tổng Quan for the rest of the session.
+      setupUserRoleUI();
     } else {
       showToast(data.error || t('toast_login_wrong_credentials'), 'error');
     }
@@ -1361,6 +1368,9 @@ async function restoreSession() {
         document.getElementById('app-container').style.display = 'flex';
         setupUserRoleUI();
         await fetchState();
+        // Same reasoning as handleLogin() — re-run once state.permissions
+        // is actually populated.
+        setupUserRoleUI();
       }
     }
   } catch (err) {
@@ -1450,6 +1460,7 @@ function setupUserRoleUI() {
     const tabs = {
       'admin-dashboard': null,
       'admin-houses': ['houses', 'view'],
+      'admin-services': ['services', 'view'],
       'admin-spreadsheet': ['services', 'edit'],
       'admin-invoices': ['invoices', 'view'],
       'admin-investor-report': ['investor_report', 'view'],
