@@ -324,7 +324,8 @@ def save_investor_expense():
         data.get('month'),
         data.get('description'),
         data.get('amount'),
-        data.get('photo')
+        data.get('photo'),
+        data.get('name')
     )
     return jsonify({'success': True, 'expense': e_obj})
 

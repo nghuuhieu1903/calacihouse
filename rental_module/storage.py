@@ -323,10 +323,15 @@ def _formula(row):
     return f
 
 def _investor_expense(row):
+    # name is the short investor-facing title (added after description
+    # already existed) — an expense saved before this existed has no name
+    # at all, so fall back to its description rather than showing a blank
+    # line item to the investor.
     return {
         'id': row['id'],
         'houseId': row['house_id'] or '',
         'month': row['month'] or '',
+        'name': row.get('name') or row['description'] or '',
         'description': row['description'] or '',
         'amount': row['amount'] or 0,
         'photo': row.get('photo') or '',
@@ -788,12 +793,13 @@ class Storage:
             with conn.cursor() as cur:
                 cur.execute(
                     "REPLACE INTO investor_expenses "
-                    "(id, house_id, month, description, amount, photo, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, house_id, month, name, description, amount, photo, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         e['id'],
                         e.get('houseId', ''),
                         e.get('month', ''),
+                        e.get('name', ''),
                         e.get('description', ''),
                         e.get('amount', 0),
                         e.get('photo', ''),

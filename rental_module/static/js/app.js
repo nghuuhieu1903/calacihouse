@@ -381,9 +381,12 @@ const I18N = {
     ir_expenses_empty: 'Chưa có khoản chi lắp đặt / sửa chữa nào trong tháng này.',
     modal_add_expense_title: 'Thêm Chi Phí Lắp Đặt / Sửa Chữa',
     modal_edit_expense_title: 'Sửa Chi Phí Lắp Đặt / Sửa Chữa',
+    modal_expense_detail_title: 'Chi Tiết Khoản Chi',
+    ir_no_description_hint: 'Không có mô tả chi tiết.',
     lbl_expense_house: 'Tòa Nhà',
     lbl_expense_month: 'Tháng',
-    lbl_expense_desc: 'Mô Tả',
+    lbl_expense_name: 'Tên Chi Phí (hiển thị cho Chủ Đầu Tư)',
+    lbl_expense_desc: 'Mô Tả Chi Tiết (chỉ xem khi bấm vào dấu !)',
     lbl_expense_amount: 'Số Tiền (VNĐ)',
     lbl_expense_photo: 'Ảnh minh chứng',
     btn_upload_photo: 'Tải Ảnh Lên',
@@ -963,9 +966,12 @@ const I18N = {
     ir_expenses_empty: 'No installation / repair costs recorded for this month yet.',
     modal_add_expense_title: 'Add Installation / Repair Cost',
     modal_edit_expense_title: 'Edit Installation / Repair Cost',
+    modal_expense_detail_title: 'Expense Detail',
+    ir_no_description_hint: 'No detailed note.',
     lbl_expense_house: 'House',
     lbl_expense_month: 'Month',
-    lbl_expense_desc: 'Description',
+    lbl_expense_name: 'Expense Name (shown to Investor)',
+    lbl_expense_desc: 'Detailed Note (only visible via the ! icon)',
     lbl_expense_amount: 'Amount (VND)',
     lbl_expense_photo: 'Proof photo',
     btn_upload_photo: 'Upload Photo',
@@ -2823,7 +2829,7 @@ function renderInvestorDashboard() {
         const house = state.houses.find(h => h.id === e.houseId);
         return `
           <tr>
-            <td>${e.description}${e.photo ? ` <button type="button" class="btn btn-secondary btn-sm" title="${t('lbl_expense_photo')}" onclick="viewDocumentFullSize('${e.photo}')" style="padding:2px 5px; margin-left:0.3rem;"><i data-lucide="image" style="width:13px; height:13px; pointer-events:none;"></i></button>` : ''}</td>
+            <td>${e.name || e.description} <button type="button" class="btn btn-secondary btn-sm" title="${t('modal_expense_detail_title')}" onclick="viewExpenseDetail('${e.id}')" style="padding:2px 5px; margin-left:0.3rem;"><i data-lucide="circle-alert" style="width:13px; height:13px; pointer-events:none;"></i></button></td>
             <td>${house ? house.name : e.houseId}</td>
             <td style="text-align:right; font-weight:700; color:var(--cala-red);">−${formatMoney(e.amount)} đ</td>
           </tr>
@@ -3634,7 +3640,7 @@ function renderInvestorExpensesTable() {
     const house = state.houses.find(h => h.id === e.houseId);
     return `
       <tr>
-        <td>${e.description}${e.photo ? ` <button type="button" class="btn btn-secondary btn-sm" title="${t('lbl_expense_photo')}" onclick="viewDocumentFullSize('${e.photo}')" style="padding:2px 5px; margin-left:0.3rem;"><i data-lucide="image" style="width:13px; height:13px; pointer-events:none;"></i></button>` : ''}</td>
+        <td>${e.name || e.description} <button type="button" class="btn btn-secondary btn-sm" title="${t('modal_expense_detail_title')}" onclick="viewExpenseDetail('${e.id}')" style="padding:2px 5px; margin-left:0.3rem;"><i data-lucide="circle-alert" style="width:13px; height:13px; pointer-events:none;"></i></button></td>
         <td>${house ? house.name : e.houseId}</td>
         <td style="text-align:right; font-weight:700; color:var(--cala-red);">${formatMoney(e.amount)} đ</td>
         <td style="text-align:right;">
@@ -3688,11 +3694,29 @@ function removeExpensePhoto() {
   renderExpensePhotoPreview();
 }
 
+// The "!" icon next to an expense's short name (both admin's own table and
+// the investor's own dashboard list) opens this to show the fuller note +
+// proof photo — kept out of the main line so the investor sees a clean
+// "name — amount" row by default and only digs in if they want to.
+function viewExpenseDetail(expenseId) {
+  const e = state.investorExpenses.find(x => x.id === expenseId);
+  if (!e) return;
+  document.getElementById('expense-detail-name').innerText = e.name || e.description;
+  document.getElementById('expense-detail-description').innerText = e.description || t('ir_no_description_hint');
+  const photoEl = document.getElementById('expense-detail-photo');
+  photoEl.innerHTML = e.photo
+    ? `<img src="${e.photo}" onclick="viewDocumentFullSize('${e.photo}')" style="width:100%; max-height:280px; object-fit:contain; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">`
+    : '';
+  document.getElementById('modal-expense-detail').classList.add('active');
+  lucide.createIcons();
+}
+
 function openAddInvestorExpenseModal() {
   document.getElementById('ie-id').value = '';
   document.getElementById('ie-house-id').innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
   if (state.currentHouseId !== 'all') document.getElementById('ie-house-id').value = state.currentHouseId;
   document.getElementById('ie-month').value = state.currentMonth;
+  document.getElementById('ie-name').value = '';
   document.getElementById('ie-description').value = '';
   document.getElementById('ie-amount').value = '';
   _pendingExpensePhotoDataUrl = '';
@@ -3709,6 +3733,7 @@ function openEditInvestorExpenseModal(expenseId) {
   document.getElementById('ie-house-id').innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
   document.getElementById('ie-house-id').value = e.houseId;
   document.getElementById('ie-month').value = e.month;
+  document.getElementById('ie-name').value = e.name || '';
   document.getElementById('ie-description').value = e.description;
   document.getElementById('ie-amount').value = e.amount;
   _pendingExpensePhotoDataUrl = e.photo || '';
@@ -3723,11 +3748,12 @@ async function submitInvestorExpense(event) {
   const id = document.getElementById('ie-id').value;
   const houseId = document.getElementById('ie-house-id').value;
   const month = document.getElementById('ie-month').value;
+  const name = document.getElementById('ie-name').value.trim();
   const description = document.getElementById('ie-description').value.trim();
   const amount = parseFloat(document.getElementById('ie-amount').value) || 0;
   const photo = _pendingExpensePhotoDataUrl;
 
-  const eObj = { id: id || genId('exp_'), houseId, month, description, amount, photo };
+  const eObj = { id: id || genId('exp_'), houseId, month, name, description, amount, photo };
   const idx = state.investorExpenses.findIndex(x => x.id === eObj.id);
   if (idx >= 0) state.investorExpenses[idx] = { ...state.investorExpenses[idx], ...eObj };
   else state.investorExpenses.push(eObj);

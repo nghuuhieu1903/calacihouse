@@ -780,7 +780,7 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_investor_expense(expense_id, house_id, month, description, amount, photo=None):
+    def save_investor_expense(expense_id, house_id, month, description, amount, photo=None, name=None):
         e_id = expense_id or f"exp_{uuid.uuid4().hex[:8]}"
         existing = next((e for e in Storage.get_investor_expenses() if e['id'] == e_id), None)
         created_at = existing['createdAt'] if existing else datetime.now().strftime('%Y-%m-%d %H:%M')
@@ -793,6 +793,11 @@ class RentalService:
             'id': e_id,
             'houseId': house_id or '',
             'month': month or '',
+            # name is the short title shown to the investor on their own
+            # dashboard (e.g. "Sửa điều hòa"); description is the fuller
+            # admin note (e.g. "Hỏng van do thợ lắp đặt sai") only revealed
+            # via the "!" detail icon.
+            'name': name or '',
             'description': description or '',
             'amount': float(amount or 0),
             'photo': photo_value,

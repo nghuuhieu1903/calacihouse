@@ -127,6 +127,7 @@ SCHEMA_STATEMENTS = [
         id          VARCHAR(191) PRIMARY KEY,
         house_id    VARCHAR(191) DEFAULT '',
         month       VARCHAR(16) DEFAULT '',
+        name        TEXT,
         description TEXT,
         amount      DOUBLE DEFAULT 0,
         photo       LONGTEXT,
@@ -228,6 +229,7 @@ def init_db():
             _ensure_column(cur, 'houses', 'manager_fee_value', "DOUBLE DEFAULT 20")
             _ensure_column(cur, 'rooms', 'vehicle_count', "INT DEFAULT 0")
             _ensure_column(cur, 'users', 'has_vehicle', "TINYINT(1) DEFAULT 0")
+            _ensure_column(cur, 'investor_expenses', 'name', "TEXT")
             _promote_admins_to_superadmin(cur)
         conn.commit()
     finally:

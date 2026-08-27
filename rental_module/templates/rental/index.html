@@ -940,8 +940,12 @@
           <input type="month" id="ie-month" class="form-control" required>
         </div>
         <div style="margin-bottom: 1rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_desc">Mô Tả</label>
-          <input type="text" id="ie-description" class="form-control" placeholder="VD: Sửa máy bơm nước phòng 101" required>
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_name">Tên Chi Phí (hiển thị cho Chủ Đầu Tư)</label>
+          <input type="text" id="ie-name" class="form-control" placeholder="VD: Sửa điều hòa" required>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_desc">Mô Tả Chi Tiết (chỉ xem khi bấm vào dấu !)</label>
+          <input type="text" id="ie-description" class="form-control" placeholder="VD: Hỏng van do thợ lúc lắp đặt sai">
         </div>
         <div style="margin-bottom: 1.5rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_amount">Số Tiền (VNĐ)</label>
@@ -961,6 +965,21 @@
           <button type="submit" class="btn btn-orange" data-i18n="btn_save_expense">Lưu Chi Phí</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- EXPENSE DETAIL — the "!" icon next to an expense's short name opens
+       this to show the fuller admin note + proof photo, for both admin's
+       own table and the investor's own dashboard list. -->
+  <div class="modal-backdrop" id="modal-expense-detail">
+    <div class="modal-card" style="max-width: 420px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="circle-alert" style="color: var(--cala-orange); vertical-align: middle;"></i> <span data-i18n="modal_expense_detail_title">Chi Tiết Khoản Chi</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-expense-detail')"><i data-lucide="x"></i></button>
+      </div>
+      <div id="expense-detail-name" style="font-weight:800; font-size:1.05rem; margin-bottom:0.5rem;"></div>
+      <div id="expense-detail-description" style="font-size:0.88rem; color:var(--text-secondary); margin-bottom:1rem; white-space:pre-wrap;"></div>
+      <div id="expense-detail-photo"></div>
     </div>
   </div>
 
