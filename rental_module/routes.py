@@ -30,7 +30,8 @@ def index():
     return render_template(
         'rental/index.html',
         asset_version_js=_static_file_version('js/app.js'),
-        asset_version_css=_static_file_version('css/styles.css')
+        asset_version_css=_static_file_version('css/styles.css'),
+        asset_version_lucide=_static_file_version('js/vendor/lucide.min.js')
     )
 
 def _refresh_session_user():

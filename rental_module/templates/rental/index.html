@@ -16,7 +16,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Self-hosted instead of the unpkg "@latest" CDN link this used to be —
+       "@latest" meant the actual version served could silently change
+       underneath us with no code change on our side, and unpkg being
+       blocked by a browser extension/ad-blocker or a flaky network made
+       every icon on the page vanish at once with no error visible to a
+       non-technical user. A pinned local copy removes both failure modes:
+       it only changes when we deploy a new one, and it loads same-origin. -->
+  <script src="{{ url_for('rental.static', filename='js/vendor/lucide.min.js') }}?v={{ asset_version_lucide }}"></script>
 
   <!-- External Stylesheet (single source of truth — do not duplicate rules inline,
        an inline copy would win the cascade over this file's @media rules) -->
