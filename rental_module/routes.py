@@ -503,6 +503,57 @@ def delete_ticket():
     success = RentalService.delete_ticket(ticket_id)
     return jsonify({'success': success})
 
+def _user_can_view_room_documents(user, room_id):
+    """Gate for the on-demand full-document endpoint below — the bulk
+    /api/data payload only ever ships light (no dataUrl) entries now, so a
+    room's actual contract/ID scans are fetched here individually when its
+    modal is opened. Without this check, a tenant could otherwise request
+    any other room's id directly and get its private documents. Saler is
+    deliberately excluded — contract/ID scans are never meant for that
+    role, unlike the public listing photos below."""
+    if not user:
+        return False
+    role = user.get('role')
+    if role in ('superadmin', 'admin', 'manager'):
+        return True
+    if role == 'tenant':
+        return user.get('roomId') == room_id
+    if role == 'investor':
+        room = next((r for r in Storage.get_rooms() if r['id'] == room_id), None)
+        if not room:
+            return False
+        investor_house_ids = user.get('houseIds') or ([user.get('houseId')] if user.get('houseId') else [])
+        return 'all' in investor_house_ids or room.get('houseId') in investor_house_ids
+    return False
+
+def _user_can_view_room_photos(user, room_id):
+    """Same idea as _user_can_view_room_documents, but room_photos are the
+    public listing photos shown to salers browsing recruitable rooms (see
+    get_full_state's saler branch) — not sensitive, so any logged-in saler
+    can fetch any room's here rather than re-deriving "is this room
+    currently recruitable" on every card expand."""
+    if not user:
+        return False
+    if user.get('role') == 'saler':
+        return True
+    return _user_can_view_room_documents(user, room_id)
+
+@rental_bp.route('/api/rooms/documents/<room_id>', methods=['GET'])
+@login_required
+def get_room_documents_full(room_id):
+    if not _user_can_view_room_documents(session.get('user'), room_id):
+        return jsonify({'success': False, 'error': 'Bạn không có quyền xem tài liệu phòng này!'}), 403
+    docs = Storage.get_room_documents().get(room_id, [])
+    return jsonify({'success': True, 'documents': docs})
+
+@rental_bp.route('/api/rooms/photos/<room_id>', methods=['GET'])
+@login_required
+def get_room_photos_full(room_id):
+    if not _user_can_view_room_photos(session.get('user'), room_id):
+        return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh phòng này!'}), 403
+    photos = Storage.get_room_photos().get(room_id, [])
+    return jsonify({'success': True, 'photos': photos})
+
 @rental_bp.route('/api/rooms/documents/upload', methods=['POST'])
 @login_required
 def upload_room_document():

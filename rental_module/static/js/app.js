@@ -4260,13 +4260,17 @@ async function handleAdminCreateUser(event) {
   renderAdminUsers();
 }
 
-function renderTenantContractView() {
+async function renderTenantContractView() {
   const user = state.currentUser;
   const userRoomId = (user && user.roomId) ? user.roomId : (state.rooms[0] ? state.rooms[0].id : 'R101');
   const room = state.rooms.find(r => r.id === userRoomId);
   const container = document.getElementById('tenant-contract-container');
   if (!container) return;
 
+  // Same reasoning as openRoomDocumentsModal() — the bulk state only ever
+  // carries light (no dataUrl) entries now, so this tenant's own contract
+  // photos are fetched in full here, once, when they open this tab.
+  await fetchRoomDocumentsFull(userRoomId);
   const docs = state.roomDocuments[userRoomId] || [];
 
   const durationHtml = (room && (room.contractStart || room.contractEnd)) ? `
@@ -4938,11 +4942,7 @@ function renderSalerRooms() {
             </div>
           </div>
           <div id="saler-room-detail-${r.id}" style="display:none; padding: 0 1.25rem 1.25rem; border-top:1px solid var(--border-color);">
-            ${photos.length ? `
-              <div style="display:flex; gap:0.4rem; overflow-x:auto; margin:0.9rem 0 0.75rem;">
-                ${photos.map(p => `<img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:84px; height:84px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">`).join('')}
-              </div>
-            ` : '<div style="margin-top:0.9rem;"></div>'}
+            <div id="saler-room-photos-${r.id}" data-photo-count="${photos.length}">${photos.length ? '' : '<div style="margin-top:0.9rem;"></div>'}</div>
             <div style="display:flex; justify-content:flex-end; margin-bottom:0.6rem;">
               <span class="badge badge-open" style="font-size:0.7rem;">${typeof r.missingCount === 'number' ? `${t('saler_missing_label')} ${r.missingCount}` : t('vacant_label')}</span>
             </div>
@@ -4980,13 +4980,41 @@ function renderSalerRooms() {
   renderIcons(container);
 }
 
-function toggleSalerRoomDetail(roomId) {
+// Rooms a saler is browsing whose photos have already been fetched in
+// full this session — avoids re-fetching every time the same room's card
+// is collapsed and re-expanded.
+const _salerPhotosLoaded = new Set();
+
+function renderSalerRoomPhotosStrip(roomId) {
+  const stripEl = document.getElementById(`saler-room-photos-${roomId}`);
+  if (!stripEl) return;
+  const photos = state.roomPhotos[roomId] || [];
+  stripEl.innerHTML = photos.length ? `
+    <div style="display:flex; gap:0.4rem; overflow-x:auto; margin:0.9rem 0 0.75rem;">
+      ${photos.map(p => `<img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:84px; height:84px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">`).join('')}
+    </div>
+  ` : '<div style="margin-top:0.9rem;"></div>';
+}
+
+async function toggleSalerRoomDetail(roomId) {
   const detail = document.getElementById(`saler-room-detail-${roomId}`);
   const toggleBtn = document.getElementById(`saler-room-toggle-${roomId}`);
   if (!detail) return;
   const isOpen = detail.style.display !== 'none';
   detail.style.display = isOpen ? 'none' : 'block';
   if (toggleBtn) toggleBtn.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+
+  // Fetch this room's actual photo bytes only the first time it's opened —
+  // state.roomPhotos starts out light (id/label/uploadedAt only, see
+  // get_full_state's _light_photo_map) so every room's listing photos
+  // don't have to load up front for a saler just scanning names/prices.
+  const stripEl = document.getElementById(`saler-room-photos-${roomId}`);
+  const hasPhotos = stripEl && Number(stripEl.dataset.photoCount) > 0;
+  if (!isOpen && hasPhotos && !_salerPhotosLoaded.has(roomId)) {
+    _salerPhotosLoaded.add(roomId);
+    await fetchRoomPhotosFull(roomId);
+    renderSalerRoomPhotosStrip(roomId);
+  }
 }
 
 /* =====================================================================
@@ -4995,7 +5023,32 @@ function toggleSalerRoomDetail(roomId) {
 let _currentDocRoomId = null;
 let _pendingDocDataUrl = null;
 
-function openRoomDocumentsModal(roomId) {
+// Replaces the light (no dataUrl) entries state.roomDocuments[roomId] came
+// with in the bulk /api/data payload with the real, full ones (including
+// each photo's actual base64 data) for just this one room — see
+// get_full_state's _light_photo_map and the /api/rooms/documents/<id>
+// route.
+async function fetchRoomDocumentsFull(roomId) {
+  try {
+    const res = await fetch(`${API_BASE}/rooms/documents/${roomId}`);
+    const data = await res.json();
+    if (data.success) state.roomDocuments[roomId] = data.documents;
+  } catch (err) {
+    console.warn('Could not fetch full room documents:', err);
+  }
+}
+
+async function fetchRoomPhotosFull(roomId) {
+  try {
+    const res = await fetch(`${API_BASE}/rooms/photos/${roomId}`);
+    const data = await res.json();
+    if (data.success) state.roomPhotos[roomId] = data.photos;
+  } catch (err) {
+    console.warn('Could not fetch full room photos:', err);
+  }
+}
+
+async function openRoomDocumentsModal(roomId) {
   _currentDocRoomId = roomId;
   _pendingDocDataUrl = null;
   const room = state.rooms.find(r => r.id === roomId);
@@ -5011,6 +5064,13 @@ function openRoomDocumentsModal(roomId) {
   const endInput = document.getElementById('room-contract-end');
   if (startInput) startInput.value = (room && room.contractStart) || '';
   if (endInput) endInput.value = (room && room.contractEnd) || '';
+
+  // The bulk /api/data payload only ever carries id/label/uploadedAt for
+  // these (see get_full_state's _light_photo_map) — the actual image
+  // bytes for this one room are fetched here, only when its modal is
+  // actually opened, instead of every room's photos loading on every page
+  // load regardless of whether anyone ever looks at them.
+  await fetchRoomDocumentsFull(roomId);
 
   renderRoomDocumentsList();
   const roomDocsModal = document.getElementById('modal-room-documents');
@@ -5169,7 +5229,7 @@ function viewDocumentFullSize(dataUrl) {
 let _currentPhotoRoomId = null;
 let _pendingPhotoDataUrl = null;
 
-function openRoomPhotosModal(roomId) {
+async function openRoomPhotosModal(roomId) {
   _currentPhotoRoomId = roomId;
   _pendingPhotoDataUrl = null;
   const room = state.rooms.find(r => r.id === roomId);
@@ -5180,6 +5240,8 @@ function openRoomPhotosModal(roomId) {
   if (labelInput) labelInput.value = '';
   const previewEl = document.getElementById('room-photo-pending-preview');
   if (previewEl) previewEl.innerHTML = '';
+
+  await fetchRoomPhotosFull(roomId);
 
   renderRoomPhotosList();
   const roomPhotosModal = document.getElementById('modal-room-photos');

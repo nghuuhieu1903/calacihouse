@@ -262,6 +262,28 @@ class RentalService:
             investor_expenses = []
             investor_report_overrides = []
 
+        # Tenants only ever need their own room's data — this branch was
+        # simply missing before (investor/saler already had one above),
+        # meaning every tenant session got every OTHER tenant's contract/ID
+        # scans, tickets, invoices, phone number and the full account
+        # directory shipped in full and merely hidden client-side, visible
+        # to anyone who opened devtools' network tab. Fixing that also
+        # trims a lot of otherwise-dead weight off the tenant payload.
+        if current_user and current_user.get('role') == 'tenant':
+            tenant_room_id = current_user.get('roomId')
+            rooms = [r for r in rooms if r['id'] == tenant_room_id]
+            room_ids = {r['id'] for r in rooms}
+            services = [s for s in services if any(RentalService.service_matches_house(s, r['houseId']) for r in rooms)]
+            invoices = [i for i in invoices if i.get('roomId') in room_ids]
+            tickets = [tk for tk in tickets if tk.get('roomId') in room_ids or tk.get('tenant') == current_user.get('fullName')]
+            readings = {
+                m: {rid: rd for rid, rd in month_readings.items() if rid in room_ids}
+                for m, month_readings in readings.items()
+            }
+            room_documents = {rid: docs for rid, docs in room_documents.items() if rid in room_ids}
+            room_photos = {}
+            users = []
+
         # The investor payout report itself (admin's revenue-share math) is
         # admin/manager-only, but the underlying repair/installation cost
         # records ARE meant for the investor to see too — it's their own
@@ -279,6 +301,24 @@ class RentalService:
             investor_report_overrides = []
 
         safe_users = [{k: v for k, v in u.items() if k != 'password'} for u in users]
+
+        # Strip the embedded base64 photo out of every document/photo entry
+        # before it goes out in the bulk payload — same idea as
+        # get_tickets_light() for tickets. A room's contract scans/listing
+        # photos can each be a few hundred KB; multiplied across every room
+        # this was one of the biggest single contributors to a slow/blank
+        # initial load, especially on mobile data. The UI still gets id/
+        # label/uploadedAt (enough for a photo-count badge) and fetches a
+        # given room's actual images on demand — see
+        # /api/rooms/documents/<id> and /api/rooms/photos/<id> — only when
+        # that room's photo modal is actually opened.
+        def _light_photo_map(photo_map):
+            return {
+                rid: [{k: v for k, v in item.items() if k != 'dataUrl'} for item in items]
+                for rid, items in photo_map.items()
+            }
+        room_documents = _light_photo_map(room_documents)
+        room_photos = _light_photo_map(room_photos)
 
         return {
             'houses': houses,
