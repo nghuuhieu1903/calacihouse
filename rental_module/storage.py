@@ -316,6 +316,7 @@ def _investor_expense(row):
         'month': row['month'] or '',
         'description': row['description'] or '',
         'amount': row['amount'] or 0,
+        'photo': row.get('photo') or '',
         'createdAt': row['created_at'] or ''
     }
 
@@ -757,14 +758,15 @@ class Storage:
             with conn.cursor() as cur:
                 cur.execute(
                     "REPLACE INTO investor_expenses "
-                    "(id, house_id, month, description, amount, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s)",
+                    "(id, house_id, month, description, amount, photo, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s)",
                     (
                         e['id'],
                         e.get('houseId', ''),
                         e.get('month', ''),
                         e.get('description', ''),
                         e.get('amount', 0),
+                        e.get('photo', ''),
                         e.get('createdAt', '')
                     )
                 )

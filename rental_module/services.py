@@ -187,6 +187,7 @@ class RentalService:
                 }
                 room_documents = {rid: docs for rid, docs in room_documents.items() if rid in room_ids}
                 room_photos = {rid: p for rid, p in room_photos.items() if rid in room_ids}
+                investor_expenses = [e for e in investor_expenses if e.get('houseId') in investor_house_ids]
             users = []  # investor dashboard has no need for the account directory
 
         # Salers need to spot rooms/beds they can still fill and their public
@@ -231,11 +232,14 @@ class RentalService:
             room_documents = {}
             investor_expenses = []
 
-        # The investor payout report is an admin/manager-only tool — an investor
-        # or tenant session must never receive these figures, regardless of the
-        # house filtering above.
+        # The investor payout report itself (admin's revenue-share math) is
+        # admin/manager-only, but the underlying repair/installation cost
+        # records ARE meant for the investor to see too — it's their own
+        # money being deducted, and hiding it just looks like an
+        # unexplained shortfall in their payout. A tenant session (or
+        # saler, already cleared above) has no legitimate use for either.
         role = current_user.get('role') if current_user else None
-        if role not in ('superadmin', 'admin', 'manager'):
+        if role not in ('superadmin', 'admin', 'manager', 'investor'):
             investor_expenses = []
 
         safe_users = [{k: v for k, v in u.items() if k != 'password'} for u in users]
@@ -706,10 +710,14 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_investor_expense(expense_id, house_id, month, description, amount):
+    def save_investor_expense(expense_id, house_id, month, description, amount, photo=None):
         e_id = expense_id or f"exp_{uuid.uuid4().hex[:8]}"
         existing = next((e for e in Storage.get_investor_expenses() if e['id'] == e_id), None)
         created_at = existing['createdAt'] if existing else datetime.now().strftime('%Y-%m-%d %H:%M')
+        # No new photo submitted on an edit keeps whatever was already
+        # attached, rather than clearing it just because this save didn't
+        # re-send it.
+        photo_value = photo if photo is not None else (existing['photo'] if existing else '')
 
         e_obj = {
             'id': e_id,
@@ -717,6 +725,7 @@ class RentalService:
             'month': month or '',
             'description': description or '',
             'amount': float(amount or 0),
+            'photo': photo_value,
             'createdAt': created_at
         }
         Storage.save_investor_expense(e_obj)

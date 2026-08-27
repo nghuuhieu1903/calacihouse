@@ -71,6 +71,8 @@ const I18N = {
     inv_breakdown_title: 'Cơ Cấu Doanh Thu Tháng',
     inv_house_breakdown_title: 'Doanh Thu Theo Tòa Nhà',
     inv_rooms_title: 'Chi Tiết Doanh Thu Theo Phòng',
+    inv_expenses_title: 'Chi Phí Lắp Đặt / Sửa Chữa Tháng Này',
+    inv_expenses_desc: 'Các khoản chi này đã được trừ vào doanh thu chia sẻ trước khi tính phần bạn nhận được.',
     col_house: 'Tòa Nhà',
     col_headcount: 'Số Người',
     nav_my_invoices: 'Hóa Đơn Của Tôi',
@@ -380,6 +382,9 @@ const I18N = {
     lbl_expense_month: 'Tháng',
     lbl_expense_desc: 'Mô Tả',
     lbl_expense_amount: 'Số Tiền (VNĐ)',
+    lbl_expense_photo: 'Ảnh minh chứng',
+    btn_upload_photo: 'Tải Ảnh Lên',
+    btn_change_photo: 'Đổi Ảnh',
     btn_save_expense: 'Lưu Chi Phí',
     toast_expense_saved: 'Đã lưu khoản chi phí!',
     toast_expense_deleted: 'Đã xóa khoản chi phí!',
@@ -622,6 +627,8 @@ const I18N = {
     inv_breakdown_title: 'Monthly Revenue Breakdown',
     inv_house_breakdown_title: 'Revenue By Building',
     inv_rooms_title: 'Revenue Detail By Room',
+    inv_expenses_title: 'Installation / Repair Costs This Month',
+    inv_expenses_desc: 'These costs were already deducted from the shared revenue before your share was calculated.',
     col_house: 'Building',
     col_headcount: 'Occupants',
     nav_my_invoices: 'My Invoices',
@@ -931,6 +938,9 @@ const I18N = {
     lbl_expense_month: 'Month',
     lbl_expense_desc: 'Description',
     lbl_expense_amount: 'Amount (VND)',
+    lbl_expense_photo: 'Proof photo',
+    btn_upload_photo: 'Upload Photo',
+    btn_change_photo: 'Change Photo',
     btn_save_expense: 'Save Cost',
     toast_expense_saved: 'Cost saved!',
     toast_expense_deleted: 'Cost deleted!',
@@ -2745,6 +2755,28 @@ function renderInvestorDashboard() {
       houseBreakdownCard.style.display = 'none';
     }
   }
+
+  const expensesCard = document.getElementById('investor-expenses-card');
+  const expensesBody = document.getElementById('investor-expenses-list-body');
+  if (expensesCard && expensesBody) {
+    const monthExpenses = state.investorExpenses.filter(e => e.month === state.currentMonth && (state.currentHouseId === 'all' || e.houseId === state.currentHouseId));
+    if (monthExpenses.length > 0) {
+      expensesCard.style.display = 'block';
+      expensesBody.innerHTML = monthExpenses.map(e => {
+        const house = state.houses.find(h => h.id === e.houseId);
+        return `
+          <tr>
+            <td>${e.description}${e.photo ? ` <button type="button" class="btn btn-secondary btn-sm" title="${t('lbl_expense_photo')}" onclick="viewDocumentFullSize('${e.photo}')" style="padding:2px 5px; margin-left:0.3rem;"><i data-lucide="image" style="width:13px; height:13px; pointer-events:none;"></i></button>` : ''}</td>
+            <td>${house ? house.name : e.houseId}</td>
+            <td style="text-align:right; font-weight:700; color:var(--cala-red);">−${formatMoney(e.amount)} đ</td>
+          </tr>
+        `;
+      }).join('');
+      lucide.createIcons();
+    } else {
+      expensesCard.style.display = 'none';
+    }
+  }
 }
 
 function renderSpreadsheet() {
@@ -3338,7 +3370,7 @@ function renderInvestorExpensesTable() {
     const house = state.houses.find(h => h.id === e.houseId);
     return `
       <tr>
-        <td>${e.description}</td>
+        <td>${e.description}${e.photo ? ` <button type="button" class="btn btn-secondary btn-sm" title="${t('lbl_expense_photo')}" onclick="viewDocumentFullSize('${e.photo}')" style="padding:2px 5px; margin-left:0.3rem;"><i data-lucide="image" style="width:13px; height:13px; pointer-events:none;"></i></button>` : ''}</td>
         <td>${house ? house.name : e.houseId}</td>
         <td style="text-align:right; font-weight:700; color:var(--cala-red);">${formatMoney(e.amount)} đ</td>
         <td style="text-align:right;">
@@ -3354,6 +3386,44 @@ function renderInvestorExpensesTable() {
   lucide.createIcons();
 }
 
+let _pendingExpensePhotoDataUrl = '';
+
+function renderExpensePhotoPreview() {
+  const container = document.getElementById('ie-photo-preview');
+  if (!container) return;
+  if (_pendingExpensePhotoDataUrl) {
+    container.innerHTML = `
+      <img src="${_pendingExpensePhotoDataUrl}" onclick="viewDocumentFullSize('${_pendingExpensePhotoDataUrl}')" style="width:64px; height:64px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('ie-photo-input').click()"><i data-lucide="camera"></i> ${t('btn_change_photo')}</button>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="removeExpensePhoto()" style="color:var(--cala-red);"><i data-lucide="trash-2"></i></button>
+    `;
+  } else {
+    container.innerHTML = `
+      <button type="button" class="btn btn-secondary" onclick="document.getElementById('ie-photo-input').click()">
+        <i data-lucide="camera"></i> <span data-i18n="btn_upload_photo">${t('btn_upload_photo')}</span>
+      </button>
+    `;
+  }
+  lucide.createIcons();
+}
+
+async function handleExpensePhotoSelect(event) {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    _pendingExpensePhotoDataUrl = await compressImageFile(file);
+    renderExpensePhotoPreview();
+  } catch (err) {
+    showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+  }
+}
+
+function removeExpensePhoto() {
+  _pendingExpensePhotoDataUrl = '';
+  renderExpensePhotoPreview();
+}
+
 function openAddInvestorExpenseModal() {
   document.getElementById('ie-id').value = '';
   document.getElementById('ie-house-id').innerHTML = state.houses.map(h => `<option value="${h.id}">${h.name}</option>`).join('');
@@ -3361,6 +3431,8 @@ function openAddInvestorExpenseModal() {
   document.getElementById('ie-month').value = state.currentMonth;
   document.getElementById('ie-description').value = '';
   document.getElementById('ie-amount').value = '';
+  _pendingExpensePhotoDataUrl = '';
+  renderExpensePhotoPreview();
   document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--cala-orange); vertical-align: middle;"></i> ${t('modal_add_expense_title')}`;
   document.getElementById('modal-investor-expense').classList.add('active');
   lucide.createIcons();
@@ -3375,6 +3447,8 @@ function openEditInvestorExpenseModal(expenseId) {
   document.getElementById('ie-month').value = e.month;
   document.getElementById('ie-description').value = e.description;
   document.getElementById('ie-amount').value = e.amount;
+  _pendingExpensePhotoDataUrl = e.photo || '';
+  renderExpensePhotoPreview();
   document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--cala-orange); vertical-align: middle;"></i> ${t('modal_edit_expense_title')}`;
   document.getElementById('modal-investor-expense').classList.add('active');
   lucide.createIcons();
@@ -3387,8 +3461,9 @@ async function submitInvestorExpense(event) {
   const month = document.getElementById('ie-month').value;
   const description = document.getElementById('ie-description').value.trim();
   const amount = parseFloat(document.getElementById('ie-amount').value) || 0;
+  const photo = _pendingExpensePhotoDataUrl;
 
-  const eObj = { id: id || genId('exp_'), houseId, month, description, amount };
+  const eObj = { id: id || genId('exp_'), houseId, month, description, amount, photo };
   const idx = state.investorExpenses.findIndex(x => x.id === eObj.id);
   if (idx >= 0) state.investorExpenses[idx] = { ...state.investorExpenses[idx], ...eObj };
   else state.investorExpenses.push(eObj);

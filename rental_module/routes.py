@@ -33,11 +33,30 @@ def index():
         asset_version_css=_static_file_version('css/styles.css')
     )
 
+def _refresh_session_user():
+    """session['user'] is a snapshot taken at login — if an admin changes
+    this account's role, status, or (for an investor) assigned houses
+    while they're already logged in, the old snapshot would otherwise keep
+    driving what get_full_state() filters down to until they happen to log
+    out and back in. An investor whose houses got reassigned away would
+    keep seeing the old ones (and their revenue) in the meantime — refresh
+    from the DB on every state fetch instead so a permission/scope change
+    takes effect on the next request, not the next login."""
+    current = session.get('user')
+    if not current:
+        return None
+    fresh = next((u for u in Storage.get_users() if u['id'] == current['id']), None)
+    if not fresh:
+        return current
+    fresh = {k: v for k, v in fresh.items() if k != 'password'}
+    session['user'] = fresh
+    return fresh
+
 @rental_bp.route('/api/data', methods=['GET'])
 @login_required
 def get_data():
     month = request.args.get('month', '2026-08')
-    data = RentalService.get_full_state(month, session.get('user'))
+    data = RentalService.get_full_state(month, _refresh_session_user())
     return jsonify(data)
 
 @rental_bp.route('/api/settings/public', methods=['GET'])
@@ -62,7 +81,7 @@ def login():
 
 @rental_bp.route('/api/auth/me', methods=['GET'])
 def get_current_user():
-    user = session.get('user')
+    user = _refresh_session_user()
     if not user:
         return jsonify({'success': False}), 401
     return jsonify({'success': True, 'user': user})
@@ -301,7 +320,8 @@ def save_investor_expense():
         data.get('houseId'),
         data.get('month'),
         data.get('description'),
-        data.get('amount')
+        data.get('amount'),
+        data.get('photo')
     )
     return jsonify({'success': True, 'expense': e_obj})
 

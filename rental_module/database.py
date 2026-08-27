@@ -125,6 +125,7 @@ SCHEMA_STATEMENTS = [
         month       VARCHAR(16) DEFAULT '',
         description TEXT,
         amount      DOUBLE DEFAULT 0,
+        photo       LONGTEXT,
         created_at  VARCHAR(32) DEFAULT ''
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
@@ -202,6 +203,7 @@ def init_db():
             _ensure_column(cur, 'rooms', 'deposit', "DOUBLE DEFAULT 0")
             _ensure_column(cur, 'services', 'investor_share', "TEXT")
             _ensure_column(cur, 'users', 'house_ids', "TEXT")
+            _ensure_column(cur, 'investor_expenses', 'photo', "LONGTEXT")
             _promote_admins_to_superadmin(cur)
         conn.commit()
     finally:
