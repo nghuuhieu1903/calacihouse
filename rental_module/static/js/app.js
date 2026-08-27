@@ -2025,7 +2025,7 @@ function renderServicesConfig() {
     });
   }
 
-  lucide.createIcons();
+  renderIcons(sBody);
 }
 
 function renderIconPicker(selectedIcon = 'package') {
@@ -2067,7 +2067,7 @@ function renderIconPicker(selectedIcon = 'package') {
   `;
 
   container.innerHTML = html;
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 function selectServiceIcon(iconName, symbolStr) {
@@ -2243,7 +2243,7 @@ function renderHousesManagement() {
       }).join('')}
     </div>
   `;
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 async function deleteHouseConfirm(houseId) {
@@ -2342,7 +2342,7 @@ function renderServiceScopeTree(selectedHouseIds = ['all'], selectedRoomIds = ['
   });
 
   container.innerHTML = html;
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 function toggleAllScopeMaster(masterChk) {
@@ -2397,7 +2397,7 @@ function toggleHouseRoomSublist(houseId) {
   sublist.style.display = isHidden ? 'flex' : 'none';
   if (chevron) {
     chevron.setAttribute('data-lucide', isHidden ? 'chevron-up' : 'chevron-down');
-    lucide.createIcons();
+    renderIcons(chevron.parentElement);
   }
 
   if (isHidden) {
@@ -2831,7 +2831,7 @@ function renderInvestorDashboard() {
           </tr>
         `;
       }).join('');
-      lucide.createIcons();
+      renderIcons(tbody);
     }
   }
 
@@ -2874,7 +2874,7 @@ function renderInvestorDashboard() {
           </tr>
         `;
       }).join('');
-      lucide.createIcons();
+      renderIcons(expensesBody);
     } else {
       expensesCard.style.display = 'none';
     }
@@ -3020,8 +3020,11 @@ function renderSpreadsheet() {
   // every edit (typing a reading, uploading a meter photo) calls
   // renderSpreadsheet() again on its own afterward — without this, the
   // freshly rebuilt <i data-lucide="camera/edit-3/eye"> tags stay
-  // un-rendered blank icons until the next full view switch.
-  lucide.createIcons();
+  // un-rendered blank icons until the next full view switch. Scoped to
+  // just this table body — every reading edit rebuilds the whole table, so
+  // an unscoped call here would also re-render the entire sidebar's icons
+  // on every single keystroke's blur.
+  renderIcons(tbody);
 }
 
 function isReadingTextField(field) {
@@ -3068,7 +3071,7 @@ function viewMeterPhoto(roomId, field) {
     `;
   }
   document.getElementById('modal-meter-photo').classList.add('active');
-  lucide.createIcons();
+  renderIcons(content);
 }
 
 function openInvoiceMeterPhotos(invoiceId) {
@@ -3099,7 +3102,7 @@ function openInvoiceMeterPhotos(invoiceId) {
     `;
   }
   document.getElementById('modal-meter-photo').classList.add('active');
-  lucide.createIcons();
+  renderIcons(content);
 }
 
 async function updateReadingApi(roomId, field, value) {
@@ -3217,7 +3220,7 @@ function renderAdminInvoices() {
     `;
     tbody.appendChild(tr);
   });
-  lucide.createIcons();
+  renderIcons(tbody);
 }
 
 async function markInvoicePaidApi(invoiceId) {
@@ -3659,7 +3662,7 @@ function renderInvestorReport() {
   }
   const d = computeInvestorReportData(house.id, month);
   container.innerHTML = renderInvestorReportCard(house, d);
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 function renderInvestorExpensesTable() {
@@ -3692,7 +3695,7 @@ function renderInvestorExpensesTable() {
     `;
   }).join('');
 
-  lucide.createIcons();
+  renderIcons(tbody);
 }
 
 let _pendingExpensePhotoDataUrl = '';
@@ -3713,7 +3716,7 @@ function renderExpensePhotoPreview() {
       </button>
     `;
   }
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 async function handleExpensePhotoSelect(event) {
@@ -3746,8 +3749,9 @@ function viewExpenseDetail(expenseId) {
   photoEl.innerHTML = e.photo
     ? `<img src="${e.photo}" onclick="viewDocumentFullSize('${e.photo}')" style="width:100%; max-height:280px; object-fit:contain; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">`
     : '';
-  document.getElementById('modal-expense-detail').classList.add('active');
-  lucide.createIcons();
+  const expenseDetailModal = document.getElementById('modal-expense-detail');
+  expenseDetailModal.classList.add('active');
+  renderIcons(expenseDetailModal);
 }
 
 function openAddInvestorExpenseModal() {
@@ -3761,8 +3765,9 @@ function openAddInvestorExpenseModal() {
   _pendingExpensePhotoDataUrl = '';
   renderExpensePhotoPreview();
   document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--cala-orange); vertical-align: middle;"></i> ${t('modal_add_expense_title')}`;
-  document.getElementById('modal-investor-expense').classList.add('active');
-  lucide.createIcons();
+  const addExpenseModal = document.getElementById('modal-investor-expense');
+  addExpenseModal.classList.add('active');
+  renderIcons(addExpenseModal);
 }
 
 function openEditInvestorExpenseModal(expenseId) {
@@ -3778,8 +3783,9 @@ function openEditInvestorExpenseModal(expenseId) {
   _pendingExpensePhotoDataUrl = e.photo || '';
   renderExpensePhotoPreview();
   document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--cala-orange); vertical-align: middle;"></i> ${t('modal_edit_expense_title')}`;
-  document.getElementById('modal-investor-expense').classList.add('active');
-  lucide.createIcons();
+  const editExpenseModal = document.getElementById('modal-investor-expense');
+  editExpenseModal.classList.add('active');
+  renderIcons(editExpenseModal);
 }
 
 async function submitInvestorExpense(event) {
@@ -3912,7 +3918,7 @@ function renderAdminUsers() {
   // afterward without going through switchView again — without this, their
   // buttons' icons (including the new activate/deactivate ones) render as
   // blank <i> tags until the next full view switch.
-  lucide.createIcons();
+  renderIcons(tbody);
 }
 
 async function approveUserApi(userId) {
@@ -4137,8 +4143,9 @@ function openEditUserModal(userId) {
   // Clear password field - always blank when modal opens
   const pwdField = document.getElementById('edit-new-password');
   if (pwdField) pwdField.value = '';
-  document.getElementById('modal-edit-user').classList.add('active');
-  lucide.createIcons();
+  const editUserModal = document.getElementById('modal-edit-user');
+  editUserModal.classList.add('active');
+  renderIcons(editUserModal);
 }
 
 function handleEditHouseChange(selectedRoomId = '') {
@@ -4281,7 +4288,7 @@ function renderTenantContractView() {
         <p style="margin-top: 0.5rem;">${t('contract_empty_desc')}</p>
       </div>
     `;
-    lucide.createIcons();
+    renderIcons(container);
     return;
   }
 
@@ -4296,7 +4303,7 @@ function renderTenantContractView() {
       `).join('')}
     </div>
   `;
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 function renderTenantInvoiceView() {
@@ -4314,7 +4321,7 @@ function renderTenantInvoiceView() {
         <p style="margin-top: 0.5rem;">${t('invoice_empty_desc')}</p>
       </div>
     `;
-    lucide.createIcons();
+    renderIcons(container);
     return;
   }
 
@@ -4441,7 +4448,7 @@ function renderTenantInvoiceView() {
       </div>
     </div>
   `;
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 // On phones the invoice table defaults to just service name + price (see
@@ -4456,7 +4463,7 @@ function toggleInvoiceDetailView() {
     btn.innerHTML = showing
       ? `<i data-lucide="eye-off"></i> <span>${t('btn_hide_calc_detail')}</span>`
       : `<i data-lucide="eye"></i> <span>${t('btn_view_calc_detail')}</span>`;
-    lucide.createIcons();
+    renderIcons(btn);
   }
 }
 
@@ -4508,7 +4515,7 @@ function viewInvoiceDetail(invoiceId) {
     </div>
   `;
   document.getElementById('modal-invoice-detail').classList.add('active');
-  lucide.createIcons();
+  renderIcons(content);
 }
 
 // Investor-facing counterpart to viewInvoiceDetail() — the investor's own
@@ -4538,7 +4545,7 @@ function viewInvestorInvoiceDetail(invoiceId) {
     </div>
   `;
   document.getElementById('modal-invoice-detail').classList.add('active');
-  lucide.createIcons();
+  renderIcons(content);
 }
 
 function previewRoomInvoice(roomId) {
@@ -4650,7 +4657,7 @@ function renderRoomsManagement() {
   });
 
   container.innerHTML = html;
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 // Manager-only page for submitting the new electricity meter reading photo
@@ -4743,7 +4750,7 @@ function renderManagerMeterPhotos() {
   });
 
   container.innerHTML = html;
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 function elecPhotoButtonHtml(roomId, photoDataUrl, locked) {
@@ -4797,7 +4804,7 @@ function viewElecPhoto(roomId) {
     `;
   }
   document.getElementById('modal-elec-photo').classList.add('active');
-  lucide.createIcons();
+  renderIcons(content);
 }
 
 async function saveElecReadingField(roomId, field, value) {
@@ -4970,7 +4977,7 @@ function renderSalerRooms() {
       }).join('')}
     </div>
   `;
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 function toggleSalerRoomDetail(roomId) {
@@ -5006,8 +5013,9 @@ function openRoomDocumentsModal(roomId) {
   if (endInput) endInput.value = (room && room.contractEnd) || '';
 
   renderRoomDocumentsList();
-  document.getElementById('modal-room-documents').classList.add('active');
-  lucide.createIcons();
+  const roomDocsModal = document.getElementById('modal-room-documents');
+  roomDocsModal.classList.add('active');
+  renderIcons(roomDocsModal);
 }
 
 async function saveRoomContractDates() {
@@ -5144,7 +5152,7 @@ function renderRoomDocumentsList() {
       </button>` : ''}
     </div>
   `).join('');
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 function viewDocumentFullSize(dataUrl) {
@@ -5174,8 +5182,9 @@ function openRoomPhotosModal(roomId) {
   if (previewEl) previewEl.innerHTML = '';
 
   renderRoomPhotosList();
-  document.getElementById('modal-room-photos').classList.add('active');
-  lucide.createIcons();
+  const roomPhotosModal = document.getElementById('modal-room-photos');
+  roomPhotosModal.classList.add('active');
+  renderIcons(roomPhotosModal);
 }
 
 async function handleRoomPhotoSelect(event) {
@@ -5269,7 +5278,7 @@ function renderRoomPhotosList() {
       </button>` : ''}
     </div>
   `).join('');
-  lucide.createIcons();
+  renderIcons(container);
 }
 
 // Toggles a room's occupancy: has a tenant name ⇒ "Active" (hidden from
@@ -5459,7 +5468,7 @@ async function openTicketDetail(ticketId) {
 
   // Render comments thread
   renderTicketComments(ticket);
-  lucide.createIcons();
+  renderIcons(document.getElementById('ticket-detail-view'));
 }
 
 function renderTicketComments(ticket) {
@@ -5622,6 +5631,7 @@ function renderAdminTickets() {
   const canDeleteTickets = canDelete();
 
   state.tickets.forEach(t => {
+    const imgCount = t.imagesCount != null ? t.imagesCount : (t.images || []).length;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${t.id}</strong></td>
@@ -5671,7 +5681,8 @@ function renderAdminTickets() {
     }
   });
 
-  if (typeof lucide !== 'undefined') lucide.createIcons();
+  renderIcons(tbody);
+  if (cardsBox) renderIcons(cardsBox);
 }
 
 async function deleteTicketApi(ticketId) {
@@ -5782,7 +5793,8 @@ function renderTenantReportsView() {
     }
   });
 
-  if (typeof lucide !== 'undefined') lucide.createIcons();
+  renderIcons(tbody);
+  if (cardsBox) renderIcons(cardsBox);
 }
 
 async function handleTenantSubmitReport(event) {
@@ -6013,11 +6025,26 @@ function toggleTheme() {
   document.documentElement.setAttribute('data-theme', state.theme);
   const themeIcon = document.getElementById('theme-icon');
   themeIcon.setAttribute('data-lucide', state.theme === 'dark' ? 'sun-medium' : 'moon');
-  lucide.createIcons();
+  renderIcons(themeIcon.parentElement);
 }
 
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
+}
+
+// lucide.createIcons() re-builds *every* [data-lucide] element on the whole
+// page each time it runs, not just newly-added ones — the <svg> it produces
+// keeps the same data-lucide attribute, so the next call's document-wide
+// query matches it again and tears it down/rebuilds it for no reason. That's
+// a fixed cost of a few ms once per page navigation, but this app calls
+// lucide.createIcons() after every toast, confirm dialog, table-row edit and
+// modal open — dozens of times during a normal session — and on a weaker
+// mobile CPU that adds up to real, felt lag while just using the app.
+// Passing the specific container that was actually just (re)rendered scopes
+// the rebuild to only its own icons instead of the whole document.
+function renderIcons(root) {
+  if (typeof lucide === 'undefined') return;
+  lucide.createIcons({ root: root || document });
 }
 
 // Enlarges any ticket/meter photo inline as a popup instead of opening a
@@ -6048,8 +6075,9 @@ function showConfirmModal(message, options = {}) {
     const iconBox = document.getElementById('confirm-modal-icon-box');
     iconBox.style.background = options.danger ? '#ffecee' : '#fff2ec';
     iconBox.style.color = options.danger ? 'var(--cala-red)' : 'var(--cala-orange)';
-    document.getElementById('modal-confirm').classList.add('active');
-    lucide.createIcons();
+    const confirmModal = document.getElementById('modal-confirm');
+    confirmModal.classList.add('active');
+    renderIcons(confirmModal);
   });
 }
 
@@ -6142,7 +6170,7 @@ function showToast(message, type = 'info') {
     <span>${message}</span>
   `;
   container.appendChild(toast);
-  lucide.createIcons();
+  renderIcons(toast);
   setTimeout(() => toast.remove(), 4000);
 }
 let _currentTenantTicketId = null;
@@ -6203,8 +6231,9 @@ async function openTenantTicketDetail(ticketId) {
   // Render comments thread
   renderTenantTicketComments(ticket);
   document.getElementById('tenant-reply-text').value = '';
-  document.getElementById('modal-tenant-ticket-detail').classList.add('active');
-  lucide.createIcons();
+  const tenantTicketModal = document.getElementById('modal-tenant-ticket-detail');
+  tenantTicketModal.classList.add('active');
+  renderIcons(tenantTicketModal);
 }
 
 function renderTenantTicketComments(ticket) {
@@ -6347,7 +6376,7 @@ function renderAdminPermissions() {
     `;
     tbody.appendChild(tr);
   });
-  lucide.createIcons();
+  renderIcons(tbody);
 }
 
 async function savePermissionsMatrix() {

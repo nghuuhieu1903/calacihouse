@@ -501,3 +501,26 @@ select.form-control { padding-right: 2.25rem; }
   }
   #btn-toggle-invoice-detail { display: inline-flex !important; }
 }
+
+/* ---------- SMALL PHONE (iPhone SE / budget Android widths, ~360-400px) —
+   the 576px tier above assumes a "normal" modern phone (~390-430px); on
+   anything narrower its card/button padding still reads as oversized and
+   crowds the little width there is. Tighten one more notch instead of
+   adding a 4th distinct layout — nothing here restructures, it only scales
+   spacing/type down further. ---------- */
+@media (max-width: 380px) {
+  .main-content { padding: 0.75rem; }
+  .cala-card { padding: 0.85rem; margin-bottom: 1rem; }
+  h1#page-title { font-size: 1.2rem !important; }
+  #page-subtitle { font-size: 0.8rem; }
+
+  .btn { padding: 0.45rem 0.85rem; font-size: 0.8rem; }
+  .btn-sm { padding: 0.28rem 0.55rem; font-size: 0.72rem; }
+  .form-control { padding: 0.6rem 0.8rem; }
+
+  .stat-card { padding: 0.85rem; }
+  .stat-val { font-size: 1.1rem; }
+
+  .ticket-card, .tenant-ticket-row { padding: 0.75rem 0.85rem; }
+  .modal-card { padding: 1rem; }
+}
