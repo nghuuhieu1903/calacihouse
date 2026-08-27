@@ -42,6 +42,9 @@ const I18N = {
     saler_area_label: 'Diện tích',
     lbl_room_area: 'Diện Tích (m²)',
     lbl_room_capacity: 'Số Người Tổng (Sức chứa — chỉ để tham khảo, không tính vào công thức)',
+    lbl_room_vehicle_count: 'Số Xe Gửi (để tính phí gửi xe = đơn giá × số xe)',
+    lbl_room_vehicle_count_short: 'Số xe',
+    hint_room_vehicle_count_dorm: 'Phòng KTX: số xe tự động tính theo từng tài khoản đã tích "Có gửi xe" trong Quản Lý Tài Khoản, không sửa trực tiếp ở đây được.',
     capacity_label: 'Sức chứa:',
     lbl_room_description: 'Mô Tả / Ghi Chú Phòng (hiển thị công khai cho Saler)',
     btn_room_photos: 'Ảnh Phòng (Saler xem được)',
@@ -522,6 +525,7 @@ const I18N = {
     modal_edit_user_title: 'Chỉnh Sửa & Phân Quyền Thành Viên',
     lbl_role_permission: 'Vai trò / Quyền hạn',
     lbl_residing_room: 'Phòng lưu trú',
+    lbl_has_vehicle: 'Có gửi xe (tính phí gửi xe riêng cho người này)',
     lbl_account_status: 'Trạng thái tài khoản',
     option_status_approved: 'Đã duyệt (Hoạt động)',
     option_status_pending: 'Chờ duyệt (Chưa kích hoạt)',
@@ -613,6 +617,9 @@ const I18N = {
     saler_area_label: 'Area',
     lbl_room_area: 'Area (m²)',
     lbl_room_capacity: 'Total Capacity (informational only, not used in any formula)',
+    lbl_room_vehicle_count: 'Vehicle Count (used for parking fee = price × vehicle count)',
+    lbl_room_vehicle_count_short: 'Vehicles',
+    hint_room_vehicle_count_dorm: 'Dorm room: vehicle count is auto-calculated from each account checked "Has a vehicle" in Account Management — not directly editable here.',
     capacity_label: 'Capacity:',
     lbl_room_description: 'Room description / notes (publicly shown to Saler)',
     btn_room_photos: 'Room Photos (visible to Saler)',
@@ -1093,6 +1100,7 @@ const I18N = {
     modal_edit_user_title: 'Edit User & Permissions',
     lbl_role_permission: 'Role / Permission',
     lbl_residing_room: 'Assigned room',
+    lbl_has_vehicle: 'Has a vehicle (billed for parking separately)',
     lbl_account_status: 'Account status',
     option_status_approved: 'Approved (Active)',
     option_status_pending: 'Pending (Not activated)',
@@ -1841,6 +1849,9 @@ function calculateServiceCostForRoom(service, room) {
   if (unit === 'Theo đầu người') {
     return price * headcount;
   }
+  if (unit === 'Theo xe / tháng') {
+    return price * (room.vehicleCount || 0);
+  }
   return price;
 }
 
@@ -1866,7 +1877,8 @@ function calculateRoomServiceTotal(room) {
 
     if (nameLower.includes('xe') || unit === 'Theo xe / tháng') {
       parkingTotal += cost;
-      items.push({ id: s.id, name, symbol, price: s.price, unit, total: cost, isParking: true });
+      const parkingUnit = unit === 'Theo xe / tháng' ? `${room.vehicleCount || 0} xe x ${formatMoney(s.price)}đ` : unit;
+      items.push({ id: s.id, name, symbol, price: s.price, unit: parkingUnit, total: cost, isParking: true });
     } else {
       serviceTotal += cost;
       serviceCount++;
@@ -3876,6 +3888,18 @@ function handleCreateHouseChange() {
   if (!roomSelect) return;
   const filteredRooms = state.rooms.filter(r => r.houseId === houseId);
   roomSelect.innerHTML = filteredRooms.map(r => `<option value="${r.id}">${r.name} (${r.tenant || t('vacant_label')})</option>`).join('');
+  toggleCreateHasVehicleBox();
+}
+
+// The "Có gửi xe" checkbox only makes sense for a dorm room, where each
+// resident's parking fee is billed individually — a single room's tenant
+// pays one lump-sum total instead, so there's nothing per-person to toggle.
+function toggleCreateHasVehicleBox() {
+  const room = state.rooms.find(r => r.id === document.getElementById('create-room-id').value);
+  const isDorm = !!(room && room.roomType === 'dorm');
+  const box = document.getElementById('box-create-has-vehicle');
+  if (box) box.style.display = isDorm ? 'block' : 'none';
+  if (!isDorm) document.getElementById('create-has-vehicle').checked = false;
 }
 
 function toggleRoomSelectInCreateModal() {
@@ -3922,6 +3946,7 @@ function openEditUserModal(userId) {
     const userHouseId = userRoom ? userRoom.houseId : (state.houses[0] ? state.houses[0].id : '');
     if (houseSelect && userHouseId) houseSelect.value = userHouseId;
     handleEditHouseChange(u.roomId);
+    document.getElementById('edit-has-vehicle').checked = !!u.hasVehicle;
   }
 
   // Clear password field - always blank when modal opens
@@ -3939,6 +3964,15 @@ function handleEditHouseChange(selectedRoomId = '') {
   const filteredRooms = state.rooms.filter(r => r.houseId === houseId);
   roomSelect.innerHTML = `<option value="">-- ${t('unassigned_none_placeholder')} --</option>` +
     filteredRooms.map(r => `<option value="${r.id}" ${r.id === selectedRoomId ? 'selected' : ''}>${r.name} (${r.tenant || t('vacant_label')})</option>`).join('');
+  toggleEditHasVehicleBox();
+}
+
+function toggleEditHasVehicleBox() {
+  const room = state.rooms.find(r => r.id === document.getElementById('edit-room-id').value);
+  const isDorm = !!(room && room.roomType === 'dorm');
+  const box = document.getElementById('box-edit-has-vehicle');
+  if (box) box.style.display = isDorm ? 'block' : 'none';
+  if (!isDorm) document.getElementById('edit-has-vehicle').checked = false;
 }
 
 function toggleRoomSelectInEditModal() {
@@ -3967,6 +4001,7 @@ async function handleAdminSaveUser(event) {
   const role = document.getElementById('edit-role').value;
   const roomId = role === 'tenant' ? document.getElementById('edit-room-id').value : '';
   const houseIds = role === 'investor' ? getSelectedInvestorHouseIds('edit-investor-houses-container') : [];
+  const hasVehicle = role === 'tenant' ? document.getElementById('edit-has-vehicle').checked : false;
   const status = document.getElementById('edit-status').value;
   const newPasswordField = document.getElementById('edit-new-password');
   const newPassword = newPasswordField ? newPasswordField.value.trim() : '';
@@ -3978,10 +4013,11 @@ async function handleAdminSaveUser(event) {
     state.users[uIdx].roomId = roomId;
     state.users[uIdx].houseIds = houseIds;
     state.users[uIdx].houseId = houseIds[0] || '';
+    state.users[uIdx].hasVehicle = hasVehicle;
     state.users[uIdx].status = status;
   }
 
-  const payload = { id, fullName, role, roomId, houseIds, status };
+  const payload = { id, fullName, role, roomId, houseIds, hasVehicle, status };
   if (newPassword) payload.newPassword = newPassword;
 
   try {
@@ -4012,15 +4048,16 @@ async function handleAdminCreateUser(event) {
   const role = document.getElementById('create-role').value;
   const roomId = role === 'tenant' ? document.getElementById('create-room-id').value : '';
   const houseIds = role === 'investor' ? getSelectedInvestorHouseIds('create-investor-houses-container') : [];
+  const hasVehicle = role === 'tenant' ? document.getElementById('create-has-vehicle').checked : false;
 
-  const newUser = { id: genId('usr_'), username, password, fullName, role, roomId, houseIds, houseId: houseIds[0] || '', status: 'approved', createdAt: 'Hôm nay' };
+  const newUser = { id: genId('usr_'), username, password, fullName, role, roomId, houseIds, houseId: houseIds[0] || '', hasVehicle, status: 'approved', createdAt: 'Hôm nay' };
   state.users.push(newUser);
 
   try {
     await fetch(`${API_BASE}/users/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, fullName, role, roomId, houseIds })
+      body: JSON.stringify({ username, password, fullName, role, roomId, houseIds, hasVehicle })
     });
   } catch (err) {
     console.warn('Created user locally:', err);
@@ -4397,6 +4434,7 @@ function renderRoomsManagement() {
                 <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>
                 <div><span style="color:var(--text-muted);">${t('headcount_label')}</span><br><strong>${r.headcount || 1} ${t('formula_per_person_label')}</strong></div>
                 ${r.roomType === 'dorm' && r.capacity ? `<div><span style="color:var(--text-muted);">${t('capacity_label')}</span><br><strong>${r.capacity} ${t('formula_per_person_label')}</strong></div>` : ''}
+                <div><span style="color:var(--text-muted);">🛵 ${t('lbl_room_vehicle_count_short')}</span><br><strong>${r.vehicleCount || 0}</strong></div>
               </div>
               ${r.contractStart || r.contractEnd ? `
                 <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.75rem;">
@@ -5448,6 +5486,15 @@ function toggleRoomTypeHint() {
   if (hint) hint.style.display = isDorm ? 'block' : 'none';
   if (rentLabel) rentLabel.innerText = isDorm ? t('lbl_room_rent_price_dorm') : t('lbl_room_rent_price');
   if (capacityBox) capacityBox.style.display = isDorm ? 'block' : 'none';
+
+  // A dorm room's vehicle count is derived from its residents' individual
+  // "Có gửi xe" checkboxes (Quản Lý Tài Khoản) — editing it directly here
+  // would just get silently overwritten on the next read, so lock the
+  // field and point to where it's actually managed instead.
+  const vehicleInput = document.getElementById('room-vehicle-count');
+  const vehicleHint = document.getElementById('hint-room-vehicle-count');
+  if (vehicleInput) vehicleInput.disabled = isDorm;
+  if (vehicleHint) vehicleHint.style.display = isDorm ? 'block' : 'none';
 }
 
 async function saveSalerCommissionPercent() {
@@ -5483,6 +5530,7 @@ function openAddRoomModal() {
   document.getElementById('room-description').value = '';
   document.getElementById('room-capacity').value = '';
   document.getElementById('room-deposit').value = '';
+  document.getElementById('room-vehicle-count').value = '';
   toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
@@ -5507,6 +5555,7 @@ function openEditRoomModal(roomId) {
   document.getElementById('room-description').value = r.description || '';
   document.getElementById('room-capacity').value = r.capacity || '';
   document.getElementById('room-deposit').value = r.deposit || '';
+  document.getElementById('room-vehicle-count').value = r.vehicleCount || '';
   toggleRoomTypeHint();
 
   const houseSelect = document.getElementById('room-house-id');
@@ -5529,10 +5578,11 @@ async function saveRoomConfig(event) {
   const description = document.getElementById('room-description').value.trim();
   const capacity = parseInt(document.getElementById('room-capacity').value) || 0;
   const deposit = parseFloat(document.getElementById('room-deposit').value) || 0;
+  const vehicleCount = parseInt(document.getElementById('room-vehicle-count').value) || 0;
 
   const rObj = {
     id: id || genId('R'),
-    houseId, name, tenant, phone, roomType, headcount, baseRent, area, description, capacity, deposit
+    houseId, name, tenant, phone, roomType, headcount, baseRent, area, description, capacity, deposit, vehicleCount
   };
 
   const idx = state.rooms.findIndex(r => r.id === rObj.id);

@@ -232,6 +232,7 @@ def _user(row):
         'roomId': row['room_id'] or '',
         'houseId': row['house_id'] or '',
         'houseIds': house_ids,
+        'hasVehicle': bool(row.get('has_vehicle')),
         'status': row['status'],
         'createdAt': row['created_at'] or ''
     }
@@ -260,7 +261,13 @@ def _room(row):
         # Deposit — the basis for the saler commission calculation
         # (commission = deposit x global commission %). Public info shown
         # to salers alongside rent/services, same as baseRent.
-        'deposit': row.get('deposit') or 0
+        'deposit': row.get('deposit') or 0,
+        # Number of vehicles parked by this room, for the "Theo xe / tháng"
+        # service unit (price × vehicleCount). Directly editable for a
+        # single room; for a dorm room this raw value gets overridden by
+        # RentalService._apply_dorm_vehicle_counts() with a live count of
+        # residents individually marked "có gửi xe" instead.
+        'vehicleCount': row.get('vehicle_count') or 0
     }
 
 def _default_investor_share(name, calc_type):
@@ -494,8 +501,8 @@ class Storage:
                 house_ids = u.get('houseIds') or ([u['houseId']] if u.get('houseId') else [])
                 cur.execute(
                     "REPLACE INTO users "
-                    "(id, username, password, full_name, role, room_id, house_id, house_ids, status, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, username, password, full_name, role, room_id, house_id, house_ids, has_vehicle, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         u['id'],
                         u['username'],
@@ -505,6 +512,7 @@ class Storage:
                         u.get('roomId', ''),
                         house_ids[0] if house_ids else '',
                         json.dumps(house_ids),
+                        1 if u.get('hasVehicle') else 0,
                         u.get('status', 'pending'),
                         u.get('createdAt', '')
                     )
@@ -532,8 +540,8 @@ class Storage:
                 house_ids = u.get('houseIds') or ([u['houseId']] if u.get('houseId') else [])
                 cur.execute(
                     "INSERT INTO users "
-                    "(id, username, password, full_name, role, room_id, house_id, house_ids, status, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, username, password, full_name, role, room_id, house_id, house_ids, has_vehicle, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         u['id'],
                         u['username'],
@@ -543,6 +551,7 @@ class Storage:
                         u.get('roomId', ''),
                         house_ids[0] if house_ids else '',
                         json.dumps(house_ids),
+                        1 if u.get('hasVehicle') else 0,
                         u.get('status', 'pending'),
                         u.get('createdAt', '')
                     )
@@ -586,8 +595,8 @@ class Storage:
             with conn.cursor() as cur:
                 cur.execute(
                     "REPLACE INTO rooms "
-                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description, capacity, deposit) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description, capacity, deposit, vehicle_count) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         r['id'],
                         r.get('houseId', ''),
@@ -604,7 +613,8 @@ class Storage:
                         r.get('area', 0),
                         r.get('description', ''),
                         r.get('capacity', 0),
-                        r.get('deposit', 0)
+                        r.get('deposit', 0),
+                        r.get('vehicleCount', 0)
                     )
                 )
             conn.commit()

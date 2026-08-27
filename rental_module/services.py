@@ -97,9 +97,15 @@ class RentalService:
             name_lower = name.lower()
 
             if 'xe' in name_lower or unit == 'Theo xe / tháng':
-                item_price = price
+                if unit == 'Theo xe / tháng':
+                    vehicle_count = room.get('vehicleCount', 0)
+                    item_price = price * vehicle_count
+                    item_unit = f"{vehicle_count} xe x {price:,.0f}đ"
+                else:
+                    item_price = price
+                    item_unit = unit
                 parking_total += item_price
-                item_list.append({ 'id': s.get('id'), 'name': name, 'symbol': symbol, 'price': price, 'unit': unit, 'total': item_price, 'isParking': True })
+                item_list.append({ 'id': s.get('id'), 'name': name, 'symbol': symbol, 'price': price, 'unit': item_unit, 'total': item_price, 'isParking': True })
             elif unit == 'Theo đầu người':
                 item_price = price * headcount
                 service_total += item_price
@@ -112,6 +118,28 @@ class RentalService:
         return service_total, parking_total, item_list
 
     @staticmethod
+    def _apply_dorm_vehicle_counts(rooms, users):
+        """A dorm room's vehicleCount isn't typed in directly (see
+        save_room) — it's the number of that room's currently-approved
+        tenant accounts individually marked "có gửi xe" in Quản Lý Tài
+        Khoản, recomputed live every time rooms are read rather than
+        synced on write, so it can never drift out of date (e.g. after a
+        tenant moves out or a checkbox changes on a different page). A
+        single room's vehicleCount is untouched — there it's just the
+        direct value the admin typed on the room itself."""
+        vehicle_counts_by_room = {}
+        for u in users:
+            if u.get('role') == 'tenant' and u.get('status') == 'approved' and u.get('hasVehicle') and u.get('roomId'):
+                vehicle_counts_by_room[u['roomId']] = vehicle_counts_by_room.get(u['roomId'], 0) + 1
+
+        result = []
+        for r in rooms:
+            if r.get('roomType') == 'dorm':
+                r = {**r, 'vehicleCount': vehicle_counts_by_room.get(r['id'], 0)}
+            result.append(r)
+        return result
+
+    @staticmethod
     def sync_readings_with_services(month='2026-08'):
         # Runs on every page load / data fetch (called from get_full_state
         # below), so a plain get-then-save here raced constantly against
@@ -119,7 +147,7 @@ class RentalService:
         # one tab while another tab had just saved a meter number could read
         # a copy taken before that save committed, then write it straight
         # back over it. Locked read-modify-write serializes the two instead.
-        rooms = Storage.get_rooms()
+        rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), Storage.get_users())
         services = Storage.get_services()
 
         def mutate(readings):
@@ -148,7 +176,7 @@ class RentalService:
     def get_full_state(month='2026-08', current_user=None):
         houses = Storage.get_houses()
         users = Storage.get_users()
-        rooms = Storage.get_rooms()
+        rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), users)
         services = Storage.get_services()
         formulas = Storage.get_formulas()
         readings = Storage.get_readings()
@@ -381,7 +409,7 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None, area=None, description=None, capacity=None, deposit=None):
+    def save_room(room_id, house_id, name, tenant, phone, base_rent, headcount, room_type=None, elec_formula=None, water_formula=None, area=None, description=None, capacity=None, deposit=None, vehicle_count=None):
         # 6 hex chars (matches houses/services/formulas/tickets) — the old
         # 4-char version only had 65,536 possible ids, giving a
         # non-negligible birthday-paradox collision chance once a building
@@ -415,7 +443,13 @@ class RentalService:
             'capacity': int(capacity) if capacity not in (None, '') else existing.get('capacity', 0),
             # Basis for the saler commission figure (commission = deposit x
             # the global saler_commission_percent setting).
-            'deposit': float(deposit) if deposit not in (None, '') else existing.get('deposit', 0)
+            'deposit': float(deposit) if deposit not in (None, '') else existing.get('deposit', 0),
+            # Only meaningful as a direct edit for a single room — a dorm
+            # room's effective value gets overridden live by
+            # _apply_dorm_vehicle_counts() from its residents' hasVehicle
+            # flags, so writing a raw number here for a dorm room is
+            # harmless (it's never read back for billing).
+            'vehicleCount': int(vehicle_count) if vehicle_count not in (None, '') else existing.get('vehicleCount', 0)
         }
         Storage.save_room(r_obj)
         RentalService.sync_readings_with_services()
@@ -505,7 +539,7 @@ class RentalService:
         return False, []
 
     @staticmethod
-    def create_user_by_admin(username, password, full_name, role, room_id, house_id='', house_ids=None):
+    def create_user_by_admin(username, password, full_name, role, room_id, house_id='', house_ids=None, has_vehicle=False):
         users = Storage.get_users()
         if any(u['username'].lower() == username.lower() for u in users):
             return None, 'Tên tài khoản đã tồn tại!'
@@ -522,6 +556,11 @@ class RentalService:
             'role': role,
             'roomId': room_id if role == 'tenant' else '',
             'houseIds': investor_house_ids if role == 'investor' else [],
+            # Only meaningful for a tenant in a dorm room — see
+            # _apply_dorm_vehicle_counts() for how this rolls up into the
+            # room's billed vehicle count. Harmless to store for anyone
+            # else, just never read back.
+            'hasVehicle': bool(has_vehicle),
             'status': 'approved',
             'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
@@ -535,7 +574,7 @@ class RentalService:
         return new_user, None
 
     @staticmethod
-    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id='', house_ids=None):
+    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id='', house_ids=None, has_vehicle=None):
         user = next((u for u in Storage.get_users() if u['id'] == user_id), None)
         if user:
             investor_house_ids = house_ids if house_ids else ([house_id] if house_id else [])
@@ -558,6 +597,8 @@ class RentalService:
                 user['roomId'] = room_id if role == 'tenant' else ''
                 user['houseIds'] = investor_house_ids if role == 'investor' else []
                 user['status'] = status
+                if has_vehicle is not None:
+                    user['hasVehicle'] = bool(has_vehicle)
 
             # Only update password if a new one was explicitly provided
             if new_password:
@@ -630,7 +671,7 @@ class RentalService:
 
     @staticmethod
     def generate_all_invoices(month):
-        rooms = Storage.get_rooms()
+        rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), Storage.get_users())
         services = Storage.get_services()
         readings = Storage.get_readings().get(month, {})
 

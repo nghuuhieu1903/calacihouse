@@ -184,7 +184,8 @@ def save_room():
         data.get('area'),
         data.get('description'),
         data.get('capacity'),
-        data.get('deposit')
+        data.get('deposit'),
+        data.get('vehicleCount')
     )
     return jsonify({'success': True, 'room': r_obj})
 
@@ -242,7 +243,8 @@ def create_user():
         role,
         data.get('roomId', ''),
         data.get('houseId', ''),
-        data.get('houseIds')
+        data.get('houseIds'),
+        data.get('hasVehicle', False)
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
@@ -263,7 +265,8 @@ def save_user():
         data.get('status'),
         data.get('newPassword'),  # Optional - only set if provided
         data.get('houseId', ''),
-        data.get('houseIds')
+        data.get('houseIds'),
+        data.get('hasVehicle')
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400

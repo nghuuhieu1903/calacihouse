@@ -1129,7 +1129,13 @@
         </div>
         <div style="margin-bottom: 1.5rem;" id="box-assign-room">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="col_assigned_room">Gán phòng</label>
-          <select id="create-room-id" class="form-control"></select>
+          <select id="create-room-id" class="form-control" onchange="toggleCreateHasVehicleBox()"></select>
+        </div>
+        <div style="margin-bottom: 1.5rem; display: none;" id="box-create-has-vehicle">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" id="create-has-vehicle">
+            <span style="font-size: 0.85rem; font-weight: 700;" data-i18n="lbl_has_vehicle">Có gửi xe (tính phí gửi xe riêng cho người này)</span>
+          </label>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create-user')" data-i18n="btn_cancel">Hủy</button>
@@ -1175,7 +1181,13 @@
         </div>
         <div style="margin-bottom: 1rem;" id="box-edit-assign-room">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_residing_room">Phòng lưu trú</label>
-          <select id="edit-room-id" class="form-control"></select>
+          <select id="edit-room-id" class="form-control" onchange="toggleEditHasVehicleBox()"></select>
+        </div>
+        <div style="margin-bottom: 1.5rem; display: none;" id="box-edit-has-vehicle">
+          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+            <input type="checkbox" id="edit-has-vehicle">
+            <span style="font-size: 0.85rem; font-weight: 700;" data-i18n="lbl_has_vehicle">Có gửi xe (tính phí gửi xe riêng cho người này)</span>
+          </label>
         </div>
         <div style="margin-bottom: 1.5rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_account_status">Trạng thái tài khoản</label>
@@ -1316,6 +1328,14 @@
         <div style="margin-bottom: 1rem; display: none;" id="box-room-capacity">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_room_capacity">Số Người Tổng (Sức chứa — chỉ để tham khảo, không tính vào công thức)</label>
           <input type="number" id="room-capacity" class="form-control" min="0" placeholder="4">
+        </div>
+
+        <div style="margin-bottom: 1rem;" id="box-room-vehicle-count">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" id="lbl-room-vehicle-count" data-i18n="lbl_room_vehicle_count">Số Xe Gửi (để tính phí gửi xe = đơn giá × số xe)</label>
+          <input type="number" id="room-vehicle-count" class="form-control" min="0" placeholder="0">
+          <p id="hint-room-vehicle-count" style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.4rem; display: none;" data-i18n="hint_room_vehicle_count_dorm">
+            Phòng KTX: số xe tự động tính theo từng tài khoản đã tích "Có gửi xe" trong Quản Lý Tài Khoản, không sửa trực tiếp ở đây được.
+          </p>
         </div>
 
         <div style="margin-bottom: 1rem;">

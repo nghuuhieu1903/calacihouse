@@ -69,6 +69,7 @@ SCHEMA_STATEMENTS = [
         room_id     VARCHAR(191) DEFAULT '',
         house_id    VARCHAR(191) DEFAULT '',
         house_ids   TEXT,
+        has_vehicle TINYINT(1) DEFAULT 0,
         status      VARCHAR(32) DEFAULT 'pending',
         created_at  VARCHAR(32) DEFAULT ''
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -90,7 +91,8 @@ SCHEMA_STATEMENTS = [
         area           DOUBLE DEFAULT 0,
         description    TEXT,
         capacity       INT DEFAULT 0,
-        deposit        DOUBLE DEFAULT 0
+        deposit        DOUBLE DEFAULT 0,
+        vehicle_count  INT DEFAULT 0
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
     """
@@ -224,6 +226,8 @@ def init_db():
             _ensure_column(cur, 'investor_expenses', 'photo', "LONGTEXT")
             _ensure_column(cur, 'houses', 'manager_fee_mode', "VARCHAR(16) DEFAULT 'percent'")
             _ensure_column(cur, 'houses', 'manager_fee_value', "DOUBLE DEFAULT 20")
+            _ensure_column(cur, 'rooms', 'vehicle_count', "INT DEFAULT 0")
+            _ensure_column(cur, 'users', 'has_vehicle', "TINYINT(1) DEFAULT 0")
             _promote_admins_to_superadmin(cur)
         conn.commit()
     finally:
