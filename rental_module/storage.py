@@ -164,6 +164,16 @@ DEFAULT_PERMISSIONS = [
         "tenant":   {"view": False, "create": False, "edit": False}
     },
     {
+        # Deliberately separate from "services" — that key also gates
+        # editing service/formula definitions, which Manager must not get
+        # just to be able to submit a meter photo. Scoped to only the
+        # dedicated Cập Nhật Ảnh Số Điện page's elecNew number + photo.
+        "key": "meter_readings", "name": "Cập Nhật Ảnh Số Điện (Quản Lý)",
+        "manager":  {"view": True,  "create": False, "edit": True},
+        "investor": {"view": False, "create": False, "edit": False},
+        "tenant":   {"view": False, "create": False, "edit": False}
+    },
+    {
         "key": "tickets", "name": "Báo Lỗi (Tickets)",
         "manager":  {"view": True,  "create": False, "edit": True},
         "investor": {"view": False, "create": False, "edit": False},
@@ -1029,6 +1039,18 @@ class Storage:
             conn.commit()
         finally:
             conn.close()
+
+    @staticmethod
+    def next_ticket_number():
+        """Monotonic counter for ticket ids, persisted in kv_store
+        separately from the tickets table itself — deleting a ticket row
+        never touches this counter, so its number can't come back around
+        and get reused on a later ticket. _kv_update's FOR UPDATE lock
+        keeps two tickets created at the same instant from landing on the
+        same number."""
+        def mutate(n):
+            return n + 1
+        return Storage._kv_update('ticket_counter', -1, mutate)
 
     # -- Permissions (simple list → kv_store) -------------------------------
 

@@ -151,6 +151,18 @@ const I18N = {
     view_admin_houses_subtitle: 'Thêm, sửa tên và địa chỉ các tòa nhà / dãy trọ',
     view_admin_rooms_title: 'Quản Lý Phòng Trọ',
     view_admin_rooms_subtitle: 'Thêm, sửa, xóa phòng và cấu hình giá thuê',
+    view_admin_meter_photos_title: 'Cập Nhật Ảnh Số Điện',
+    view_admin_meter_photos_subtitle: 'Chụp và gửi ảnh số điện mới hàng tháng cho từng phòng. Sau khi bấm Hoàn Thành, ảnh sẽ được khoá lại.',
+    mp_elec_new_label: 'Số Điện Mới',
+    mp_locked_badge: 'Đã Hoàn Thành',
+    mp_locked_note: 'Đã hoàn thành — chỉ Super Admin mới sửa/xoá được ảnh này.',
+    mp_btn_complete: 'Hoàn Thành',
+    mp_need_photo_first: 'Vui lòng chụp ảnh số điện trước khi bấm Hoàn Thành!',
+    mp_confirm_delete_photo: 'Xoá ảnh số điện này? Bạn có thể chụp lại ảnh khác ngay sau đó.',
+    mp_confirm_complete: 'Xác nhận Hoàn Thành? Sau khi hoàn thành, bạn sẽ không thể xoá/sửa ảnh này nữa — chỉ Super Admin mới mở khoá được.',
+    mp_toast_completed: 'Đã đánh dấu Hoàn Thành! Ảnh đã được khoá.',
+    mp_btn_delete_photo: 'Xoá Ảnh',
+    mp_toast_locked_error: 'Có lỗi xảy ra, vui lòng thử lại.',
     view_admin_permissions_title: 'Cấu Hình Phân Quyền Hạn',
     view_admin_permissions_subtitle: 'Tùy chỉnh quyền hạn của Admin, Quản lý và Khách thuê',
     view_tenant_contract_title: 'Hợp Đồng Của Tôi',
@@ -318,6 +330,7 @@ const I18N = {
     btn_view_and_discuss: 'Xem & Trao Đổi',
     default_guest_label: 'Khách',
     toast_ticket_sent: 'Đã gửi báo lỗi thành công đến Admin!',
+    toast_ticket_send_failed: 'Gửi báo lỗi thất bại, vui lòng thử lại.',
     confirm_delete_room: 'Bạn chắc chắn muốn xóa phòng này?',
     toast_room_deleted: 'Đã xóa phòng',
     toast_room_deleted_tenant_unlinked_prefix: 'Đã gỡ liên kết phòng khỏi tài khoản khách thuê ',
@@ -357,6 +370,7 @@ const I18N = {
     title_logout: 'Đăng Xuất',
     nav_houses: 'Quản Lý Tòa Nhà',
     nav_rooms: 'Quản Lý Phòng',
+    nav_meter_photos: 'Cập Nhật Ảnh Số Điện',
     nav_permissions: 'Phân Quyền Hệ Thống',
     nav_site_settings: 'Thiết Lập Trang',
     lbl_site_name: 'Tên Website (hiển thị trên thanh điều hướng)',
@@ -736,6 +750,18 @@ const I18N = {
     view_admin_houses_subtitle: 'Add and edit building names and addresses',
     view_admin_rooms_title: 'Room Management',
     view_admin_rooms_subtitle: 'Add, edit, delete rooms and configure rent prices',
+    view_admin_meter_photos_title: 'Electricity Meter Photo Updates',
+    view_admin_meter_photos_subtitle: 'Take and submit each room\'s new electricity reading photo every month. Once marked Complete, the photo gets locked.',
+    mp_elec_new_label: 'New Electricity Reading',
+    mp_locked_badge: 'Completed',
+    mp_locked_note: 'Completed — only Super Admin can edit/delete this photo now.',
+    mp_btn_complete: 'Complete',
+    mp_need_photo_first: 'Please take a photo of the electricity meter before marking Complete!',
+    mp_confirm_delete_photo: 'Delete this electricity meter photo? You can take a new one right after.',
+    mp_confirm_complete: 'Confirm Complete? After this, you will no longer be able to delete/edit this photo — only Super Admin can unlock it.',
+    mp_toast_completed: 'Marked Complete! The photo is now locked.',
+    mp_btn_delete_photo: 'Delete Photo',
+    mp_toast_locked_error: 'Something went wrong, please try again.',
     view_admin_permissions_title: 'Permissions Configuration',
     view_admin_permissions_subtitle: 'Customize permissions for Admin, Manager and Tenant roles',
     view_tenant_contract_title: 'My Contract',
@@ -903,6 +929,7 @@ const I18N = {
     btn_view_and_discuss: 'View & Discuss',
     default_guest_label: 'Guest',
     toast_ticket_sent: 'Report sent to Admin successfully!',
+    toast_ticket_send_failed: 'Failed to send the report, please try again.',
     confirm_delete_room: 'Are you sure you want to delete this room?',
     toast_room_deleted: 'Room deleted',
     toast_room_deleted_tenant_unlinked_prefix: 'Unlinked this room from tenant account ',
@@ -942,6 +969,7 @@ const I18N = {
     title_logout: 'Log Out',
     nav_houses: 'Building Management',
     nav_rooms: 'Room Management',
+    nav_meter_photos: 'Electricity Meter Photo Updates',
     nav_permissions: 'System Permissions',
     nav_site_settings: 'Page Settings',
     lbl_site_name: 'Site Name (shown in the navbar)',
@@ -1538,6 +1566,10 @@ function setupUserRoleUI() {
       'admin-tickets': ['tickets', 'view'],
       'admin-users': ['accounts', 'view']
     };
+    // Not in the `tabs` map above: hasPermission() always returns true for
+    // admin/superadmin regardless of the matrix, but this page is meant
+    // to be Manager-only (Admin/Super Admin already manage meter photos
+    // through the Bảng Tính page), so it needs its own explicit check.
 
     let firstView = null;
     Object.keys(tabs).forEach(view => {
@@ -1557,6 +1589,8 @@ function setupUserRoleUI() {
     // matrix itself (you can't grant "edit the permission matrix" via the
     // permission matrix), matching their routes' @superadmin_required
     // server-side.
+    const meterPhotosNav = document.querySelector('.admin-nav [data-view="admin-meter-photos"]');
+    if (meterPhotosNav) meterPhotosNav.style.display = user.role === 'manager' ? 'flex' : 'none';
     const permissionsNav = document.querySelector('.admin-nav [data-view="admin-permissions"]');
     if (permissionsNav) permissionsNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
     const siteSettingsNav = document.getElementById('nav-site-settings');
@@ -1600,7 +1634,7 @@ function renderHouseSelector() {
   // đầu tư) and the one inside trang Quản Lý Hóa Đơn (Admin/Quản lý). Only
   // one is ever visible per role, but keep both populated/in sync so
   // switching roles or views never shows a stale selector.
-  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house'].forEach(id => {
+  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
   });
@@ -1626,7 +1660,7 @@ function handleHouseChange(sourceEl) {
   const value = sourceEl ? sourceEl.value : document.getElementById('select-house').value;
   state.currentHouseId = value;
   state.currentRoomId = 'all';
-  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house'].forEach(id => {
+  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el !== sourceEl) el.value = value;
   });
@@ -1774,6 +1808,11 @@ function switchView(viewId) {
       titleEl.innerText = dict.view_admin_rooms_title;
       subtitleEl.innerText = dict.view_admin_rooms_subtitle;
       renderRoomsManagement();
+      break;
+    case 'admin-meter-photos':
+      titleEl.innerText = dict.view_admin_meter_photos_title;
+      subtitleEl.innerText = dict.view_admin_meter_photos_subtitle;
+      renderManagerMeterPhotos();
       break;
     case 'admin-tickets':
       titleEl.innerText = dict.tickets_title;
@@ -4614,6 +4653,222 @@ function renderRoomsManagement() {
   lucide.createIcons();
 }
 
+// Manager-only page for submitting the new electricity meter reading photo
+// — deliberately narrower than the admin Bảng Tính spreadsheet (only
+// elecNew + its photo, card layout like Quản Lý Phòng) and backed by its
+// own 'meter_readings' permission instead of 'services':'edit', so a
+// manager doesn't also gain rights to edit service/formula config. Once a
+// room is marked Hoàn Thành its photo is locked — see elecPhotoButtonHtml.
+function renderManagerMeterPhotos() {
+  const container = document.getElementById('meter-photos-container');
+  if (!container) return;
+
+  const rooms = getFilteredRooms();
+  if (rooms.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-secondary);">${t('rooms_empty_state')}</div>`;
+    return;
+  }
+
+  const byHouse = {};
+  rooms.forEach(r => {
+    const hid = r.houseId || 'unknown';
+    if (!byHouse[hid]) byHouse[hid] = [];
+    byHouse[hid].push(r);
+  });
+
+  const roomSortKey = r => {
+    const match = (r.name || '').match(/\d+/);
+    return match ? parseInt(match[0], 10) : null;
+  };
+  Object.keys(byHouse).forEach(hid => {
+    byHouse[hid].sort((a, b) => {
+      const numA = roomSortKey(a);
+      const numB = roomSortKey(b);
+      if (numA !== null && numB !== null && numA !== numB) return numA - numB;
+      if (numA !== null && numB === null) return -1;
+      if (numA === null && numB !== null) return 1;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+  });
+
+  const monthReadings = state.readings[state.currentMonth] || {};
+
+  let html = '';
+  Object.keys(byHouse).forEach(hid => {
+    const house = state.houses.find(h => h.id === hid);
+    const houseRooms = byHouse[hid];
+    html += `
+      <div style="margin-bottom: 1.5rem;">
+        <div style="font-size: 1rem; font-weight: 800; color: var(--cala-blue); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i data-lucide="building-2" style="width:18px;height:18px;"></i>
+          ${house ? house.name : hid}
+          <span class="badge badge-resolved" style="font-size:0.7rem;">${houseRooms.length} ${t('rooms_unit_label')}</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+          ${houseRooms.map(r => {
+            const rd = monthReadings[r.id] || {};
+            const locked = !!rd.elecPhotoLocked;
+            const elecNew = rd.elecNew || 0;
+            const elecNewPhoto = rd.elecNewPhoto || '';
+            return `
+              <div class="cala-card" style="padding: 1.1rem 1.25rem;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem;">
+                  <div>
+                    <div style="font-weight:800; font-size:1rem;">${r.name}</div>
+                    <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || t('no_tenant_label')}</div>
+                  </div>
+                  ${locked ? `<span class="badge badge-resolved" style="font-size:0.68rem; white-space:nowrap; display:flex; align-items:center; gap:3px;"><i data-lucide="lock" style="width:11px;height:11px;"></i> ${t('mp_locked_badge')}</span>` : ''}
+                </div>
+                <label style="font-size:0.78rem; color:var(--text-muted); font-weight:700;">${t('mp_elec_new_label')}</label>
+                <div style="display:flex; gap:0.5rem; align-items:center; margin:0.35rem 0 0.85rem;">
+                  <input type="number" class="form-control" style="flex:1;" value="${elecNew}" ${locked ? 'disabled' : ''}
+                    onchange="saveElecReadingField('${r.id}', 'elecNew', this.value)">
+                  ${elecPhotoButtonHtml(r.id, elecNewPhoto, locked)}
+                </div>
+                ${!locked ? `
+                  <button class="btn btn-orange btn-sm" style="width:100%; justify-content:center;" onclick="completeElecReading('${r.id}')">
+                    <i data-lucide="check-circle"></i> ${t('mp_btn_complete')}
+                  </button>
+                ` : `
+                  <div style="text-align:center; font-size:0.78rem; color:var(--cala-emerald); font-weight:700;">
+                    ${t('mp_locked_note')}
+                  </div>
+                `}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  lucide.createIcons();
+}
+
+function elecPhotoButtonHtml(roomId, photoDataUrl, locked) {
+  const inputId = `elec-photo-input-${roomId}`;
+  const hasPhoto = !!photoDataUrl;
+  if (locked) {
+    // No file input at all while locked — nothing to click into except
+    // viewing the existing photo (view-only branch inside viewElecPhoto).
+    return `
+      <button type="button" class="btn btn-sm" style="padding:6px 8px; color:var(--cala-blue); border-color:var(--cala-blue);"
+        title="${t('btn_meter_photo_view')}" onclick="viewElecPhoto('${roomId}')">
+        <i data-lucide="camera" style="width:14px;height:14px;pointer-events:none;"></i>
+      </button>
+    `;
+  }
+  return `
+    <input type="file" accept="image/*" id="${inputId}" style="display:none" onchange="handleElecPhotoUpload(event, '${roomId}')">
+    <button type="button" class="btn btn-sm" style="padding:6px 8px; ${hasPhoto ? 'color:var(--cala-blue); border-color:var(--cala-blue);' : ''}"
+      title="${hasPhoto ? t('btn_meter_photo_view') : t('btn_meter_photo_upload')}"
+      onclick="${hasPhoto ? `viewElecPhoto('${roomId}')` : `document.getElementById('${inputId}').click()`}">
+      <i data-lucide="camera" style="width:14px;height:14px;pointer-events:none;"></i>
+    </button>
+  `;
+}
+
+function viewElecPhoto(roomId) {
+  const rd = (state.readings[state.currentMonth] || {})[roomId] || {};
+  const dataUrl = rd.elecNewPhoto;
+  if (!dataUrl) return;
+  const locked = !!rd.elecPhotoLocked;
+  const inputId = `elec-photo-input-${roomId}`;
+  const content = document.getElementById('modal-elec-photo-content');
+  if (content) {
+    content.innerHTML = `
+      <img src="${dataUrl}" style="width:100%; border-radius:var(--radius-md);">
+      ${!locked ? `
+        <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+          <input type="file" accept="image/*" id="${inputId}" style="display:none" onchange="handleElecPhotoUpload(event, '${roomId}')">
+          <button type="button" class="btn btn-sm" style="flex:1; justify-content:center;" onclick="document.getElementById('${inputId}').click()">
+            <i data-lucide="upload"></i> ${t('btn_meter_photo_replace')}
+          </button>
+          <button type="button" class="btn btn-sm" style="flex:1; justify-content:center; color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteElecPhoto('${roomId}')">
+            <i data-lucide="trash-2"></i> ${t('mp_btn_delete_photo')}
+          </button>
+        </div>
+      ` : `
+        <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-muted); text-align:center; display:flex; align-items:center; justify-content:center; gap:5px;">
+          <i data-lucide="lock" style="width:14px;height:14px;"></i> ${t('mp_locked_note')}
+        </div>
+      `}
+    `;
+  }
+  document.getElementById('modal-elec-photo').classList.add('active');
+  lucide.createIcons();
+}
+
+async function saveElecReadingField(roomId, field, value) {
+  if (!state.readings[state.currentMonth]) state.readings[state.currentMonth] = {};
+  if (!state.readings[state.currentMonth][roomId]) state.readings[state.currentMonth][roomId] = {};
+  state.readings[state.currentMonth][roomId][field] = field.endsWith('Photo') ? value : (parseFloat(value) || 0);
+
+  try {
+    const res = await fetch(`${API_BASE}/readings/elec-photo/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ month: state.currentMonth, roomId, field, value })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.error || t('mp_toast_locked_error'), 'error');
+    }
+  } catch (err) {
+    console.warn('API error, reading updated locally:', err);
+  }
+  renderManagerMeterPhotos();
+}
+
+async function handleElecPhotoUpload(event, roomId) {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    const dataUrl = await compressImageFile(file);
+    await saveElecReadingField(roomId, 'elecNewPhoto', dataUrl);
+    closeModal('modal-elec-photo');
+  } catch (err) {
+    showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+  }
+}
+
+async function deleteElecPhoto(roomId) {
+  const ok = await showConfirmModal(t('mp_confirm_delete_photo'), { danger: true, okLabel: t('btn_delete') });
+  if (!ok) return;
+  await saveElecReadingField(roomId, 'elecNewPhoto', '');
+  closeModal('modal-elec-photo');
+}
+
+async function completeElecReading(roomId) {
+  const rd = (state.readings[state.currentMonth] || {})[roomId] || {};
+  if (!rd.elecNewPhoto) {
+    showToast(t('mp_need_photo_first'), 'error');
+    return;
+  }
+  const ok = await showConfirmModal(t('mp_confirm_complete'), { okLabel: t('mp_btn_complete') });
+  if (!ok) return;
+  try {
+    const res = await fetch(`${API_BASE}/readings/elec-photo/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ month: state.currentMonth, roomId })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (!state.readings[state.currentMonth]) state.readings[state.currentMonth] = {};
+      state.readings[state.currentMonth][roomId] = data.reading;
+      showToast(t('mp_toast_completed'), 'success');
+    } else {
+      showToast(data.error || t('mp_toast_locked_error'), 'error');
+    }
+  } catch (err) {
+    showToast(t('mp_toast_locked_error'), 'error');
+  }
+  renderManagerMeterPhotos();
+}
+
 // Saler portal — the backend already filters state.rooms down to vacant
 // rooms only (see get_full_state's 'saler' branch in services.py), so
 // everything here is public-safe: no tenant/phone/contract data ever
@@ -5191,7 +5446,7 @@ async function openTicketDetail(ticketId) {
     } else {
       imagesEl.innerHTML = imgs.map(src => `
         <img src="${src}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:2px solid var(--border-color);"
-             onclick="window.open('${src}','_blank')" title="${t('title_click_to_enlarge')}">
+             onclick="openImageLightbox('${src}')" title="${t('title_click_to_enlarge')}">
       `).join('');
     }
   }
@@ -5235,7 +5490,7 @@ function renderTicketComments(ticket) {
           ${c.images && c.images.length > 0 ? `
             <div style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-top:0.4rem;">
               ${c.images.map(img => `
-                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'rgba(255,255,255,0.4)' : 'var(--border-color)'};" onclick="window.open('${img}', '_blank')" title="${t('title_view_larger_image')}">
+                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'rgba(255,255,255,0.4)' : 'var(--border-color)'};" onclick="openImageLightbox('${img}')" title="${t('title_view_larger_image')}">
               `).join('')}
             </div>
           ` : ''}
@@ -5359,7 +5614,7 @@ function renderAdminTickets() {
   if (cardsBox) cardsBox.innerHTML = '';
 
   if (state.tickets.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('tickets_empty_state')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('tickets_empty_state')}</td></tr>`;
     if (cardsBox) cardsBox.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('tickets_empty_state')}</div>`;
     return;
   }
@@ -5367,16 +5622,12 @@ function renderAdminTickets() {
   const canDeleteTickets = canDelete();
 
   state.tickets.forEach(t => {
-    const imgCount = t.imagesCount != null ? t.imagesCount : (t.images || []).length;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${t.id}</strong></td>
       <td>${t.roomName || t.roomId}</td>
-      <td>${t.tenant}</td>
       <td><span class="badge badge-resolved">${statusLabel(t.category)}</span></td>
       <td><span class="badge ${t.priority === 'Khẩn cấp' ? 'badge-open' : 'badge-pending'}">${statusLabel(t.priority)}</span></td>
-      <td style="max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${t.description}">${t.description}</td>
-      <td>${imgCount > 0 ? `<span class="badge badge-resolved" style="cursor:pointer;" onclick="openTicketDetail('${t.id}')">📷 ${imgCount} ${window.t('images_unit_label')}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
       <td><small style="color:var(--text-muted);">${t.timestamp}</small></td>
       <td><span class="badge ${ticketStatusBadgeClass(t.status)}">${statusLabel(t.status)}</span></td>
       <td>
@@ -5538,34 +5789,30 @@ async function handleTenantSubmitReport(event) {
   event.preventDefault();
   const user = state.currentUser;
   const roomId = (user && user.roomId) ? user.roomId : (state.rooms[0] ? state.rooms[0].id : 'R101');
-  const room = state.rooms.find(r => r.id === roomId);
   const category = document.getElementById('report-category').value;
   const priority = document.getElementById('report-priority').value;
   const description = document.getElementById('report-description').value;
-  const now = new Date().toLocaleString('vi-VN');
 
-  const newTicket = {
-    id: genId('TK-'),
-    roomId,
-    roomName: room ? room.name : t('col_room'),
-    tenant: user ? (user.fullName || user.username) : t('default_guest_label'),
-    category, priority, description,
-    timestamp: now,
-    status: 'Mới tiếp nhận',
-    response: '',
-    comments: [],
-    images: [..._tenantImages]
-  };
-  state.tickets.unshift(newTicket);
-
+  // Waits for the server's response instead of pushing a locally-built
+  // ticket first — the sequential TK-0000 id is only ever assigned by
+  // Storage.next_ticket_number() server-side (see create_ticket), so
+  // there's no client-generated id to show optimistically here.
   try {
-    await fetch(`${API_BASE}/tickets/create`, {
+    const res = await fetch(`${API_BASE}/tickets/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: newTicket.id, roomId, category, priority, description, images: _tenantImages })
+      body: JSON.stringify({ roomId, category, priority, description, images: _tenantImages })
     });
+    const data = await res.json();
+    if (data.success && data.ticket) {
+      state.tickets.unshift(data.ticket);
+    } else {
+      showToast(t('toast_ticket_send_failed'), 'error');
+      return;
+    }
   } catch (err) {
-    console.warn('Ticket created locally:', err);
+    showToast(t('toast_ticket_send_failed'), 'error');
+    return;
   }
 
   // Reset
@@ -5754,7 +6001,7 @@ async function saveRoomConfig(event) {
 function handleMonthChange(sourceEl) {
   const value = sourceEl ? sourceEl.value : document.getElementById('select-month').value;
   state.currentMonth = value;
-  ['select-month', 'invoices-select-month', 'spreadsheet-select-month', 'ir-select-month'].forEach(id => {
+  ['select-month', 'invoices-select-month', 'spreadsheet-select-month', 'ir-select-month', 'meterphotos-select-month'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el !== sourceEl) el.value = value;
   });
@@ -5771,6 +6018,15 @@ function toggleTheme() {
 
 function closeModal(modalId) {
   document.getElementById(modalId).classList.remove('active');
+}
+
+// Enlarges any ticket/meter photo inline as a popup instead of opening a
+// new browser tab — used across the admin ticket detail view, the reply
+// thread's attached images, and the tenant-facing ticket detail modal.
+function openImageLightbox(src) {
+  const img = document.getElementById('image-lightbox-img');
+  if (img) img.src = src;
+  document.getElementById('modal-image-lightbox').classList.add('active');
 }
 
 // In-app replacement for the browser's native confirm() — same yes/no
@@ -5939,7 +6195,7 @@ async function openTenantTicketDetail(ticketId) {
     } else {
       imagesEl.innerHTML = imgs.map(src => `
         <img src="${src}" style="width:70px; height:70px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:2px solid var(--border-color);"
-             onclick="window.open('${src}','_blank')" title="${t('title_click_to_enlarge')}">
+             onclick="openImageLightbox('${src}')" title="${t('title_click_to_enlarge')}">
       `).join('');
     }
   }
@@ -5978,7 +6234,7 @@ function renderTenantTicketComments(ticket) {
           ${c.images && c.images.length > 0 ? `
             <div style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-top:0.4rem;">
               ${c.images.map(img => `
-                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'var(--border-color)' : 'rgba(255,255,255,0.4)'};" onclick="window.open('${img}', '_blank')" title="${t('title_view_larger_image')}">
+                <img src="${img}" style="width:70px; height:70px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid ${isAdmin ? 'var(--border-color)' : 'rgba(255,255,255,0.4)'};" onclick="openImageLightbox('${img}')" title="${t('title_view_larger_image')}">
               `).join('')}
             </div>
           ` : ''}

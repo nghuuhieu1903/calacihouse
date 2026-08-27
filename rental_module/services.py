@@ -670,6 +670,33 @@ class RentalService:
         return readings[month]
 
     @staticmethod
+    def set_elec_photo_lock(month, room_id, locked):
+        # Marks a room's elecNew photo submission for the month as
+        # "hoàn thành" — locked=True blocks any further replace/delete of
+        # that photo except by superadmin (enforced in the route, not
+        # here), until a superadmin flips it back with locked=False.
+        def mutate(readings):
+            if month not in readings:
+                readings[month] = {}
+            if room_id not in readings[month]:
+                rooms = Storage.get_rooms()
+                services = Storage.get_services()
+                r = next((x for x in rooms if x['id'] == room_id), {})
+                srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
+                readings[month][room_id] = {
+                    'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
+                    'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
+                    'waterFormula': r.get('waterFormula', 'water_flat_18000'),
+                    'serviceFee': srv_tot,
+                    'parkingFee': prk_tot
+                }
+            readings[month][room_id]['elecPhotoLocked'] = bool(locked)
+            return readings
+
+        readings = Storage.update_readings(mutate)
+        return readings[month][room_id]
+
+    @staticmethod
     def generate_all_invoices(month):
         rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), Storage.get_users())
         services = Storage.get_services()
@@ -830,19 +857,17 @@ class RentalService:
         return True
 
     @staticmethod
-    def create_ticket(ticket_id, room_id, category, priority, description, images):
+    def create_ticket(room_id, category, priority, description, images):
         room = next((r for r in Storage.get_rooms() if r['id'] == room_id), None)
         room_name = room['name'] if room else 'Phòng'
         tenant = room['tenant'] if room else 'Khách'
 
         ticket_obj = {
-            # minute:second alone (the old format) repeats every 60 seconds
-            # and collides immediately under any real concurrent load —
-            # two tickets landing on the same id both get REPLACE INTO'd
-            # into ONE row, silently discarding whichever saved first. A
-            # uuid4 suffix matches how every other entity here (rooms,
-            # services, users, ...) generates its id.
-            'id': ticket_id or f"TK-{uuid.uuid4().hex[:6].upper()}",
+            # Always server-generated from the persistent counter — never
+            # accepted from the client — so superadmin can trust ids are
+            # sequential (TK-0000, TK-0001, ...) with no gaps reused after
+            # a delete. See Storage.next_ticket_number().
+            'id': f"TK-{Storage.next_ticket_number():04d}",
             'roomId': room_id,
             'roomName': room_name,
             'tenant': tenant,

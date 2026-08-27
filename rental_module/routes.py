@@ -300,6 +300,49 @@ def update_reading():
     )
     return jsonify({'success': True, 'readings': readings})
 
+@rental_bp.route('/api/readings/elec-photo/save', methods=['POST'])
+@permission_required('meter_readings', 'edit')
+def save_elec_reading():
+    # Separate from /api/readings/update on purpose — that route is gated
+    # by 'services':'edit', which Manager isn't meant to have (it also
+    # controls the service/formula config page). This one is scoped to
+    # only elecNew/elecNewPhoto and respects the completion lock below,
+    # which the generic route knows nothing about.
+    data = request.json or {}
+    month = data.get('month')
+    room_id = data.get('roomId')
+    field = data.get('field')
+    value = data.get('value')
+
+    if field == 'elecNewPhoto':
+        user = session.get('user') or {}
+        if user.get('role') != 'superadmin':
+            readings = Storage.get_readings()
+            current = (readings.get(month) or {}).get(room_id) or {}
+            if current.get('elecPhotoLocked'):
+                return jsonify({'success': False, 'error': 'Ảnh đã hoàn thành, không thể xoá/sửa. Liên hệ Super Admin.'}), 403
+
+    readings = RentalService.update_room_reading(month, room_id, field, value)
+    return jsonify({'success': True, 'readings': readings})
+
+@rental_bp.route('/api/readings/elec-photo/complete', methods=['POST'])
+@permission_required('meter_readings', 'edit')
+def complete_elec_reading():
+    data = request.json or {}
+    reading = RentalService.set_elec_photo_lock(data.get('month'), data.get('roomId'), True)
+    return jsonify({'success': True, 'reading': reading})
+
+@rental_bp.route('/api/readings/elec-photo/unlock', methods=['POST'])
+@permission_required('meter_readings', 'delete')
+def unlock_elec_reading():
+    # 'delete' is never true in the matrix (superadmin bypasses the check
+    # entirely before it's even read, admin is hard-blocked on 'delete' by
+    # permission_required itself) — same "only superadmin" rule used
+    # everywhere else deletion happens in this app.
+    data = request.json or {}
+    reading = RentalService.set_elec_photo_lock(data.get('month'), data.get('roomId'), False)
+    return jsonify({'success': True, 'reading': reading})
+
 @rental_bp.route('/api/invoices/generate-all', methods=['POST'])
 @permission_required('invoices', 'create')
 def generate_all_invoices():
@@ -373,7 +416,6 @@ def delete_investor_report_override():
 def create_ticket():
     data = request.json or {}
     t_obj = RentalService.create_ticket(
-        data.get('id'),
         data.get('roomId'),
         data.get('category'),
         data.get('priority'),
