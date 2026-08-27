@@ -253,6 +253,7 @@ const I18N = {
     toast_user_created: 'Tạo tài khoản mới thành công!',
     toast_user_updated: 'Đã cập nhật tài khoản và phân quyền thành công!',
     toast_user_updated_with_password: 'Đã cập nhật tài khoản và đặt lại mật khẩu thành công!',
+    loading_label: 'Đang tải...',
     contract_empty_title: 'Chưa Có Ảnh Hợp Đồng',
     contract_empty_desc: 'Chủ nhà chưa tải lên ảnh hợp đồng hoặc tài liệu nào cho phòng của bạn.',
     invoice_empty_title_prefix: 'Chưa Có Hóa Đơn Cho Tháng ',
@@ -852,6 +853,7 @@ const I18N = {
     toast_user_created: 'New account created successfully!',
     toast_user_updated: 'Account and permissions updated successfully!',
     toast_user_updated_with_password: 'Account updated and password reset successfully!',
+    loading_label: 'Loading...',
     contract_empty_title: 'No Contract Photos Yet',
     contract_empty_desc: 'The landlord has not uploaded any contract photos or documents for your room yet.',
     invoice_empty_title_prefix: 'No Invoice Yet For ',
@@ -1858,7 +1860,17 @@ function switchView(viewId) {
   }
 
   updateBadges();
-  lucide.createIcons();
+  // Every render*() case above already scopes its own icon rebuild to just
+  // what it touched (see renderIcons()) — this used to be an unscoped
+  // lucide.createIcons() instead, which re-tore-down and rebuilt every
+  // icon on the ENTIRE page (sidebar nav, navbar, ...) on every single
+  // menu click, on top of whatever the view's own render already did. That
+  // was real, felt jank on every navigation, not just first load. Scoped
+  // to just the panel that changed — still covers view-admin-dashboard's
+  // own static icons (never touched by a render*() call) the first time
+  // it's visited; nothing here ever un-converts an already-rendered <svg>
+  // back to a plain <i>, so it doesn't need re-touching after that.
+  renderIcons(targetPanel);
 }
 
 /* ==========================================================================
@@ -4266,6 +4278,13 @@ async function renderTenantContractView() {
   const room = state.rooms.find(r => r.id === userRoomId);
   const container = document.getElementById('tenant-contract-container');
   if (!container) return;
+
+  // switchView() already made this panel visible before this async
+  // function got here — without a placeholder, whatever was in this
+  // container from the last visit (or nothing, the first time) stays on
+  // screen for the length of the fetch below, which reads as a stray
+  // blank/stale flash right after tapping the tab.
+  container.innerHTML = `<div style="text-align:center; padding:3rem; color:var(--text-secondary);">${t('loading_label')}</div>`;
 
   // Same reasoning as openRoomDocumentsModal() — the bulk state only ever
   // carries light (no dataUrl) entries now, so this tenant's own contract
