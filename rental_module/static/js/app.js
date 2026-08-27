@@ -413,6 +413,19 @@ const I18N = {
     ir_line_net_revenue: 'Doanh thu chia sẻ',
     ir_line_manager_share: 'Phần quản lý giữ lại',
     ir_line_investor_share: 'Chủ đầu tư nhận',
+    ir_of_fixed_label: 'cố định / tháng',
+    ir_option_percent_of_gross: 'Theo % trên tổng tiền nhà + dịch vụ',
+    ir_option_fixed_monthly: 'Số tiền cố định / tháng (VNĐ)',
+    ir_manager_fee_config_title: 'Cách tính phần Quản lý giữ lại cho tòa nhà này',
+    ir_override_title: 'Ghi đè số tiền báo cáo tháng này (thủ công)',
+    ir_override_hint: 'Số tự động tính theo công thức trên:',
+    ir_override_placeholder: 'Để trống = dùng số tự động tính',
+    ir_override_active_label: 'Đang dùng số ghi đè thủ công, không phải số tự động tính',
+    btn_clear_override: 'Bỏ Ghi Đè',
+    toast_manager_fee_saved: 'Đã lưu cách tính phần quản lý!',
+    toast_override_amount_required: 'Vui lòng nhập số tiền ghi đè!',
+    toast_override_saved: 'Đã lưu số tiền ghi đè!',
+    toast_override_cleared: 'Đã bỏ ghi đè, quay lại số tự động tính!',
     ir_summary_title: '📊 Tổng Hợp Theo Tòa Nhà',
     ir_select_house_hint: 'Chọn một tòa nhà cụ thể ở thanh trên để xem báo cáo chi tiết từng dòng.',
     ir_no_house_hint: 'Chưa có tòa nhà nào để lập báo cáo.',
@@ -971,6 +984,19 @@ const I18N = {
     ir_line_net_revenue: 'Shared revenue',
     ir_line_manager_share: 'Management share',
     ir_line_investor_share: 'Investor receives',
+    ir_of_fixed_label: 'fixed / month',
+    ir_option_percent_of_gross: '% of total rent + services',
+    ir_option_fixed_monthly: 'Fixed amount / month (VND)',
+    ir_manager_fee_config_title: 'How the management share is calculated for this house',
+    ir_override_title: 'Manually override this month\'s reported amount',
+    ir_override_hint: 'Auto-calculated by the formula above:',
+    ir_override_placeholder: 'Leave blank = use the auto-calculated amount',
+    ir_override_active_label: 'Using a manual override, not the auto-calculated amount',
+    btn_clear_override: 'Clear Override',
+    toast_manager_fee_saved: 'Management fee formula saved!',
+    toast_override_amount_required: 'Please enter an override amount!',
+    toast_override_saved: 'Override saved!',
+    toast_override_cleared: 'Override cleared, back to the auto-calculated amount!',
     ir_summary_title: '📊 Summary By House',
     ir_select_house_hint: 'Pick a specific house in the top bar to see the line-by-line report.',
     ir_no_house_hint: 'No houses to report on yet.',
@@ -1210,7 +1236,7 @@ let state = {
   roomPhotos: {},
   salerCommissionPercent: 0,
   investorExpenses: [],
-  investorFeePercent: 20,
+  investorReportOverrides: [],
   siteSettings: { siteName: 'CalaciHouse', title: 'CalaciHouse - Hệ Thống Quản Lý Phòng Trọ', description: '', keywords: '', shareImage: '', favicon: '' },
   customIcons: []
 };
@@ -1650,6 +1676,7 @@ async function fetchState() {
       state.roomPhotos = data.roomPhotos || state.roomPhotos;
       state.salerCommissionPercent = data.salerCommissionPercent || 0;
       state.investorExpenses = data.investorExpenses || state.investorExpenses;
+      state.investorReportOverrides = data.investorReportOverrides || state.investorReportOverrides;
       state.customIcons = data.customIcons || state.customIcons;
       if (data.siteSettings) applySiteSettings(data.siteSettings);
       renderHouseSelector();
@@ -3148,12 +3175,6 @@ async function markInvoicePaidApi(invoiceId) {
    Chủ đầu tư nhận = Doanh thu chia sẻ × (100 − % quản lý giữ lại)
    ========================================================================== */
 
-function updateInvestorFeePercent(value) {
-  const v = parseFloat(value);
-  state.investorFeePercent = isNaN(v) ? 20 : Math.min(100, Math.max(0, v));
-  renderInvestorReport();
-}
-
 // Applies one service's investor-share config to an actually-billed amount:
 // disabled -> nothing sent to the investor; full -> the whole amount;
 // percent -> a configured % of it; fixed -> a flat VNĐ figure regardless of
@@ -3237,17 +3258,29 @@ function computeInvestorReportData(houseId, month) {
     .filter(e => e.month === month && e.houseId === houseId)
     .reduce((s, e) => s + (e.amount || 0), 0);
 
-  // X = (Tổng tiền nhà + tổng tiền dịch vụ) − chi phí sửa chữa − (Tổng tiền
-  // nhà + tổng tiền dịch vụ) × 20% — the management fee is a cut of the
-  // GROSS rent+services revenue, not of what's left after repair costs;
-  // the full repair cost comes out of the investor's share alone.
+  // X = (Tổng tiền nhà + tổng tiền dịch vụ) − chi phí sửa chữa − phần quản
+  // lý giữ lại — each house has its own fee arrangement (a % of gross, or
+  // a flat VNĐ/month regardless of revenue), since different investors
+  // negotiate differently. The full repair cost always comes out of the
+  // investor's share alone, never shared with the management cut.
+  const house = state.houses.find(h => h.id === houseId);
+  const managerFee = (house && house.managerFee) || { mode: 'percent', value: 20 };
   const grossRevenue = rent + servicesShared;
-  const feePercent = state.investorFeePercent != null ? state.investorFeePercent : 20;
-  const managerShare = grossRevenue * (feePercent / 100);
-  const investorShare = grossRevenue - expenses - managerShare;
+  const managerShare = managerFee.mode === 'fixed' ? (managerFee.value || 0) : grossRevenue * ((managerFee.value || 0) / 100);
   const sharedRevenue = grossRevenue - expenses;
+  const computedInvestorShare = grossRevenue - expenses - managerShare;
 
-  return { invoiceCount: invoices.length, rent, serviceBreakdown, servicesShared, expenses, grossRevenue, sharedRevenue, feePercent, managerShare, investorShare };
+  // A manual override replaces the formula-computed payout entirely for
+  // this one house+month — for the rare case where what was actually
+  // agreed/paid doesn't match either formula that month.
+  const override = state.investorReportOverrides.find(o => o.houseId === houseId && o.month === month);
+  const investorShare = override ? override.amount : computedInvestorShare;
+
+  return {
+    invoiceCount: invoices.length, rent, serviceBreakdown, servicesShared, expenses,
+    grossRevenue, sharedRevenue, managerFee, managerShare, computedInvestorShare,
+    investorShare, override
+  };
 }
 
 function renderInvestorReportCard(house, d) {
@@ -3257,6 +3290,10 @@ function renderInvestorReportCard(house, d) {
       <strong>${opts.prefix || ''}${formatMoney(value)} đ</strong>
     </div>
   `;
+  const feeLabel = d.managerFee.mode === 'fixed'
+    ? t('ir_of_fixed_label')
+    : `${d.managerFee.value}% ${t('ir_of_gross_label')}`;
+
   return `
     <div class="cala-card">
       <div style="margin-bottom:1.25rem;">
@@ -3272,16 +3309,106 @@ function renderInvestorReportCard(house, d) {
         )).join('')}
         <hr style="border-color:var(--border-color); width:100%;">
         ${line(t('ir_line_gross_revenue'), d.grossRevenue, { style: 'font-size:1.05rem; font-weight:800;' })}
-        ${line(`${t('ir_line_manager_share')} (${d.feePercent}% ${t('ir_of_gross_label')})`, d.managerShare, { prefix: '−', style: 'color:var(--cala-red);' })}
+        ${line(`${t('ir_line_manager_share')} (${feeLabel})`, d.managerShare, { prefix: '−', style: 'color:var(--cala-red);' })}
         ${line('🔧 ' + t('ir_line_expenses'), d.expenses, { prefix: '−', style: 'color:var(--cala-red);' })}
       </div>
 
+      <!-- PER-HOUSE MANAGEMENT FEE FORMULA — % of gross or a flat VNĐ/month,
+           since each investor's arrangement can differ. -->
+      <div style="margin-top:1.25rem; padding:1rem 1.1rem; border-radius:var(--radius-md); background:var(--bg-base); border:1px solid var(--border-color);">
+        <div style="font-weight:700; font-size:0.85rem; margin-bottom:0.6rem;">${t('ir_manager_fee_config_title')}</div>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.6rem;">
+          <select id="mf-mode-${house.id}" class="form-control" style="width:auto; min-width:170px;">
+            <option value="percent" ${d.managerFee.mode === 'percent' ? 'selected' : ''}>${t('ir_option_percent_of_gross')}</option>
+            <option value="fixed" ${d.managerFee.mode === 'fixed' ? 'selected' : ''}>${t('ir_option_fixed_monthly')}</option>
+          </select>
+          <input type="number" id="mf-value-${house.id}" class="form-control" style="width:150px;" value="${d.managerFee.value}" min="0">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="saveHouseManagerFee('${house.id}')"><i data-lucide="save"></i> ${t('btn_save_icon')}</button>
+        </div>
+      </div>
+
+      <!-- MONTHLY MANUAL OVERRIDE — for the rare month where what's actually
+           being reported to the investor doesn't match either formula. -->
+      <div style="margin-top:0.85rem; padding:1rem 1.1rem; border-radius:var(--radius-md); background:var(--bg-base); border:1px solid var(--border-color);">
+        <div style="font-weight:700; font-size:0.85rem; margin-bottom:0.3rem;">${t('ir_override_title')}</div>
+        <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.6rem;">${t('ir_override_hint')} <strong>${formatMoney(d.computedInvestorShare)} đ</strong></p>
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.6rem;">
+          <input type="number" id="override-value-${house.id}" class="form-control" style="width:180px;" value="${d.override ? d.override.amount : ''}" placeholder="${t('ir_override_placeholder')}">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="saveInvestorReportOverride('${house.id}')"><i data-lucide="save"></i> ${t('btn_save_icon')}</button>
+          ${d.override ? `<button type="button" class="btn btn-secondary btn-sm" onclick="clearInvestorReportOverride('${house.id}')" style="color:var(--cala-red);"><i data-lucide="rotate-ccw"></i> ${t('btn_clear_override')}</button>` : ''}
+        </div>
+      </div>
+
       <div style="margin-top:1.25rem; padding:1.25rem; border-radius:var(--radius-lg); background:linear-gradient(135deg, var(--cala-blue-light) 0%, #ffffff 100%); border:1px solid #bce2fd; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-        <div style="font-weight:800; color:var(--cala-blue-dark);">${t('ir_line_investor_share')}</div>
+        <div>
+          <div style="font-weight:800; color:var(--cala-blue-dark);">${t('ir_line_investor_share')}</div>
+          ${d.override ? `<div style="font-size:0.72rem; color:var(--cala-orange); font-weight:700; margin-top:2px;">✏️ ${t('ir_override_active_label')}</div>` : ''}
+        </div>
         <div style="font-size:1.6rem; font-weight:800; color:var(--cala-blue);">${formatMoney(d.investorShare)} đ</div>
       </div>
     </div>
   `;
+}
+
+async function saveHouseManagerFee(houseId) {
+  const mode = document.getElementById(`mf-mode-${houseId}`).value;
+  const value = parseFloat(document.getElementById(`mf-value-${houseId}`).value) || 0;
+  const house = state.houses.find(h => h.id === houseId);
+  if (house) house.managerFee = { mode, value };
+
+  try {
+    await fetch(`${API_BASE}/houses/manager-fee/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ houseId, mode, value })
+    });
+  } catch (err) {
+    console.warn('Manager fee saved locally:', err);
+  }
+  showToast(t('toast_manager_fee_saved'), 'success');
+  renderInvestorReport();
+}
+
+async function saveInvestorReportOverride(houseId) {
+  const input = document.getElementById(`override-value-${houseId}`);
+  const value = input.value.trim();
+  if (value === '') { showToast(t('toast_override_amount_required'), 'error'); return; }
+  const amount = parseFloat(value) || 0;
+  const month = state.currentMonth;
+
+  const idx = state.investorReportOverrides.findIndex(o => o.houseId === houseId && o.month === month);
+  const oObj = { id: `${houseId}_${month}`, houseId, month, amount };
+  if (idx >= 0) state.investorReportOverrides[idx] = oObj;
+  else state.investorReportOverrides.push(oObj);
+
+  try {
+    await fetch(`${API_BASE}/investor-report-overrides/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ houseId, month, amount })
+    });
+  } catch (err) {
+    console.warn('Override saved locally:', err);
+  }
+  showToast(t('toast_override_saved'), 'success');
+  renderInvestorReport();
+}
+
+async function clearInvestorReportOverride(houseId) {
+  const month = state.currentMonth;
+  state.investorReportOverrides = state.investorReportOverrides.filter(o => !(o.houseId === houseId && o.month === month));
+
+  try {
+    await fetch(`${API_BASE}/investor-report-overrides/delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ houseId, month })
+    });
+  } catch (err) {
+    console.warn('Override cleared locally:', err);
+  }
+  showToast(t('toast_override_cleared'), 'success');
+  renderInvestorReport();
 }
 
 function renderInvestorReportSummaryTable(houses, month) {
@@ -3333,11 +3460,6 @@ function renderInvestorReportSummaryTable(houses, month) {
 function renderInvestorReport() {
   renderInvestorExpensesTable();
 
-  const feeInput = document.getElementById('ir-fee-percent');
-  if (feeInput && document.activeElement !== feeInput) {
-    feeInput.value = state.investorFeePercent;
-  }
-
   const container = document.getElementById('investor-report-breakdown-container');
   if (!container) return;
 
@@ -3360,6 +3482,7 @@ function renderInvestorReport() {
   }
   const d = computeInvestorReportData(house.id, month);
   container.innerHTML = renderInvestorReportCard(house, d);
+  lucide.createIcons();
 }
 
 function renderInvestorExpensesTable() {

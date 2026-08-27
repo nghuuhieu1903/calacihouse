@@ -11,13 +11,15 @@ DEFAULT_HOUSES = [
         'id': 'house_a',
         'name': 'Tòa Nhà A - Cầu Giấy',
         'address': '12 Nguyễn Phong Sắc, Cầu Giấy, Hà Nội',
-        'description': 'Tòa nhà 5 tầng, có thang máy & bảo vệ 24/7'
+        'description': 'Tòa nhà 5 tầng, có thang máy & bảo vệ 24/7',
+        'managerFee': {'mode': 'percent', 'value': 20}
     },
     {
         'id': 'house_b',
         'name': 'Tòa Nhà B - Bình Thạnh',
         'address': '45 Điện Biên Phủ, Phường 15, Bình Thạnh, TP.HCM',
-        'description': 'Dãy nhà trọ cao cấp gần trường Đại học'
+        'description': 'Dãy nhà trọ cao cấp gần trường Đại học',
+        'managerFee': {'mode': 'percent', 'value': 20}
     }
 ]
 
@@ -206,7 +208,11 @@ def _house(row):
         'id': row['id'],
         'name': row['name'],
         'address': row['address'] or '',
-        'description': row['description'] or ''
+        'description': row['description'] or '',
+        'managerFee': {
+            'mode': row.get('manager_fee_mode') or 'percent',
+            'value': row.get('manager_fee_value') if row.get('manager_fee_value') is not None else 20
+        }
     }
 
 def _user(row):
@@ -320,6 +326,16 @@ def _investor_expense(row):
         'createdAt': row['created_at'] or ''
     }
 
+def _investor_report_override(row):
+    return {
+        'id': row['id'],
+        'houseId': row['house_id'] or '',
+        'month': row['month'] or '',
+        'amount': row['amount'] or 0,
+        'note': row['note'] or '',
+        'createdAt': row['created_at'] or ''
+    }
+
 def _ticket(row):
     return {
         'id': row['id'],
@@ -429,9 +445,13 @@ class Storage:
         conn = get_db()
         try:
             with conn.cursor() as cur:
+                fee = h.get('managerFee') or {}
                 cur.execute(
-                    "REPLACE INTO houses (id, name, address, description) VALUES (%s,%s,%s,%s)",
-                    (h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''))
+                    "REPLACE INTO houses (id, name, address, description, manager_fee_mode, manager_fee_value) VALUES (%s,%s,%s,%s,%s,%s)",
+                    (
+                        h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''),
+                        fee.get('mode', 'percent'), fee.get('value', 20)
+                    )
                 )
             conn.commit()
         finally:
@@ -780,6 +800,46 @@ class Storage:
         try:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM investor_expenses WHERE id=%s", (expense_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+    # -- Investor Report Overrides (one manual override per house+month) ----
+
+    @staticmethod
+    def get_investor_report_overrides():
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM investor_report_overrides")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+        return [_investor_report_override(r) for r in rows]
+
+    @staticmethod
+    def save_investor_report_override(o):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "REPLACE INTO investor_report_overrides (id, house_id, month, amount, note, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s)",
+                    (
+                        o['id'], o.get('houseId', ''), o.get('month', ''),
+                        o.get('amount', 0), o.get('note', ''), o.get('createdAt', '')
+                    )
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_investor_report_override(override_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM investor_report_overrides WHERE id=%s", (override_id,))
             conn.commit()
         finally:
             conn.close()

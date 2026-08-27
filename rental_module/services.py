@@ -162,6 +162,7 @@ class RentalService:
         # Investor payout math is internal to admin/manager — never shipped to
         # an investor or tenant session (see role filtering below).
         investor_expenses = Storage.get_investor_expenses()
+        investor_report_overrides = Storage.get_investor_report_overrides()
 
         RentalService.sync_readings_with_services(month)
         readings = Storage.get_readings()
@@ -231,6 +232,7 @@ class RentalService:
             readings = {}
             room_documents = {}
             investor_expenses = []
+            investor_report_overrides = []
 
         # The investor payout report itself (admin's revenue-share math) is
         # admin/manager-only, but the underlying repair/installation cost
@@ -241,6 +243,12 @@ class RentalService:
         role = current_user.get('role') if current_user else None
         if role not in ('superadmin', 'admin', 'manager', 'investor'):
             investor_expenses = []
+        # The manual per-month override is purely an admin bookkeeping
+        # tool for computing the payout report — the investor's own
+        # dashboard never shows a post-management-fee "your share" figure
+        # in the first place, so there's nothing for them to see here.
+        if role not in ('superadmin', 'admin', 'manager'):
+            investor_report_overrides = []
 
         safe_users = [{k: v for k, v in u.items() if k != 'password'} for u in users]
 
@@ -260,15 +268,36 @@ class RentalService:
             'roomPhotos': room_photos,
             'salerCommissionPercent': saler_commission_percent,
             'investorExpenses': investor_expenses,
+            'investorReportOverrides': investor_report_overrides,
             'currentMonth': month
         }
 
     @staticmethod
     def save_house(house_id, name, address, description):
         h_id = house_id or f"house_{uuid.uuid4().hex[:6]}"
-        h_obj = { 'id': h_id, 'name': name, 'address': address, 'description': description }
+        # This save comes from the basic name/address/description form,
+        # which knows nothing about managerFee — carry the existing value
+        # forward instead of silently resetting it to the 20%/percent
+        # default on every unrelated house edit.
+        existing = next((h for h in Storage.get_houses() if h['id'] == h_id), {})
+        h_obj = {
+            'id': h_id, 'name': name, 'address': address, 'description': description,
+            'managerFee': existing.get('managerFee')
+        }
         Storage.save_house(h_obj)
         return h_obj
+
+    @staticmethod
+    def save_house_manager_fee(house_id, mode, value):
+        house = next((h for h in Storage.get_houses() if h['id'] == house_id), None)
+        if not house:
+            return None
+        house['managerFee'] = {
+            'mode': mode if mode in ('percent', 'fixed') else 'percent',
+            'value': float(value or 0)
+        }
+        Storage.save_house(house)
+        return house
 
     @staticmethod
     def delete_house(house_id):
@@ -734,6 +763,24 @@ class RentalService:
     @staticmethod
     def delete_investor_expense(expense_id):
         Storage.delete_investor_expense(expense_id)
+        return True
+
+    @staticmethod
+    def save_investor_report_override(house_id, month, amount, note=''):
+        o_obj = {
+            'id': f"{house_id}_{month}",
+            'houseId': house_id or '',
+            'month': month or '',
+            'amount': float(amount or 0),
+            'note': note or '',
+            'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M')
+        }
+        Storage.save_investor_report_override(o_obj)
+        return o_obj
+
+    @staticmethod
+    def delete_investor_report_override(house_id, month):
+        Storage.delete_investor_report_override(f"{house_id}_{month}")
         return True
 
     @staticmethod

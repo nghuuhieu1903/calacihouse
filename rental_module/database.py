@@ -51,10 +51,12 @@ def _create_database_if_missing():
 SCHEMA_STATEMENTS = [
     """
     CREATE TABLE IF NOT EXISTS houses (
-        id          VARCHAR(191) PRIMARY KEY,
-        name        TEXT NOT NULL,
-        address     TEXT,
-        description TEXT
+        id                VARCHAR(191) PRIMARY KEY,
+        name              TEXT NOT NULL,
+        address           TEXT,
+        description       TEXT,
+        manager_fee_mode  VARCHAR(16) DEFAULT 'percent',
+        manager_fee_value DOUBLE DEFAULT 20
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
     """
@@ -126,6 +128,22 @@ SCHEMA_STATEMENTS = [
         description TEXT,
         amount      DOUBLE DEFAULT 0,
         photo       LONGTEXT,
+        created_at  VARCHAR(32) DEFAULT ''
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
+    # A manual override of the auto-computed investor payout for one
+    # house+month — for the rare month where the real arrangement with
+    # that investor doesn't match either the % or fixed-amount formula.
+    # One row per house+month (id = "<house_id>_<month>"), so saving again
+    # for the same month just replaces it; deleting the row reverts back
+    # to the formula-computed amount.
+    """
+    CREATE TABLE IF NOT EXISTS investor_report_overrides (
+        id          VARCHAR(191) PRIMARY KEY,
+        house_id    VARCHAR(191) DEFAULT '',
+        month       VARCHAR(16) DEFAULT '',
+        amount      DOUBLE DEFAULT 0,
+        note        TEXT,
         created_at  VARCHAR(32) DEFAULT ''
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
@@ -204,6 +222,8 @@ def init_db():
             _ensure_column(cur, 'services', 'investor_share', "TEXT")
             _ensure_column(cur, 'users', 'house_ids', "TEXT")
             _ensure_column(cur, 'investor_expenses', 'photo', "LONGTEXT")
+            _ensure_column(cur, 'houses', 'manager_fee_mode', "VARCHAR(16) DEFAULT 'percent'")
+            _ensure_column(cur, 'houses', 'manager_fee_value', "DOUBLE DEFAULT 20")
             _promote_admins_to_superadmin(cur)
         conn.commit()
     finally:

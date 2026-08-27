@@ -332,6 +332,38 @@ def delete_investor_expense():
     RentalService.delete_investor_expense(data.get('id'))
     return jsonify({'success': True})
 
+@rental_bp.route('/api/houses/manager-fee/save', methods=['POST'])
+@permission_required('investor_expenses', 'edit')
+def save_house_manager_fee():
+    data = request.json or {}
+    house = RentalService.save_house_manager_fee(
+        data.get('houseId'),
+        data.get('mode'),
+        data.get('value')
+    )
+    if not house:
+        return jsonify({'success': False, 'error': 'Không tìm thấy tòa nhà'}), 404
+    return jsonify({'success': True, 'house': house})
+
+@rental_bp.route('/api/investor-report-overrides/save', methods=['POST'])
+@permission_required('investor_expenses', 'edit')
+def save_investor_report_override():
+    data = request.json or {}
+    o_obj = RentalService.save_investor_report_override(
+        data.get('houseId'),
+        data.get('month'),
+        data.get('amount'),
+        data.get('note')
+    )
+    return jsonify({'success': True, 'override': o_obj})
+
+@rental_bp.route('/api/investor-report-overrides/delete', methods=['POST'])
+@permission_required('investor_expenses', 'edit')
+def delete_investor_report_override():
+    data = request.json or {}
+    RentalService.delete_investor_report_override(data.get('houseId'), data.get('month'))
+    return jsonify({'success': True})
+
 @rental_bp.route('/api/tickets/create', methods=['POST'])
 @login_required
 def create_ticket():
