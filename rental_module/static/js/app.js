@@ -1301,6 +1301,12 @@ let state = {
 
 const API_BASE = '/api';
 
+// Set while switchView() is running because a browser back/forward
+// (popstate) triggered it — see the listener near DOMContentLoaded below —
+// so switchView() itself knows not to push ANOTHER history entry for a
+// navigation that came from history in the first place.
+let _isPopStateNav = false;
+
 // Client-side id for a new record, sent to the server as-is (it becomes the
 // row's primary key — the backend only falls back to generating its own id
 // when this is omitted). Timestamp alone isn't enough: two records created
@@ -1405,6 +1411,15 @@ async function handleLogout() {
   document.getElementById('cala-navbar').style.display = 'none';
   document.getElementById('app-container').style.display = 'none';
   showToast(t('toast_logout_success'), 'info');
+
+  // Clears the view history switchView() built up during the session that
+  // just ended — otherwise the first several back-gestures after logging
+  // out would each land on a dead, un-restorable entry from the old
+  // session (see the popstate handler's `!state.currentUser` guard)
+  // before finally leaving the site, instead of leaving on the first one.
+  if (history.state && history.state.calaciView) {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
 }
 
 // Applies siteName/title/description/keywords/shareImage/favicon to every
@@ -1871,6 +1886,23 @@ function switchView(viewId) {
   // it's visited; nothing here ever un-converts an already-rendered <svg>
   // back to a plain <i>, so it doesn't need re-touching after that.
   renderIcons(targetPanel);
+
+  // Everything in this app lives at one URL and switches views purely in
+  // JS state, so without this, the browser's own history has nothing to
+  // do with in-app navigation at all — a phone's edge swipe-back gesture
+  // (or the hardware/gesture back button) has no in-app "previous page" to
+  // return to, and immediately leaves the site for whatever page was open
+  // before it. Recording each view as its own history entry gives that
+  // gesture somewhere to go first: back through Tổng Quan → Hóa Đơn → ...
+  // the same way it would on a normal multi-page site, only leaving
+  // calaci.io.vn once that stack is exhausted. Skipped entirely when this
+  // call came FROM a popstate event (would just push the same entry right
+  // back) and when re-selecting the view already on top (a data refresh
+  // via renderCurrentView(), or tapping the already-active nav item).
+  if (!_isPopStateNav && !(history.state && history.state.calaciView === viewId)) {
+    const method = (history.state && history.state.calaciView) ? 'pushState' : 'replaceState';
+    history[method]({ calaciView: viewId }, '', location.pathname + location.search);
+  }
 }
 
 /* ==========================================================================
@@ -6587,4 +6619,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
   fetchPublicSiteSettings();
   restoreSession();
+
+  // Pairs with the history.pushState/replaceState calls at the end of
+  // switchView() — this is what actually makes the phone's swipe-back
+  // gesture (or hardware/gesture back button) step back through the
+  // app's own views instead of leaving the site immediately.
+  window.addEventListener('popstate', (event) => {
+    const view = event.state && event.state.calaciView;
+    // No calaciView means either a not-logged-in visit (never pushed
+    // anything) or the stack is exhausted — nothing to restore in-app, so
+    // just let it be; the *next* back gesture is what actually leaves
+    // calaci.io.vn, same as reaching the start of a normal browsing
+    // history.
+    if (!view || !state.currentUser) return;
+    _isPopStateNav = true;
+    switchView(view);
+    _isPopStateNav = false;
+    closeSidebar();
+    document.querySelectorAll('.modal-backdrop.active').forEach(m => m.classList.remove('active'));
+  });
 });
