@@ -222,7 +222,8 @@ def create_user():
         data.get('fullName'),
         role,
         data.get('roomId', ''),
-        data.get('houseId', '')
+        data.get('houseId', ''),
+        data.get('houseIds')
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
@@ -242,7 +243,8 @@ def save_user():
         data.get('roomId'),
         data.get('status'),
         data.get('newPassword'),  # Optional - only set if provided
-        data.get('houseId', '')
+        data.get('houseId', ''),
+        data.get('houseIds')
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400

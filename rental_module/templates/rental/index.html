@@ -1078,6 +1078,10 @@
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_choose_house">Chọn tòa nhà</label>
           <select id="create-house-id" class="form-control" onchange="handleCreateHouseChange()"></select>
         </div>
+        <div style="margin-bottom: 1rem;" id="box-create-investor-houses">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_choose_investor_houses">Tòa nhà được xem (có thể chọn nhiều)</label>
+          <div id="create-investor-houses-container" style="display:flex; flex-direction:column; gap:0.5rem; padding:0.75rem; background:var(--bg-base); border-radius:var(--radius-md); border:1px solid var(--border-color); max-height:200px; overflow-y:auto;"></div>
+        </div>
         <div style="margin-bottom: 1.5rem;" id="box-assign-room">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="col_assigned_room">Gán phòng</label>
           <select id="create-room-id" class="form-control"></select>
@@ -1119,6 +1123,10 @@
         <div style="margin-bottom: 1rem;" id="box-edit-assign-house">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_choose_house">Chọn tòa nhà</label>
           <select id="edit-house-id" class="form-control" onchange="handleEditHouseChange()"></select>
+        </div>
+        <div style="margin-bottom: 1rem;" id="box-edit-investor-houses">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_choose_investor_houses">Tòa nhà được xem (có thể chọn nhiều)</label>
+          <div id="edit-investor-houses-container" style="display:flex; flex-direction:column; gap:0.5rem; padding:0.75rem; background:var(--bg-base); border-radius:var(--radius-md); border:1px solid var(--border-color); max-height:200px; overflow-y:auto;"></div>
         </div>
         <div style="margin-bottom: 1rem;" id="box-edit-assign-room">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_residing_room">Phòng lưu trú</label>

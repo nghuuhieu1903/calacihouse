@@ -66,6 +66,7 @@ SCHEMA_STATEMENTS = [
         role        VARCHAR(32) DEFAULT 'tenant',
         room_id     VARCHAR(191) DEFAULT '',
         house_id    VARCHAR(191) DEFAULT '',
+        house_ids   TEXT,
         status      VARCHAR(32) DEFAULT 'pending',
         created_at  VARCHAR(32) DEFAULT ''
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -200,6 +201,7 @@ def init_db():
             _ensure_column(cur, 'rooms', 'capacity', "INT DEFAULT 0")
             _ensure_column(cur, 'rooms', 'deposit', "DOUBLE DEFAULT 0")
             _ensure_column(cur, 'services', 'investor_share', "TEXT")
+            _ensure_column(cur, 'users', 'house_ids', "TEXT")
             _promote_admins_to_superadmin(cur)
         conn.commit()
     finally:

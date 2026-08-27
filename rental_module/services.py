@@ -166,15 +166,20 @@ class RentalService:
         RentalService.sync_readings_with_services(month)
         readings = Storage.get_readings()
 
-        # Investors only see the house(s) they are assigned to.
+        # Investors only see the house(s) they are assigned to — possibly
+        # several specific ones, or 'all' (auto-covers houses added later).
         if current_user and current_user.get('role') == 'investor':
-            house_id = current_user.get('houseId') or ''
-            if house_id and house_id != 'all':
-                houses = [h for h in houses if h['id'] == house_id]
-                room_ids = {r['id'] for r in rooms if r.get('houseId') == house_id}
+            investor_house_ids = current_user.get('houseIds') or ([current_user.get('houseId')] if current_user.get('houseId') else [])
+            if 'all' not in investor_house_ids:
+                # Empty list (no house assigned yet) correctly falls through
+                # to filtering everything down to nothing below, rather than
+                # the pre-multi-house bug where an unassigned investor saw
+                # every house unfiltered.
+                houses = [h for h in houses if h['id'] in investor_house_ids]
+                room_ids = {r['id'] for r in rooms if r.get('houseId') in investor_house_ids}
                 rooms = [r for r in rooms if r['id'] in room_ids]
-                services = [s for s in services if RentalService.service_matches_house(s, house_id)]
-                invoices = [i for i in invoices if i.get('houseId') == house_id]
+                services = [s for s in services if any(RentalService.service_matches_house(s, hid) for hid in investor_house_ids)]
+                invoices = [i for i in invoices if i.get('houseId') in investor_house_ids]
                 tickets = [tk for tk in tickets if tk.get('roomId') in room_ids]
                 readings = {
                     m: {rid: rd for rid, rd in month_readings.items() if rid in room_ids}
@@ -273,7 +278,11 @@ class RentalService:
         if room_count > 0:
             return False, f'Không thể xoá: tòa nhà này vẫn còn {room_count} phòng. Vui lòng xoá hết phòng trước.'
 
-        investor_count = sum(1 for u in Storage.get_users() if u.get('role') == 'investor' and u.get('houseId') == house_id)
+        def _investor_covers_house(u):
+            house_ids = u.get('houseIds') or ([u.get('houseId')] if u.get('houseId') else [])
+            return house_id in house_ids
+
+        investor_count = sum(1 for u in Storage.get_users() if u.get('role') == 'investor' and _investor_covers_house(u))
         if investor_count > 0:
             return False, f'Không thể xoá: vẫn còn {investor_count} tài khoản chủ đầu tư đang gắn với tòa nhà này. Vui lòng đổi tòa nhà cho tài khoản đó trước.'
 
@@ -463,11 +472,15 @@ class RentalService:
         return False, []
 
     @staticmethod
-    def create_user_by_admin(username, password, full_name, role, room_id, house_id=''):
+    def create_user_by_admin(username, password, full_name, role, room_id, house_id='', house_ids=None):
         users = Storage.get_users()
         if any(u['username'].lower() == username.lower() for u in users):
             return None, 'Tên tài khoản đã tồn tại!'
 
+        # house_ids is the real (possibly multi-house) assignment; house_id
+        # stays accepted too for any older caller still sending the single
+        # value, wrapped into a one-item list.
+        investor_house_ids = house_ids if house_ids else ([house_id] if house_id else [])
         new_user = {
             'id': f"usr_{uuid.uuid4().hex[:8]}",
             'username': username,
@@ -475,7 +488,7 @@ class RentalService:
             'fullName': full_name,
             'role': role,
             'roomId': room_id if role == 'tenant' else '',
-            'houseId': house_id if role == 'investor' else '',
+            'houseIds': investor_house_ids if role == 'investor' else [],
             'status': 'approved',
             'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
@@ -489,9 +502,10 @@ class RentalService:
         return new_user, None
 
     @staticmethod
-    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id=''):
+    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id='', house_ids=None):
         user = next((u for u in Storage.get_users() if u['id'] == user_id), None)
         if user:
+            investor_house_ids = house_ids if house_ids else ([house_id] if house_id else [])
             if user['id'] == 'usr_admin':
                 # The bootstrap account's role isn't editable via this form
                 # (it's whatever the one-time superadmin migration set it
@@ -504,12 +518,12 @@ class RentalService:
                 user['fullName'] = full_name
                 user['status'] = 'approved'
                 user['roomId'] = ''
-                user['houseId'] = ''
+                user['houseIds'] = []
             else:
                 user['fullName'] = full_name
                 user['role'] = role
                 user['roomId'] = room_id if role == 'tenant' else ''
-                user['houseId'] = house_id if role == 'investor' else ''
+                user['houseIds'] = investor_house_ids if role == 'investor' else []
                 user['status'] = status
 
             # Only update password if a new one was explicitly provided

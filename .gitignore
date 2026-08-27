@@ -13,5 +13,9 @@ ENV/
 # Runtime data (SQLite DB + legacy JSON) — contains demo tenant data, not source code
 data/
 
+# Database backups — contain real tenant PII and plaintext account
+# passwords, kept local-only (never pushed to GitHub, even a private repo)
+backups/
+
 # Local Claude Code tool config
 .claude/

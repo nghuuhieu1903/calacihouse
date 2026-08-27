@@ -210,6 +210,13 @@ def _house(row):
     }
 
 def _user(row):
+    # house_ids is the source of truth for an investor's access (a list —
+    # possibly ['all'], possibly several specific house ids). house_id is
+    # kept in sync as houseIds[0] purely for older code paths that haven't
+    # been migrated to the array; a row saved before multi-house support
+    # existed has no house_ids at all, so fall back to wrapping the old
+    # single house_id instead of losing that account's access.
+    house_ids = json.loads(row['house_ids']) if row.get('house_ids') else ([row['house_id']] if row['house_id'] else [])
     return {
         'id': row['id'],
         'username': row['username'],
@@ -218,6 +225,7 @@ def _user(row):
         'role': row['role'],
         'roomId': row['room_id'] or '',
         'houseId': row['house_id'] or '',
+        'houseIds': house_ids,
         'status': row['status'],
         'createdAt': row['created_at'] or ''
     }
@@ -462,10 +470,11 @@ class Storage:
         conn = get_db()
         try:
             with conn.cursor() as cur:
+                house_ids = u.get('houseIds') or ([u['houseId']] if u.get('houseId') else [])
                 cur.execute(
                     "REPLACE INTO users "
-                    "(id, username, password, full_name, role, room_id, house_id, status, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, username, password, full_name, role, room_id, house_id, house_ids, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         u['id'],
                         u['username'],
@@ -473,7 +482,8 @@ class Storage:
                         u.get('fullName', ''),
                         u.get('role', 'tenant'),
                         u.get('roomId', ''),
-                        u.get('houseId', ''),
+                        house_ids[0] if house_ids else '',
+                        json.dumps(house_ids),
                         u.get('status', 'pending'),
                         u.get('createdAt', '')
                     )
@@ -498,10 +508,11 @@ class Storage:
         conn = get_db()
         try:
             with conn.cursor() as cur:
+                house_ids = u.get('houseIds') or ([u['houseId']] if u.get('houseId') else [])
                 cur.execute(
                     "INSERT INTO users "
-                    "(id, username, password, full_name, role, room_id, house_id, status, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, username, password, full_name, role, room_id, house_id, house_ids, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         u['id'],
                         u['username'],
@@ -509,7 +520,8 @@ class Storage:
                         u.get('fullName', ''),
                         u.get('role', 'tenant'),
                         u.get('roomId', ''),
-                        u.get('houseId', ''),
+                        house_ids[0] if house_ids else '',
+                        json.dumps(house_ids),
                         u.get('status', 'pending'),
                         u.get('createdAt', '')
                     )

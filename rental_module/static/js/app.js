@@ -498,6 +498,7 @@ const I18N = {
     option_role_admin: 'Quản Trị Viên (Admin - không xoá được)',
     option_role_manager: 'Quản Lý (Manager)',
     lbl_choose_house: 'Chọn tòa nhà',
+    lbl_choose_investor_houses: 'Tòa nhà được xem (có thể chọn nhiều)',
     modal_edit_user_title: 'Chỉnh Sửa & Phân Quyền Thành Viên',
     lbl_role_permission: 'Vai trò / Quyền hạn',
     lbl_residing_room: 'Phòng lưu trú',
@@ -1048,6 +1049,7 @@ const I18N = {
     option_role_admin: 'Administrator (Admin - cannot delete)',
     option_role_manager: 'Manager',
     lbl_choose_house: 'Choose house',
+    lbl_choose_investor_houses: 'Houses this investor can see (multiple allowed)',
     modal_edit_user_title: 'Edit User & Permissions',
     lbl_role_permission: 'Role / Permission',
     lbl_residing_room: 'Assigned room',
@@ -3437,8 +3439,18 @@ function renderAdminUsers() {
     // of the bare, meaningless room id string.
     let roomLabel = room ? room.name : (u.roomId ? `⚠️ ${t('room_deleted_label')}` : t('unassigned_label'));
     if (u.role === 'investor') {
-      const house = state.houses.find(h => h.id === u.houseId);
-      roomLabel = u.houseId === 'all' ? `🌐 ${t('all_houses_label')}` : (house ? `📍 ${house.name}` : t('unassigned_label'));
+      const investorHouseIds = u.houseIds && u.houseIds.length ? u.houseIds : (u.houseId ? [u.houseId] : []);
+      if (investorHouseIds.includes('all')) {
+        roomLabel = `🌐 ${t('all_houses_label')}`;
+      } else if (investorHouseIds.length) {
+        roomLabel = investorHouseIds
+          .map(hid => state.houses.find(h => h.id === hid))
+          .filter(Boolean)
+          .map(h => `📍 ${h.name}`)
+          .join(', ') || t('unassigned_label');
+      } else {
+        roomLabel = t('unassigned_label');
+      }
     }
 
     const tr = document.createElement('tr');
@@ -3591,6 +3603,50 @@ function populateHouseOptions(selectEl, includeAllOption) {
   selectEl.innerHTML = html;
 }
 
+// An investor can be assigned several specific houses (not just one) — a
+// checkbox list instead of the single <select> tenants use, since a tenant
+// only ever lives in one house/room but an investor may co-own several
+// buildings. "Tất cả tòa nhà" is a sentinel ('all') that also auto-covers
+// any house added later, so it disables the individual checkboxes below it
+// rather than just meaning "every current house checked".
+function renderInvestorHouseCheckboxes(containerId, selectedHouseIds) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const isAll = (selectedHouseIds || []).includes('all');
+  container.innerHTML = `
+    <label style="display:flex; align-items:center; gap:0.5rem; font-weight:700; cursor:pointer;">
+      <input type="checkbox" class="investor-house-chk-all" ${isAll ? 'checked' : ''} onchange="toggleInvestorHouseAll(this)">
+      🌐 ${t('all_houses_label')}
+    </label>
+    <div class="investor-house-chk-list" style="display:flex; flex-direction:column; gap:0.4rem; margin-left:1.6rem; ${isAll ? 'opacity:0.5;' : ''}">
+      ${state.houses.map(h => `
+        <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+          <input type="checkbox" value="${h.id}" ${isAll ? 'disabled' : ''} ${(selectedHouseIds || []).includes(h.id) ? 'checked' : ''}>
+          ${h.name}
+        </label>
+      `).join('')}
+    </div>
+  `;
+}
+
+function toggleInvestorHouseAll(checkbox) {
+  const list = checkbox.parentElement.nextElementSibling;
+  if (!list) return;
+  list.style.opacity = checkbox.checked ? '0.5' : '1';
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.disabled = checkbox.checked;
+    if (checkbox.checked) cb.checked = false;
+  });
+}
+
+function getSelectedInvestorHouseIds(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return [];
+  const allChk = container.querySelector('.investor-house-chk-all');
+  if (allChk && allChk.checked) return ['all'];
+  return Array.from(container.querySelectorAll('.investor-house-chk-list input[type=checkbox]:checked')).map(cb => cb.value);
+}
+
 // The server rejects a non-superadmin trying to grant the superadmin role
 // anyway (see /api/users/create and /api/users/save), but hiding the
 // option here avoids someone picking it and getting a confusing 403.
@@ -3620,16 +3676,17 @@ function toggleRoomSelectInCreateModal() {
   const isTenant = role === 'tenant';
   const isInvestor = role === 'investor';
   const houseBox = document.getElementById('box-create-assign-house');
+  const investorHouseBox = document.getElementById('box-create-investor-houses');
   const roomBox = document.getElementById('box-assign-room');
-  if (houseBox) houseBox.style.display = (isTenant || isInvestor) ? 'block' : 'none';
+  if (houseBox) houseBox.style.display = isTenant ? 'block' : 'none';
+  if (investorHouseBox) investorHouseBox.style.display = isInvestor ? 'block' : 'none';
   if (roomBox) roomBox.style.display = isTenant ? 'block' : 'none';
 
-  const houseSelect = document.getElementById('create-house-id');
-  if (isInvestor) {
-    populateHouseOptions(houseSelect, true);
-  } else if (isTenant) {
-    populateHouseOptions(houseSelect, false);
+  if (isTenant) {
+    populateHouseOptions(document.getElementById('create-house-id'), false);
     handleCreateHouseChange();
+  } else if (isInvestor) {
+    renderInvestorHouseCheckboxes('create-investor-houses-container', []);
   }
 }
 
@@ -3648,7 +3705,11 @@ function openEditUserModal(userId) {
 
   const houseSelect = document.getElementById('edit-house-id');
   if (u.role === 'investor') {
-    if (houseSelect) houseSelect.value = u.houseId || 'all';
+    // Migration-safe fallback for accounts saved before multi-house
+    // support: houseIds is populated server-side from the legacy single
+    // houseId when absent, but re-derive here too in case of stale state.
+    const investorHouseIds = u.houseIds && u.houseIds.length ? u.houseIds : (u.houseId ? [u.houseId] : []);
+    renderInvestorHouseCheckboxes('edit-investor-houses-container', investorHouseIds);
   } else {
     const userRoom = state.rooms.find(r => r.id === u.roomId);
     const userHouseId = userRoom ? userRoom.houseId : (state.houses[0] ? state.houses[0].id : '');
@@ -3678,16 +3739,17 @@ function toggleRoomSelectInEditModal() {
   const isTenant = role === 'tenant';
   const isInvestor = role === 'investor';
   const houseBox = document.getElementById('box-edit-assign-house');
+  const investorHouseBox = document.getElementById('box-edit-investor-houses');
   const roomBox = document.getElementById('box-edit-assign-room');
-  if (houseBox) houseBox.style.display = (isTenant || isInvestor) ? 'block' : 'none';
+  if (houseBox) houseBox.style.display = isTenant ? 'block' : 'none';
+  if (investorHouseBox) investorHouseBox.style.display = isInvestor ? 'block' : 'none';
   if (roomBox) roomBox.style.display = isTenant ? 'block' : 'none';
 
-  const houseSelect = document.getElementById('edit-house-id');
-  if (isInvestor) {
-    populateHouseOptions(houseSelect, true);
-  } else if (isTenant) {
-    populateHouseOptions(houseSelect, false);
+  if (isTenant) {
+    populateHouseOptions(document.getElementById('edit-house-id'), false);
     handleEditHouseChange();
+  } else if (isInvestor) {
+    renderInvestorHouseCheckboxes('edit-investor-houses-container', []);
   }
 }
 
@@ -3697,7 +3759,7 @@ async function handleAdminSaveUser(event) {
   const fullName = document.getElementById('edit-fullname').value.trim();
   const role = document.getElementById('edit-role').value;
   const roomId = role === 'tenant' ? document.getElementById('edit-room-id').value : '';
-  const houseId = role === 'investor' ? document.getElementById('edit-house-id').value : '';
+  const houseIds = role === 'investor' ? getSelectedInvestorHouseIds('edit-investor-houses-container') : [];
   const status = document.getElementById('edit-status').value;
   const newPasswordField = document.getElementById('edit-new-password');
   const newPassword = newPasswordField ? newPasswordField.value.trim() : '';
@@ -3707,11 +3769,12 @@ async function handleAdminSaveUser(event) {
     state.users[uIdx].fullName = fullName;
     state.users[uIdx].role = role;
     state.users[uIdx].roomId = roomId;
-    state.users[uIdx].houseId = houseId;
+    state.users[uIdx].houseIds = houseIds;
+    state.users[uIdx].houseId = houseIds[0] || '';
     state.users[uIdx].status = status;
   }
 
-  const payload = { id, fullName, role, roomId, houseId, status };
+  const payload = { id, fullName, role, roomId, houseIds, status };
   if (newPassword) payload.newPassword = newPassword;
 
   try {
@@ -3741,16 +3804,16 @@ async function handleAdminCreateUser(event) {
   const fullName = document.getElementById('create-fullname').value.trim();
   const role = document.getElementById('create-role').value;
   const roomId = role === 'tenant' ? document.getElementById('create-room-id').value : '';
-  const houseId = role === 'investor' ? document.getElementById('create-house-id').value : '';
+  const houseIds = role === 'investor' ? getSelectedInvestorHouseIds('create-investor-houses-container') : [];
 
-  const newUser = { id: genId('usr_'), username, password, fullName, role, roomId, houseId, status: 'approved', createdAt: 'Hôm nay' };
+  const newUser = { id: genId('usr_'), username, password, fullName, role, roomId, houseIds, houseId: houseIds[0] || '', status: 'approved', createdAt: 'Hôm nay' };
   state.users.push(newUser);
 
   try {
     await fetch(`${API_BASE}/users/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, fullName, role, roomId, houseId })
+      body: JSON.stringify({ username, password, fullName, role, roomId, houseIds })
     });
   } catch (err) {
     console.warn('Created user locally:', err);
