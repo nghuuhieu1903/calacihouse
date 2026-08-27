@@ -408,6 +408,8 @@ const I18N = {
     ir_not_counted_label: 'Không tính',
     ir_fixed_amount_label: 'số tiền cố định',
     ir_line_expenses: 'Trừ chi phí lắp đặt / sửa chữa',
+    ir_line_gross_revenue: 'Tổng tiền nhà + dịch vụ',
+    ir_of_gross_label: 'trên tổng tiền nhà + dịch vụ',
     ir_line_net_revenue: 'Doanh thu chia sẻ',
     ir_line_manager_share: 'Phần quản lý giữ lại',
     ir_line_investor_share: 'Chủ đầu tư nhận',
@@ -964,6 +966,8 @@ const I18N = {
     ir_not_counted_label: 'Not counted',
     ir_fixed_amount_label: 'fixed amount',
     ir_line_expenses: 'Less: installation / repair costs',
+    ir_line_gross_revenue: 'Total rent + services',
+    ir_of_gross_label: 'of total rent + services',
     ir_line_net_revenue: 'Shared revenue',
     ir_line_manager_share: 'Management share',
     ir_line_investor_share: 'Investor receives',
@@ -3233,12 +3237,17 @@ function computeInvestorReportData(houseId, month) {
     .filter(e => e.month === month && e.houseId === houseId)
     .reduce((s, e) => s + (e.amount || 0), 0);
 
-  const sharedRevenue = rent + servicesShared - expenses;
+  // X = (Tổng tiền nhà + tổng tiền dịch vụ) − chi phí sửa chữa − (Tổng tiền
+  // nhà + tổng tiền dịch vụ) × 20% — the management fee is a cut of the
+  // GROSS rent+services revenue, not of what's left after repair costs;
+  // the full repair cost comes out of the investor's share alone.
+  const grossRevenue = rent + servicesShared;
   const feePercent = state.investorFeePercent != null ? state.investorFeePercent : 20;
-  const managerShare = sharedRevenue * (feePercent / 100);
-  const investorShare = sharedRevenue - managerShare;
+  const managerShare = grossRevenue * (feePercent / 100);
+  const investorShare = grossRevenue - expenses - managerShare;
+  const sharedRevenue = grossRevenue - expenses;
 
-  return { invoiceCount: invoices.length, rent, serviceBreakdown, servicesShared, expenses, sharedRevenue, feePercent, managerShare, investorShare };
+  return { invoiceCount: invoices.length, rent, serviceBreakdown, servicesShared, expenses, grossRevenue, sharedRevenue, feePercent, managerShare, investorShare };
 }
 
 function renderInvestorReportCard(house, d) {
@@ -3261,14 +3270,14 @@ function renderInvestorReportCard(house, d) {
           `${sv.symbol} ${sv.name}${sv.mode !== 'full' ? ` <small style="color:var(--text-secondary);">(${sv.mode === 'percent' ? sv.value + '%' : t('ir_fixed_amount_label')})</small>` : ''}`,
           sv.shared, { prefix: '+' }
         )).join('')}
-        ${line('🔧 ' + t('ir_line_expenses'), d.expenses, { prefix: '−', style: 'color:var(--cala-red);' })}
         <hr style="border-color:var(--border-color); width:100%;">
-        ${line(t('ir_line_net_revenue'), d.sharedRevenue, { style: 'font-size:1.05rem; font-weight:800;' })}
-        ${line(`${t('ir_line_manager_share')} (${d.feePercent}%)`, d.managerShare)}
+        ${line(t('ir_line_gross_revenue'), d.grossRevenue, { style: 'font-size:1.05rem; font-weight:800;' })}
+        ${line(`${t('ir_line_manager_share')} (${d.feePercent}% ${t('ir_of_gross_label')})`, d.managerShare, { prefix: '−', style: 'color:var(--cala-red);' })}
+        ${line('🔧 ' + t('ir_line_expenses'), d.expenses, { prefix: '−', style: 'color:var(--cala-red);' })}
       </div>
 
       <div style="margin-top:1.25rem; padding:1.25rem; border-radius:var(--radius-lg); background:linear-gradient(135deg, var(--cala-blue-light) 0%, #ffffff 100%); border:1px solid #bce2fd; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-        <div style="font-weight:800; color:var(--cala-blue-dark);">${t('ir_line_investor_share')} (${100 - d.feePercent}%)</div>
+        <div style="font-weight:800; color:var(--cala-blue-dark);">${t('ir_line_investor_share')}</div>
         <div style="font-size:1.6rem; font-weight:800; color:var(--cala-blue);">${formatMoney(d.investorShare)} đ</div>
       </div>
     </div>
