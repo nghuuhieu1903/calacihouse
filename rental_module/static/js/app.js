@@ -420,6 +420,13 @@ const I18N = {
     ir_option_percent_of_gross: 'Theo % trên tổng tiền nhà + dịch vụ',
     ir_option_fixed_monthly: 'Số tiền cố định / tháng (VNĐ)',
     ir_manager_fee_config_title: 'Cách tính phần Quản lý giữ lại cho tòa nhà này',
+    option_investor_full: 'Gửi toàn bộ (100%)',
+    option_investor_percent: 'Theo phần trăm (%)',
+    option_investor_fixed: 'Số tiền cố định / tháng (VNĐ)',
+    ir_service_toggle_title: 'Chọn dịch vụ gửi cho Chủ Đầu Tư (Điện, Nước, dịch vụ khác) của tòa nhà này',
+    ir_service_toggle_desc: 'Dịch vụ nào bạn tự thu (không tích) sẽ không tính vào doanh thu chia sẻ — bạn có thể gửi tiền hoặc giữ lại tùy thỏa thuận với từng chủ đầu tư.',
+    ir_actual_amount_label: 'Thực tế',
+    toast_service_investor_share_saved: 'Đã lưu cấu hình chia sẻ dịch vụ!',
     ir_override_title: 'Ghi đè số tiền báo cáo tháng này (thủ công)',
     ir_override_hint: 'Số tự động tính theo công thức trên:',
     ir_override_placeholder: 'Để trống = dùng số tự động tính',
@@ -995,6 +1002,13 @@ const I18N = {
     ir_option_percent_of_gross: '% of total rent + services',
     ir_option_fixed_monthly: 'Fixed amount / month (VND)',
     ir_manager_fee_config_title: 'How the management share is calculated for this house',
+    option_investor_full: 'Send in full (100%)',
+    option_investor_percent: 'As a percentage (%)',
+    option_investor_fixed: 'Fixed amount / month (VND)',
+    ir_service_toggle_title: 'Choose which services to share with the Investor (electricity, water, other services) for this house',
+    ir_service_toggle_desc: 'Any service you leave unchecked (you collect it yourself) is excluded from shared revenue — send that money to the investor or keep it, per your arrangement with them.',
+    ir_actual_amount_label: 'Actual',
+    toast_service_investor_share_saved: 'Service sharing settings saved!',
     ir_override_title: 'Manually override this month\'s reported amount',
     ir_override_hint: 'Auto-calculated by the formula above:',
     ir_override_placeholder: 'Leave blank = use the auto-calculated amount',
@@ -3247,6 +3261,37 @@ function computeInvestorInvoiceBreakdown(inv) {
   return { rent, services, total };
 }
 
+// Every service that applies to this house — including ones NOT currently
+// shared with the investor — with its actual billed total this month and
+// what would be shared under its current investorShare config. Powers the
+// inline toggle list on the report card, so admin can flip a service
+// on/off (or switch % vs fixed) without leaving this page — unlike
+// computeInvestorInvoiceBreakdown(), which only ever surfaces the
+// already-enabled ones for the revenue math itself.
+function computeHouseServiceSummary(houseId, month) {
+  const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId);
+  const houseServices = state.services.filter(s => serviceMatchesHouse(s, houseId));
+
+  return houseServices.map(service => {
+    let actual = 0;
+    if (service.calcType === 'formula') {
+      const isElec = service.name.includes('Điện');
+      invoices.forEach(inv => {
+        if (serviceMatchesRoom(service, inv.roomId)) {
+          actual += isElec ? (inv.elecCost || 0) : (inv.waterCost || 0);
+        }
+      });
+    } else {
+      invoices.forEach(inv => {
+        const item = (inv.serviceItems || []).find(it => it.id === service.id);
+        if (item) actual += item.total || 0;
+      });
+    }
+    const investorShare = service.investorShare || { enabled: false, mode: 'full', value: 0 };
+    return { service, actual, investorShare, shared: investorShareForAmount(investorShare, actual) };
+  });
+}
+
 function computeInvestorReportData(houseId, month) {
   const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId);
   // Room rent is always sent to the investor in full — it's not part of
@@ -3291,8 +3336,81 @@ function computeInvestorReportData(houseId, month) {
   return {
     invoiceCount: invoices.length, rent, serviceBreakdown, servicesShared, expenses,
     grossRevenue, sharedRevenue, managerFee, managerShare, computedInvestorShare,
-    investorShare, override
+    investorShare, override, month
   };
+}
+
+// Lets admin flip a service's investorShare on/off (and switch %/fixed)
+// right on the report card, scoped to whichever house is selected — no
+// trip to Cấu Hình Dịch Vụ needed. Some houses the admin covers utilities
+// themselves and shares the money with the investor; others the investor
+// pays their own, so this needs to be a quick per-house, per-service
+// toggle rather than a one-time global setting.
+function renderHouseServiceToggleList(house, month) {
+  const summary = computeHouseServiceSummary(house.id, month);
+  if (summary.length === 0) return '';
+
+  const rows = summary.map(({ service, actual, investorShare, shared }) => {
+    const isElec = service.calcType === 'formula' && service.name.includes('Điện');
+    const isWater = service.calcType === 'formula' && !isElec;
+    const icon = service.symbol || (isElec ? '⚡' : isWater ? '💧' : '📦');
+    const showValue = investorShare.enabled && investorShare.mode !== 'full';
+    return `
+      <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.6rem; padding:0.6rem 0; border-bottom:1px solid var(--border-color);">
+        <label style="display:flex; align-items:center; gap:0.4rem; min-width:180px; cursor:pointer; flex:1;">
+          <input type="checkbox" id="svc-enabled-${service.id}" ${investorShare.enabled ? 'checked' : ''} onchange="toggleServiceInvestorFieldsInline('${service.id}')">
+          <span>${icon} ${service.name}</span>
+        </label>
+        <span style="font-size:0.78rem; color:var(--text-secondary); white-space:nowrap;">${t('ir_actual_amount_label')}: ${formatMoney(actual)}đ</span>
+        <select id="svc-mode-${service.id}" class="form-control" style="width:auto; min-width:150px; ${investorShare.enabled ? '' : 'display:none;'}" onchange="toggleServiceInvestorFieldsInline('${service.id}')">
+          <option value="full" ${investorShare.mode === 'full' ? 'selected' : ''}>${t('option_investor_full')}</option>
+          <option value="percent" ${investorShare.mode === 'percent' ? 'selected' : ''}>${t('option_investor_percent')}</option>
+          <option value="fixed" ${investorShare.mode === 'fixed' ? 'selected' : ''}>${t('option_investor_fixed')}</option>
+        </select>
+        <input type="number" id="svc-value-${service.id}" class="form-control" style="width:110px; ${showValue ? '' : 'display:none;'}" value="${investorShare.value || 0}" min="0">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="saveServiceInvestorShareInline('${service.id}')"><i data-lucide="save"></i></button>
+        <strong style="margin-left:auto; color:var(--cala-blue); white-space:nowrap;">${formatMoney(shared)} đ</strong>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div style="margin-top:1.25rem; padding:1rem 1.1rem; border-radius:var(--radius-md); background:var(--bg-base); border:1px solid var(--border-color);">
+      <div style="font-weight:700; font-size:0.85rem; margin-bottom:0.3rem;">${t('ir_service_toggle_title')}</div>
+      <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.5rem;">${t('ir_service_toggle_desc')}</p>
+      ${rows}
+    </div>
+  `;
+}
+
+function toggleServiceInvestorFieldsInline(serviceId) {
+  const enabled = document.getElementById(`svc-enabled-${serviceId}`).checked;
+  const modeSelect = document.getElementById(`svc-mode-${serviceId}`);
+  const valueInput = document.getElementById(`svc-value-${serviceId}`);
+  modeSelect.style.display = enabled ? '' : 'none';
+  valueInput.style.display = enabled && modeSelect.value !== 'full' ? '' : 'none';
+}
+
+async function saveServiceInvestorShareInline(serviceId) {
+  const service = state.services.find(s => s.id === serviceId);
+  if (!service) return;
+
+  const enabled = document.getElementById(`svc-enabled-${serviceId}`).checked;
+  const mode = document.getElementById(`svc-mode-${serviceId}`).value;
+  const value = parseFloat(document.getElementById(`svc-value-${serviceId}`).value) || 0;
+  service.investorShare = { enabled, mode, value: mode === 'full' ? 0 : value };
+
+  try {
+    await fetch(`${API_BASE}/services/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(service)
+    });
+  } catch (err) {
+    console.warn('Service investor-share saved locally:', err);
+  }
+  showToast(t('toast_service_investor_share_saved'), 'success');
+  renderInvestorReport();
 }
 
 function renderInvestorReportCard(house, d) {
@@ -3324,6 +3442,8 @@ function renderInvestorReportCard(house, d) {
         ${line(`${t('ir_line_manager_share')} (${feeLabel})`, d.managerShare, { prefix: '−', style: 'color:var(--cala-red);' })}
         ${line('🔧 ' + t('ir_line_expenses'), d.expenses, { prefix: '−', style: 'color:var(--cala-red);' })}
       </div>
+
+      ${renderHouseServiceToggleList(house, d.month)}
 
       <!-- PER-HOUSE MANAGEMENT FEE FORMULA — % of gross or a flat VNĐ/month,
            since each investor's arrangement can differ. -->
