@@ -9,9 +9,17 @@
   <meta id="meta-og-title-tag" property="og:title" content="CalaciHouse">
   <meta id="meta-og-description-tag" property="og:description" content="Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động">
   <meta id="meta-og-image-tag" property="og:image" content="">
-  <!-- Favicon <link> is only added by applySiteSettings() in app.js once a
-       favicon is actually configured — an empty href here would make the
-       browser resolve it to the current page URL and request that. -->
+  <!-- Default favicon/app icon — applySiteSettings() in app.js overrides
+       the favicon <link> only if the admin has actually configured a
+       custom one in Thiết Lập Trang; without a baseline here the tab/
+       home-screen icon would be blank until then. -->
+  <link id="favicon-link-tag" rel="icon" href="{{ url_for('rental.static', filename='img/icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('rental.static', filename='img/apple-touch-icon.png') }}">
+  <link rel="manifest" href="{{ url_for('rental.web_manifest') }}">
+  <meta name="theme-color" content="#0194f3">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <!-- Fonts & Lucide Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, url_for
 from .services import RentalService
 from .storage import Storage
 from .auth import login_required, roles_required, admin_required, superadmin_required, permission_required
@@ -59,6 +59,34 @@ def get_data():
     month = request.args.get('month', '2026-08')
     data = RentalService.get_full_state(month, _refresh_session_user())
     return jsonify(data)
+
+@rental_bp.route('/manifest.webmanifest')
+def web_manifest():
+    # Lets Chrome (and other browsers) offer "Add to Home screen"/"Install
+    # app" as a real installable icon that opens standalone (no address
+    # bar) instead of just a bookmark. Name stays in sync with whatever the
+    # admin has set in Thiết Lập Trang; the icon set is our own static
+    # asset rather than the admin-uploaded favicon (which can be an
+    # arbitrary data: URL / non-square image) so the home-screen icon is
+    # always guaranteed to render well at every required size.
+    settings = Storage.get_site_settings()
+    site_name = settings.get('siteName') or 'CalaciHouse'
+    manifest = {
+        'name': site_name,
+        'short_name': site_name,
+        'description': settings.get('description') or 'Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động',
+        'start_url': '/',
+        'scope': '/',
+        'display': 'standalone',
+        'background_color': '#f2f4f7',
+        'theme_color': '#0194f3',
+        'icons': [
+            {'src': url_for('rental.static', filename='img/icon-192.png'), 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+            {'src': url_for('rental.static', filename='img/icon-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+            {'src': url_for('rental.static', filename='img/icon-512-maskable.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}
+        ]
+    }
+    return jsonify(manifest), 200, {'Content-Type': 'application/manifest+json'}
 
 @rental_bp.route('/api/settings/public', methods=['GET'])
 def get_public_site_settings():
