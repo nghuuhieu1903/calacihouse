@@ -341,7 +341,15 @@ select.form-control { padding-right: 2.25rem; }
 
   .sidebar {
     position: fixed; top: 0; left: 0; z-index: 150; width: 280px; max-width: 82vw;
-    transform: translateX(-100%); transition: transform 0.25s ease; box-shadow: var(--shadow-lg);
+    /* translate3d instead of translateX + an explicit will-change hint —
+       both push this onto its own GPU compositing layer up front instead
+       of letting the browser decide mid-transition. A fixed-position +
+       transform + internally-scrolling (overflow-y) element like this is
+       exactly the combination that triggers a known class of Android
+       Chrome bug where the layer briefly paints blank/white right as the
+       transform starts, until something else forces a repaint. */
+    transform: translate3d(-100%, 0, 0); will-change: transform;
+    transition: transform 0.25s ease; box-shadow: var(--shadow-lg);
     /* Navbar wraps to 2-3 rows on narrow screens, so its real height varies —
        a hardcoded offset here used to get hidden under the sidebar (which sat
        on top), but now that the navbar stays above the sidebar (so its
@@ -356,7 +364,7 @@ select.form-control { padding-right: 2.25rem; }
        screens with many nav items. */
     max-height: calc(100vh - var(--navbar-height, 64px)); overflow-y: auto;
   }
-  .sidebar.open { transform: translateX(0); }
+  .sidebar.open { transform: translate3d(0, 0, 0); }
 
   .btn-menu-toggle { display: inline-flex; }
 
