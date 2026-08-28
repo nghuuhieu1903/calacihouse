@@ -120,9 +120,9 @@
       <div style="display: flex; align-items: center; gap: 0.5rem;" id="nav-month-box">
         <label style="font-size: 0.85rem; font-weight: 700; color: white;" data-i18n="billing_period">Kỳ:</label>
         <select id="select-month" class="form-control" style="width: auto; min-width: 150px; max-width: 100%; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleMonthChange(this)">
-          <option value="2026-08" selected>Tháng 08/2026</option>
-          <option value="2026-07">Tháng 07/2026</option>
-          <option value="2026-06">Tháng 06/2026</option>
+          <!-- Kỳ (billing period) options populated dynamically by
+               renderMonthSelector() — 2 months back through 2 months
+               forward from today's real date, always current. -->
         </select>
       </div>
 
@@ -512,9 +512,7 @@
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="billing_period">Kỳ:</label>
               <select id="spreadsheet-select-month" class="form-control" style="width: auto; min-width: 150px; max-width: 100%; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleMonthChange(this)">
-                <option value="2026-08" selected>Tháng 08/2026</option>
-                <option value="2026-07">Tháng 07/2026</option>
-                <option value="2026-06">Tháng 06/2026</option>
+                <!-- Populated dynamically by renderMonthSelector() -->
               </select>
             </div>
           </div>
@@ -552,9 +550,7 @@
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="billing_period">Kỳ:</label>
               <select id="invoices-select-month" class="form-control" style="width: auto; min-width: 150px; max-width: 100%; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleMonthChange(this)">
-                <option value="2026-08" selected>Tháng 08/2026</option>
-                <option value="2026-07">Tháng 07/2026</option>
-                <option value="2026-06">Tháng 06/2026</option>
+                <!-- Populated dynamically by renderMonthSelector() -->
               </select>
             </div>
           </div>
@@ -598,9 +594,7 @@
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="billing_period">Kỳ:</label>
               <select id="ir-select-month" class="form-control" style="width: auto; min-width: 150px; max-width: 100%; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleMonthChange(this)">
-                <option value="2026-08" selected>Tháng 08/2026</option>
-                <option value="2026-07">Tháng 07/2026</option>
-                <option value="2026-06">Tháng 06/2026</option>
+                <!-- Populated dynamically by renderMonthSelector() -->
               </select>
             </div>
           </div>
@@ -689,9 +683,7 @@
             <div style="display: flex; align-items: center; gap: 0.5rem;">
               <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="billing_period">Kỳ:</label>
               <select id="meterphotos-select-month" class="form-control" style="width: auto; min-width: 150px; max-width: 100%; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleMonthChange(this)">
-                <option value="2026-08" selected>Tháng 08/2026</option>
-                <option value="2026-07">Tháng 07/2026</option>
-                <option value="2026-06">Tháng 06/2026</option>
+                <!-- Populated dynamically by renderMonthSelector() -->
               </select>
             </div>
           </div>

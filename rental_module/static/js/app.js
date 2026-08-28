@@ -81,6 +81,7 @@ const I18N = {
     nav_my_invoices: 'Hóa Đơn Của Tôi',
     nav_send_ticket: 'Gửi Báo Lỗi / Khiếu Nại',
     billing_period: 'Kỳ hóa đơn:',
+    month_select_prefix: 'Tháng',
     stat_revenue: 'Tổng thu dự kiến',
     stat_rooms: 'Số phòng đã thuê',
     stat_pending: 'Hóa đơn chờ thu',
@@ -685,6 +686,7 @@ const I18N = {
     nav_my_invoices: 'My Invoices',
     nav_send_ticket: 'Report An Issue',
     billing_period: 'Billing Period:',
+    month_select_prefix: 'Month',
     stat_revenue: 'Expected Revenue',
     stat_rooms: 'Occupied Rooms',
     stat_pending: 'Pending Invoices',
@@ -1784,6 +1786,39 @@ function renderHouseSelector() {
   renderRoomSelector();
 }
 
+// Kỳ (billing period) options span 2 months back through 2 months forward
+// from today's REAL date, regenerated fresh — this used to be a hardcoded
+// "Tháng 08/2026, 07, 06" baked into the HTML in 5 different places, which
+// would have silently gone stale (no current month in the list at all)
+// the moment the real calendar month rolled past whatever was last
+// hardcoded there. The +2-forward window is deliberate: some
+// bookings/events only ever get set up up to 2 months ahead, and need a
+// billing period to file against before that month actually arrives.
+function renderMonthSelector() {
+  const now = new Date();
+  const months = [];
+  for (let offset = -2; offset <= 2; offset++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  // Whatever's currently selected stays a real option even if it falls
+  // outside that window (e.g. state carried over from a previous session
+  // on a different date) — never silently switch the selected period out
+  // from under the user.
+  if (!months.includes(state.currentMonth)) months.push(state.currentMonth);
+  months.sort();
+
+  const html = months.map(monthStr => {
+    const [y, m] = monthStr.split('-');
+    return `<option value="${monthStr}" ${monthStr === state.currentMonth ? 'selected' : ''}>${t('month_select_prefix')} ${m}/${y}</option>`;
+  }).join('');
+
+  ['select-month', 'invoices-select-month', 'spreadsheet-select-month', 'ir-select-month', 'meterphotos-select-month'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = html;
+  });
+}
+
 function renderRoomSelector() {
   const select = document.getElementById('select-room');
   if (!select) return;
@@ -1851,6 +1886,11 @@ function setLanguage(lang) {
       el.setAttribute('placeholder', I18N[lang][key]);
     }
   });
+
+  // Regenerated on every language switch too — the option text embeds
+  // t('month_select_prefix') ("Tháng"/"Month"), which needs to update
+  // along with everything else data-i18n already covers above.
+  renderMonthSelector();
 
   // switchView() (below, when logged in) calls this too, but on a genuinely
   // fresh/logged-out visit that branch never runs — leaving the login
