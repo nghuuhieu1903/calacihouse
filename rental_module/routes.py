@@ -630,6 +630,23 @@ def export_pending_invoices():
         'Content-Disposition': f'attachment; filename="{filename}"'
     })
 
+@rental_bp.route('/api/backup/export-invoices-zip', methods=['GET'])
+@superadmin_required
+def export_pending_invoices_zip():
+    # A real, readable PDF per invoice instead of a raw JSON dump — one
+    # folder per house inside the ZIP, exactly the format asked for. Same
+    # underlying "what's currently pending" data as the JSON export above,
+    # just rendered instead of serialized.
+    from .pdf_export import generate_invoices_zip
+    month = request.args.get('month') or '2026-08'
+    data = RentalService.get_pending_invoice_backup(month)
+    houses_by_id = {h['id']: h for h in Storage.get_houses()}
+    zip_bytes = generate_invoices_zip(data['invoices'], houses_by_id)
+    filename = f"calacihouse-backup-hoadon-truoc-{data['cutoffMonth']}.zip"
+    return Response(zip_bytes, mimetype='application/zip', headers={
+        'Content-Disposition': f'attachment; filename="{filename}"'
+    })
+
 @rental_bp.route('/api/backup/export-tickets', methods=['GET'])
 @superadmin_required
 def export_pending_tickets():

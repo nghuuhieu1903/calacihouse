@@ -397,6 +397,8 @@ const I18N = {
     retention_summary_nothing_deleted: 'Chưa có dữ liệu nào bị xoá ở lần kiểm tra gần nhất.',
     toast_retention_auto_deleted: 'Đã tự động dọn dữ liệu cũ: {invoices} hóa đơn, {tickets} báo lỗi.',
     btn_download_backup: 'Tải Sao Lưu',
+    btn_download_backup_zip: 'Tải ZIP Hóa Đơn (PDF)',
+    btn_download_backup_json: 'Tải JSON (dữ liệu thô)',
     nav_site_settings: 'Thiết Lập Trang',
     lbl_site_name: 'Tên Website (hiển thị trên thanh điều hướng)',
     lbl_page_title: 'Tiêu Đề Trang',
@@ -1021,6 +1023,8 @@ const I18N = {
     retention_summary_nothing_deleted: 'Nothing was deleted on the last check.',
     toast_retention_auto_deleted: 'Automatically cleaned up old data: {invoices} invoice(s), {tickets} ticket(s).',
     btn_download_backup: 'Download Backup',
+    btn_download_backup_zip: 'Download Invoices ZIP (PDF)',
+    btn_download_backup_json: 'Download JSON (raw data)',
     nav_site_settings: 'Page Settings',
     lbl_site_name: 'Site Name (shown in the navbar)',
     lbl_page_title: 'Page Title',
@@ -6494,9 +6498,14 @@ function renderDataRetentionView() {
     warnHtml += `
       <div class="cala-card" style="background:#fff2ec; border:1px solid #ffd4c2; margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
         <strong style="color:var(--cala-orange); display:flex; align-items:center; gap:0.4rem;"><i data-lucide="alert-triangle"></i> ${tFmt('retention_pending_invoices', { month: formatMonthLabel(s.pendingInvoiceMonth) })}</strong>
-        <a class="btn btn-orange btn-sm" href="${API_BASE}/backup/export-invoices?month=${state.currentMonth}">
-          <i data-lucide="download"></i> ${t('btn_download_backup')}
-        </a>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+          <a class="btn btn-orange btn-sm" href="${API_BASE}/backup/export-invoices-zip?month=${state.currentMonth}">
+            <i data-lucide="file-archive"></i> ${t('btn_download_backup_zip')}
+          </a>
+          <a class="btn btn-secondary btn-sm" href="${API_BASE}/backup/export-invoices?month=${state.currentMonth}">
+            <i data-lucide="download"></i> ${t('btn_download_backup_json')}
+          </a>
+        </div>
       </div>
     `;
   }
