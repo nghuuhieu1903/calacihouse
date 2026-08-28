@@ -374,12 +374,15 @@ select.form-control { padding-right: 2.25rem; }
        navbar slicing across the sidebar's first nav item. --navbar-height is
        measured live in app.js and kept in sync on load/resize. */
     padding-top: var(--navbar-height, 64px);
-    /* No bottom: 0 — the drawer sizes itself to its nav items + footer
-       instead of always stretching to the bottom of the screen, which used
-       to leave a large blank gap and shove the user footer down to the very
-       bottom edge. Capped + scrollable only as a safety net for very short
-       screens with many nav items. */
-    max-height: calc(100vh - var(--navbar-height, 64px)); overflow-y: auto;
+    /* The box itself starts at top:0 (hidden behind the opaque navbar,
+       which sits above it) and padding-top pushes its actual content down
+       below that — so its full height needs to be the WHOLE viewport,
+       not "100vh minus the navbar" (which left its bottom edge that same
+       navbar-height short of the screen's bottom, with the dimmed overlay
+       peeking out underneath — read as the menu being cut off/broken).
+       overflow-y still scrolls the content internally on a short screen
+       with many nav items instead of clipping them. */
+    height: 100vh; overflow-y: auto;
   }
   .sidebar.open { transform: translate3d(0, 0, 0); }
 

@@ -174,6 +174,7 @@ const I18N = {
     toast_login_wrong_credentials_default: 'Sai tên đăng nhập hoặc mật khẩu! Mật khẩu mặc định: 123',
     toast_account_pending_approval: 'Tài khoản của bạn đang chờ Admin duyệt!',
     toast_account_blocked: 'Tài khoản của bạn đã bị khóa!',
+    toast_view_not_permitted: 'Bạn không có quyền truy cập trang này. Liên hệ Super Admin để được cấp quyền.',
     toast_logout_success: 'Đã đăng xuất tài khoản!',
     role_superadmin_label: 'Super Admin',
     role_admin_label: 'Quản trị viên',
@@ -774,6 +775,7 @@ const I18N = {
     toast_login_wrong_credentials_default: 'Incorrect username or password! Default password: 123',
     toast_account_pending_approval: 'Your account is pending Admin approval!',
     toast_account_blocked: 'Your account has been blocked!',
+    toast_view_not_permitted: 'You do not have access to this page. Contact Super Admin for access.',
     toast_logout_success: 'Logged out successfully!',
     role_superadmin_label: 'Super Admin',
     role_admin_label: 'Administrator',
@@ -1521,6 +1523,53 @@ function hasPermission(role, featureKey, action) {
   return !!feature[role][action];
 }
 
+// Single source of truth for which admin-nav view needs which permission —
+// each key needs 'view' on the matching feature to reach that tab at all.
+// admin-spreadsheet checks 'edit' on services instead: it's where readings
+// actually get entered/changed, not just viewed, and managers aren't
+// allowed by default.
+const ADMIN_TAB_PERMISSIONS = {
+  'admin-dashboard': null,
+  'admin-houses': ['houses', 'view'],
+  'admin-services': ['services', 'view'],
+  'admin-spreadsheet': ['services', 'edit'],
+  'admin-invoices': ['invoices', 'view'],
+  'admin-investor-report': ['investor_report', 'view'],
+  'admin-rooms': ['rooms', 'view'],
+  'admin-tickets': ['tickets', 'view'],
+  'admin-users': ['accounts', 'view']
+};
+
+// Used both to hide/show the matching sidebar tab (setupUserRoleUI, below)
+// and — just as importantly — inside switchView() itself to actually
+// BLOCK rendering a restricted view. Hiding the nav button alone doesn't
+// stop anything on its own: several other buttons in this app (Dashboard's
+// "Phím Tắt Thao Tác Nhanh", the services page's own "Mở Bảng Tính..."
+// button, ...) call switchView('admin-services')/('admin-spreadsheet')
+// directly and were never individually permission-checked, so a manager
+// without 'services' access could still reach full service/formula
+// editing through those even with the matching nav tab hidden. Checking
+// once here instead closes that off for every current AND future button
+// that navigates this way, rather than relying on each one to remember.
+function canAccessAdminView(role, viewId) {
+  if (viewId === 'admin-permissions') return role === 'superadmin';
+  // Meter-photo submission is a dedicated Manager tool (see its own view's
+  // comments) — deliberately not in the permission matrix, but admin/
+  // superadmin can still reach it directly since they can do anything a
+  // manager can. Only the nav tab itself stays manager-only, to avoid
+  // cluttering their sidebar with a tool they already have a fuller
+  // version of (the Bảng Tính page).
+  if (viewId === 'admin-meter-photos') return role === 'manager' || role === 'admin' || role === 'superadmin';
+  if (viewId in ADMIN_TAB_PERMISSIONS) {
+    const pair = ADMIN_TAB_PERMISSIONS[viewId];
+    return !pair || hasPermission(role, pair[0], pair[1]);
+  }
+  // Not an admin-nav view at all (investor/saler/tenant's own views, or
+  // the login screen) — those are gated by which nav SECTION shows for
+  // the role, handled separately below, not by this per-tab matrix.
+  return true;
+}
+
 function setupUserRoleUI() {
   const user = state.currentUser;
   if (!user) return;
@@ -1572,28 +1621,11 @@ function setupUserRoleUI() {
     // 'view' on the matching feature. admin-spreadsheet checks 'edit' on
     // services instead: it's where readings actually get entered/changed,
     // not just viewed, and managers are NOT allowed by default.
-    const tabs = {
-      'admin-dashboard': null,
-      'admin-houses': ['houses', 'view'],
-      'admin-services': ['services', 'view'],
-      'admin-spreadsheet': ['services', 'edit'],
-      'admin-invoices': ['invoices', 'view'],
-      'admin-investor-report': ['investor_report', 'view'],
-      'admin-rooms': ['rooms', 'view'],
-      'admin-tickets': ['tickets', 'view'],
-      'admin-users': ['accounts', 'view']
-    };
-    // Not in the `tabs` map above: hasPermission() always returns true for
-    // admin/superadmin regardless of the matrix, but this page is meant
-    // to be Manager-only (Admin/Super Admin already manage meter photos
-    // through the Bảng Tính page), so it needs its own explicit check.
-
     let firstView = null;
-    Object.keys(tabs).forEach(view => {
+    Object.keys(ADMIN_TAB_PERMISSIONS).forEach(view => {
       const btn = document.querySelector(`.admin-nav [data-view="${view}"]`);
       if (btn) {
-        const pair = tabs[view];
-        const allowed = !pair || hasPermission(user.role, pair[0], pair[1]);
+        const allowed = canAccessAdminView(user.role, view);
         btn.style.display = allowed ? 'flex' : 'none';
         if (allowed && !firstView) {
           firstView = view;
@@ -1612,6 +1644,23 @@ function setupUserRoleUI() {
     if (permissionsNav) permissionsNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
     const siteSettingsNav = document.getElementById('nav-site-settings');
     if (siteSettingsNav) siteSettingsNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
+
+    // Shortcut buttons OUTSIDE the sidebar that jump straight to one of
+    // the views above (Dashboard's "Phím Tắt Thao Tác Nhanh", the
+    // spreadsheet page's own "Cấu Hình Dịch Vụ..." button) — switchView()
+    // itself blocks an unpermitted manager from actually landing on the
+    // page these point to now, but leaving the button visible just to
+    // bounce them back with an error toast is a worse experience than not
+    // showing it at all.
+    const toggleBtn = (id, allowed) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = allowed ? '' : 'none';
+    };
+    toggleBtn('qa-btn-services', canAccessAdminView(user.role, 'admin-services'));
+    toggleBtn('qa-btn-spreadsheet', canAccessAdminView(user.role, 'admin-spreadsheet'));
+    toggleBtn('qa-btn-send-invoices', hasPermission(user.role, 'invoices', 'create'));
+    toggleBtn('sp-btn-services', canAccessAdminView(user.role, 'admin-services'));
+    toggleBtn('sp-btn-send-invoices', hasPermission(user.role, 'invoices', 'create'));
 
     if (firstView) {
       switchView(firstView);
@@ -1771,6 +1820,19 @@ function renderCurrentView() {
 }
 
 function switchView(viewId) {
+  // Hiding a nav tab only stops someone from clicking IT — it does nothing
+  // about the other buttons scattered around the app (Dashboard quick
+  // actions, a page's own "mở trang khác" shortcuts, ...) that call
+  // switchView() with a hardcoded view id directly. Checking it here too
+  // means a manager without 'services' access, say, can't reach full
+  // service/formula editing through one of those instead, even if that
+  // particular button was never individually permission-gated.
+  const currentRole = state.currentUser && state.currentUser.role;
+  if (currentRole && ['superadmin', 'admin', 'manager'].includes(currentRole) && !canAccessAdminView(currentRole, viewId)) {
+    showToast(t('toast_view_not_permitted'), 'error');
+    viewId = 'admin-dashboard';
+  }
+
   state.currentView = viewId;
 
   document.querySelectorAll('.nav-item').forEach(item => {

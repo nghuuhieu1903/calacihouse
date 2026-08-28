@@ -337,13 +337,13 @@
             <div class="cala-card">
               <h3 style="margin-bottom: 1.25rem;"><i data-lucide="sparkles" style="color: var(--cala-orange); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="quick_actions">Phím Tắt Thao Tác Nhanh</span></h3>
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
-                <button class="btn btn-blue" onclick="switchView('admin-services')" style="justify-content: center;">
+                <button id="qa-btn-services" class="btn btn-blue" onclick="switchView('admin-services')" style="justify-content: center;">
                   <i data-lucide="sliders"></i> <span data-i18n="nav_services">Cấu Hình Dịch Vụ & Điện Nước</span>
                 </button>
-                <button class="btn btn-blue" onclick="switchView('admin-spreadsheet')" style="justify-content: center;">
+                <button id="qa-btn-spreadsheet" class="btn btn-blue" onclick="switchView('admin-spreadsheet')" style="justify-content: center;">
                   <i data-lucide="edit-3"></i> <span data-i18n="act_enter_utility">Nhập Điện Nước</span>
                 </button>
-                <button class="btn btn-orange" onclick="generateAndSendAllInvoices()" style="justify-content: center;">
+                <button id="qa-btn-send-invoices" class="btn btn-orange" onclick="generateAndSendAllInvoices()" style="justify-content: center;">
                   <i data-lucide="send"></i> <span data-i18n="act_send_invoices">Tự Động Gửi Hóa Đơn</span>
                 </button>
               </div>
@@ -485,10 +485,10 @@
               <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="spreadsheet_subtitle">Đang xem phòng của: <strong id="spreadsheet-house-label" style="color: var(--cala-blue);">Tất Cả Tòa Nhà</strong></p>
             </div>
             <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-              <button class="btn btn-secondary" onclick="switchView('admin-services')">
+              <button id="sp-btn-services" class="btn btn-secondary" onclick="switchView('admin-services')">
                 <i data-lucide="sliders"></i> <span data-i18n="nav_services">Cấu Hình Dịch Vụ & Điện Nước</span>
               </button>
-              <button class="btn btn-orange" onclick="generateAndSendAllInvoices()">
+              <button id="sp-btn-send-invoices" class="btn btn-orange" onclick="generateAndSendAllInvoices()">
                 <i data-lucide="send"></i> <span data-i18n="btn_auto_invoice">Tự Động Gửi Hóa Đơn</span>
               </button>
             </div>
