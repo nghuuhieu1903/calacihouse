@@ -197,6 +197,11 @@
           <i data-lucide="shield-check"></i>
           <span data-i18n="nav_permissions">Phân Quyền Hệ Thống</span>
         </a>
+        <a class="nav-item" data-view="admin-data-retention" id="nav-data-retention" style="display: none;">
+          <i data-lucide="archive"></i>
+          <span data-i18n="nav_data_retention">Sao Lưu Dữ Liệu</span>
+          <span id="retention-pending-badge" class="badge badge-pending" style="margin-left: auto; display: none;">!</span>
+        </a>
         <a class="nav-item" id="nav-site-settings" onclick="openSiteSettingsModal(); return false;" href="#" style="display: none;">
           <i data-lucide="settings"></i>
           <span data-i18n="nav_site_settings">Thiết Lập Trang</span>
@@ -842,6 +847,34 @@
                 <i data-lucide="save"></i> <span data-i18n="btn_save_permissions">Lưu Cấu Hình Phân Quyền</span>
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- SAO LƯU DỮ LIỆU — automatic old-data retention (see
+             check_data_retention() in services.py): invoices/số điện nước
+             kept 3 tháng trailing, ticket kept 1 năm, both purged
+             automatically with a 7-day advance warning shown here. -->
+        <div id="view-admin-data-retention" class="view-panel" style="display: none;">
+          <div style="margin-bottom: 1.5rem;">
+            <h3 data-i18n="retention_title">🗄️ Sao Lưu & Dọn Dữ Liệu Cũ</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="retention_desc">Tự động giải phóng bộ nhớ trên server — hóa đơn/số điện nước lưu 3 tháng gần nhất, báo lỗi lưu 1 năm, cảnh báo trước 7 ngày để bạn kịp tải sao lưu.</p>
+          </div>
+
+          <div id="retention-warning-box"></div>
+
+          <div class="cala-card" style="margin-top: 1.25rem;">
+            <h4 style="margin-bottom: 0.75rem; color: var(--cala-blue);" data-i18n="retention_policy_title">📋 Quy Tắc Đang Áp Dụng</h4>
+            <ul style="font-size: 0.85rem; color: var(--text-secondary); padding-left: 1.25rem; line-height: 1.8;">
+              <li data-i18n="retention_rule_invoices">Hóa đơn & số điện nước: giữ lại 3 tháng gần nhất, tự động xoá tháng cũ hơn.</li>
+              <li data-i18n="retention_rule_tickets">Báo lỗi (ticket): giữ lại 1 năm kể từ ngày gửi, tự động xoá sau đó. Xoá tay không tính vào quy tắc này.</li>
+              <li data-i18n="retention_rule_warning">Luôn cảnh báo trước 7 ngày trên trang này trước khi thực sự xoá, để bạn kịp tải sao lưu về máy nếu cần.</li>
+              <li data-i18n="retention_rule_scope">Ảnh hợp đồng, ảnh phòng, Tòa Nhà/Phòng/Dịch Vụ không bị ảnh hưởng — chỉ áp dụng cho hóa đơn, số điện nước và ticket theo thời gian.</li>
+            </ul>
+          </div>
+
+          <div class="cala-card" style="margin-top: 1.25rem;">
+            <h4 style="margin-bottom: 0.75rem; color: var(--cala-blue);" data-i18n="retention_last_run_title">🕐 Lần Kiểm Tra Gần Nhất</h4>
+            <div id="retention-last-run-summary" style="font-size: 0.85rem; color: var(--text-secondary);"></div>
           </div>
         </div>
 

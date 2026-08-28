@@ -1096,6 +1096,48 @@ class Storage:
             conn.close()
 
     @staticmethod
+    def delete_tickets_by_ids(ticket_ids):
+        """Used by the automatic 1-year retention sweep — a plain manual
+        delete_ticket() one at a time for however many crossed the line in
+        one check. Not used for the regular admin-initiated single delete
+        (that stays delete_ticket, unrelated to this bulk cleanup)."""
+        if not ticket_ids:
+            return
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.executemany("DELETE FROM tickets WHERE id=%s", [(tid,) for tid in ticket_ids])
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_invoices_and_readings_before(cutoff_month):
+        """Removes every invoice and readings-month at or before
+        cutoff_month (inclusive) — e.g. cutoff_month='2026-05' removes May
+        2026 and every earlier month's invoices/readings. 'YYYY-MM' month
+        strings compare correctly as plain text (lexicographic order
+        matches chronological order for this format), no date parsing
+        needed. Returns (deleted_invoice_count, deleted_reading_months) so
+        the caller can report what actually happened."""
+        invoices = Storage.get_invoices()
+        kept = [i for i in invoices if (i.get('month') or '') > cutoff_month]
+        deleted_invoice_count = len(invoices) - len(kept)
+        if deleted_invoice_count:
+            Storage.save_invoices(kept)
+
+        readings = Storage.get_readings()
+        removed_months = sorted(m for m in readings.keys() if m <= cutoff_month)
+        if removed_months:
+            def mutate(data):
+                for m in removed_months:
+                    data.pop(m, None)
+                return data
+            Storage.update_readings(mutate)
+
+        return deleted_invoice_count, removed_months
+
+    @staticmethod
     def next_ticket_number():
         """Monotonic counter for ticket ids, persisted in kv_store
         separately from the tickets table itself — deleting a ticket row

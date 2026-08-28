@@ -1,5 +1,5 @@
 from .storage import Storage
-from datetime import datetime
+from datetime import datetime, timedelta
 import pymysql
 import re
 import uuid
@@ -996,6 +996,111 @@ class RentalService:
     def delete_ticket(ticket_id):
         Storage.delete_ticket(ticket_id)
         return True
+
+    # -- Automatic old-data retention -----------------------------------
+    # Invoices/readings (the biggest storage users — embedded meter photos)
+    # are kept for a trailing 3 months; tickets (with their own embedded
+    # photos) for 1 year. Both give a 7-day advance warning before the
+    # actual delete, so whoever's watching Sao Lưu Dữ Liệu has a window to
+    # download a backup first. Deliberately stateless — nothing here is
+    # stored as "flagged for deletion on date X"; every call re-derives
+    # what's due purely from today's date vs. the data's own month/
+    # timestamp, so it always catches up correctly no matter how long it's
+    # been since the last check ran (there's no cron in this deployment —
+    # see routes.py for where this actually gets invoked).
+    INVOICE_RETENTION_MONTHS = 3
+    TICKET_RETENTION_DAYS = 365
+    RETENTION_GRACE_DAYS = 7
+
+    @staticmethod
+    def _shift_month(month_str, delta_months):
+        """'2026-08' shifted by -3 -> '2026-05'. delta_months can be
+        negative (the only direction actually used here) or positive."""
+        year, month = (int(x) for x in month_str.split('-'))
+        total = year * 12 + (month - 1) + delta_months
+        return f"{total // 12}-{(total % 12) + 1:02d}"
+
+    @staticmethod
+    def check_data_retention(current_month):
+        """Called once per superadmin session (see /api/data-retention/
+        status) — reports what's about to be purged (still inside its
+        7-day grace window) and actually purges whatever's already past
+        it. Safe to call repeatedly; a month/ticket with nothing left to
+        delete is simply a no-op."""
+        today = datetime.now()
+
+        cutoff_month = RentalService._shift_month(current_month, -RentalService.INVOICE_RETENTION_MONTHS)
+        readings = Storage.get_readings()
+        invoices = Storage.get_invoices()
+        has_old_invoice_data = (
+            any(m <= cutoff_month for m in readings.keys())
+            or any((i.get('month') or '') <= cutoff_month for i in invoices)
+        )
+        pending_invoice_month = None
+        deleted_invoice_count = 0
+        deleted_reading_months = []
+        if has_old_invoice_data:
+            if today.day <= RentalService.RETENTION_GRACE_DAYS:
+                pending_invoice_month = cutoff_month
+            else:
+                deleted_invoice_count, deleted_reading_months = Storage.delete_invoices_and_readings_before(cutoff_month)
+
+        ticket_delete_cutoff = today - timedelta(days=RentalService.TICKET_RETENTION_DAYS)
+        ticket_warn_cutoff = today - timedelta(days=RentalService.TICKET_RETENTION_DAYS - RentalService.RETENTION_GRACE_DAYS)
+        tickets = Storage.get_tickets_light()
+        pending_ticket_count = 0
+        ticket_ids_to_delete = []
+        for tk in tickets:
+            try:
+                ts = datetime.strptime(tk.get('timestamp') or '', '%Y-%m-%d %H:%M')
+            except (ValueError, TypeError):
+                continue
+            if ts < ticket_delete_cutoff:
+                ticket_ids_to_delete.append(tk['id'])
+            elif ts < ticket_warn_cutoff:
+                pending_ticket_count += 1
+        Storage.delete_tickets_by_ids(ticket_ids_to_delete)
+
+        return {
+            'pendingInvoiceMonth': pending_invoice_month,
+            'deletedInvoiceCount': deleted_invoice_count,
+            'deletedReadingMonths': deleted_reading_months,
+            'pendingTicketCount': pending_ticket_count,
+            'deletedTicketCount': len(ticket_ids_to_delete)
+        }
+
+    @staticmethod
+    def get_pending_invoice_backup(current_month):
+        """Everything that check_data_retention() would currently report
+        as 'pending' (still inside its grace window) — used by the backup
+        download button so what gets exported always matches what the
+        warning banner is actually about."""
+        cutoff_month = RentalService._shift_month(current_month, -RentalService.INVOICE_RETENTION_MONTHS)
+        readings = Storage.get_readings()
+        invoices = Storage.get_invoices()
+        return {
+            'cutoffMonth': cutoff_month,
+            'invoices': [i for i in invoices if (i.get('month') or '') <= cutoff_month],
+            'readings': {m: r for m, r in readings.items() if m <= cutoff_month}
+        }
+
+    @staticmethod
+    def get_pending_ticket_backup():
+        """Full detail (images/comments included, unlike the light list
+        used for the badge count) for every ticket currently inside its
+        1-year-retention warning window."""
+        today = datetime.now()
+        ticket_delete_cutoff = today - timedelta(days=RentalService.TICKET_RETENTION_DAYS)
+        ticket_warn_cutoff = today - timedelta(days=RentalService.TICKET_RETENTION_DAYS - RentalService.RETENTION_GRACE_DAYS)
+        pending_ids = []
+        for tk in Storage.get_tickets_light():
+            try:
+                ts = datetime.strptime(tk.get('timestamp') or '', '%Y-%m-%d %H:%M')
+            except (ValueError, TypeError):
+                continue
+            if ticket_delete_cutoff <= ts < ticket_warn_cutoff:
+                pending_ids.append(tk['id'])
+        return [Storage.get_ticket_full(tid) for tid in pending_ids]
 
     # -- Room Documents (contract & related images) --------------------------
 

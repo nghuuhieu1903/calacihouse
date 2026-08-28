@@ -378,6 +378,25 @@ const I18N = {
     nav_rooms: 'Quản Lý Phòng',
     nav_meter_photos: 'Cập Nhật Ảnh Số Điện',
     nav_permissions: 'Phân Quyền Hệ Thống',
+    nav_data_retention: 'Sao Lưu Dữ Liệu',
+    retention_title: '🗄️ Sao Lưu & Dọn Dữ Liệu Cũ',
+    retention_desc: 'Tự động giải phóng bộ nhớ trên server — hóa đơn/số điện nước lưu 3 tháng gần nhất, báo lỗi lưu 1 năm, cảnh báo trước 7 ngày để bạn kịp tải sao lưu.',
+    retention_policy_title: '📋 Quy Tắc Đang Áp Dụng',
+    retention_rule_invoices: 'Hóa đơn & số điện nước: giữ lại 3 tháng gần nhất, tự động xoá tháng cũ hơn.',
+    retention_rule_tickets: 'Báo lỗi (ticket): giữ lại 1 năm kể từ ngày gửi, tự động xoá sau đó. Xoá tay không tính vào quy tắc này.',
+    retention_rule_warning: 'Luôn cảnh báo trước 7 ngày trên trang này trước khi thực sự xoá, để bạn kịp tải sao lưu về máy nếu cần.',
+    retention_rule_scope: 'Ảnh hợp đồng, ảnh phòng, Tòa Nhà/Phòng/Dịch Vụ không bị ảnh hưởng — chỉ áp dụng cho hóa đơn, số điện nước và ticket theo thời gian.',
+    retention_last_run_title: '🕐 Lần Kiểm Tra Gần Nhất',
+    retention_not_checked_yet: 'Đang kiểm tra...',
+    retention_pending_invoices: 'Hóa đơn & số điện nước từ {month} trở về trước sẽ tự động bị xoá trong vòng 7 ngày tới.',
+    retention_pending_tickets: '{count} báo lỗi sắp tròn 1 năm, sẽ tự động bị xoá trong vòng 7 ngày tới.',
+    retention_all_clear: 'Hiện không có dữ liệu nào sắp bị xoá.',
+    retention_summary_deleted_invoices: 'Đã tự động xoá {count} hóa đơn cũ.',
+    retention_summary_deleted_readings: 'Đã xoá số điện nước các tháng: {months}.',
+    retention_summary_deleted_tickets: 'Đã tự động xoá {count} báo lỗi quá 1 năm.',
+    retention_summary_nothing_deleted: 'Chưa có dữ liệu nào bị xoá ở lần kiểm tra gần nhất.',
+    toast_retention_auto_deleted: 'Đã tự động dọn dữ liệu cũ: {invoices} hóa đơn, {tickets} báo lỗi.',
+    btn_download_backup: 'Tải Sao Lưu',
     nav_site_settings: 'Thiết Lập Trang',
     lbl_site_name: 'Tên Website (hiển thị trên thanh điều hướng)',
     lbl_page_title: 'Tiêu Đề Trang',
@@ -983,6 +1002,25 @@ const I18N = {
     nav_rooms: 'Room Management',
     nav_meter_photos: 'Electricity Meter Photo Updates',
     nav_permissions: 'System Permissions',
+    nav_data_retention: 'Data Backup',
+    retention_title: '🗄️ Backup & Clean Up Old Data',
+    retention_desc: 'Automatically frees up storage on the server — invoices/meter readings kept for the trailing 3 months, tickets kept 1 year, with a 7-day warning before anything is actually deleted so you have time to back up.',
+    retention_policy_title: '📋 Current Policy',
+    retention_rule_invoices: 'Invoices & meter readings: kept for the trailing 3 months, older ones deleted automatically.',
+    retention_rule_tickets: 'Tickets: kept for 1 year from when they were sent, then deleted automatically. Manually deleting one has no effect on this rule.',
+    retention_rule_warning: 'Always shows a 7-day warning on this page before actually deleting anything, so you have time to download a backup if needed.',
+    retention_rule_scope: 'Contract photos, room photos, and Houses/Rooms/Services are not affected — this only applies to invoices, meter readings, and tickets, based on their age.',
+    retention_last_run_title: '🕐 Last Check',
+    retention_not_checked_yet: 'Checking...',
+    retention_pending_invoices: 'Invoices & meter readings from {month} and earlier will be automatically deleted within the next 7 days.',
+    retention_pending_tickets: '{count} ticket(s) about to turn 1 year old will be automatically deleted within the next 7 days.',
+    retention_all_clear: 'Nothing is currently scheduled for deletion.',
+    retention_summary_deleted_invoices: 'Automatically deleted {count} old invoice(s).',
+    retention_summary_deleted_readings: 'Deleted meter readings for: {months}.',
+    retention_summary_deleted_tickets: 'Automatically deleted {count} ticket(s) over 1 year old.',
+    retention_summary_nothing_deleted: 'Nothing was deleted on the last check.',
+    toast_retention_auto_deleted: 'Automatically cleaned up old data: {invoices} invoice(s), {tickets} ticket(s).',
+    btn_download_backup: 'Download Backup',
     nav_site_settings: 'Page Settings',
     lbl_site_name: 'Site Name (shown in the navbar)',
     lbl_page_title: 'Page Title',
@@ -1409,6 +1447,11 @@ async function handleLogin(event) {
       // the real matrix, or a manager account never sees anything beyond
       // Tổng Quan for the rest of the session.
       setupUserRoleUI();
+      // No-op for anyone but superadmin — see checkDataRetention(). This
+      // is the actual trigger for "automatic" old-data cleanup in a
+      // deployment with no cron of its own: once per login, not on every
+      // single request.
+      checkDataRetention();
     } else {
       showToast(data.error || t('toast_login_wrong_credentials'), 'error');
     }
@@ -1537,6 +1580,7 @@ async function restoreSession() {
         // Same reasoning as handleLogin() — re-run once state.permissions
         // is actually populated.
         setupUserRoleUI();
+        checkDataRetention();
       }
     }
   } catch (err) {
@@ -1602,6 +1646,7 @@ const ADMIN_TAB_PERMISSIONS = {
 // that navigates this way, rather than relying on each one to remember.
 function canAccessAdminView(role, viewId) {
   if (viewId === 'admin-permissions') return role === 'superadmin';
+  if (viewId === 'admin-data-retention') return role === 'superadmin';
   // Manager's home is Xử Lý Báo Lỗi, not the revenue-oriented Tổng Quan —
   // deliberately hardcoded per-role rather than a matrix toggle, since
   // there's no "view" action on a feature called 'dashboard' to hang a
@@ -1705,6 +1750,8 @@ function setupUserRoleUI() {
     if (permissionsNav) permissionsNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
     const siteSettingsNav = document.getElementById('nav-site-settings');
     if (siteSettingsNav) siteSettingsNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
+    const dataRetentionNav = document.getElementById('nav-data-retention');
+    if (dataRetentionNav) dataRetentionNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
 
     // Shortcut buttons OUTSIDE the sidebar that jump straight to one of
     // the views above (Dashboard's "Phím Tắt Thao Tác Nhanh", the
@@ -2028,6 +2075,11 @@ function switchView(viewId) {
       titleEl.innerText = dict.view_admin_permissions_title;
       subtitleEl.innerText = dict.view_admin_permissions_subtitle;
       renderAdminPermissions();
+      break;
+    case 'admin-data-retention':
+      titleEl.innerText = dict.retention_title;
+      subtitleEl.innerText = dict.retention_desc;
+      renderDataRetentionView();
       break;
     case 'investor-dashboard':
       titleEl.innerText = dict.nav_investor_dashboard;
@@ -6385,6 +6437,91 @@ function formatMoney(num) {
 function formatMonthLabel(monthStr) {
   const [year, month] = monthStr.split('-');
   return `${month}/${year}`;
+}
+
+// t('some_key_with_{placeholder}') then swap in each named value — reads
+// easier at the call site than the usual prefix/suffix pair of i18n keys
+// stitched around a bare number, for messages with several moving parts.
+function tFmt(key, replacements) {
+  let str = t(key);
+  Object.keys(replacements || {}).forEach(k => { str = str.split(`{${k}}`).join(replacements[k]); });
+  return str;
+}
+
+/* =====================================================================
+   SAO LƯU & DỌN DỮ LIỆU CŨ — automatic retention (see
+   check_data_retention() in services.py for the actual policy/grace-
+   period logic; this is purely the status display + download links).
+===================================================================== */
+let _retentionStatus = null;
+
+async function checkDataRetention() {
+  if (!state.currentUser || state.currentUser.role !== 'superadmin') return;
+  try {
+    const res = await fetch(`${API_BASE}/data-retention/status?month=${state.currentMonth}`);
+    const data = await res.json();
+    if (!data.success) return;
+    _retentionStatus = data;
+
+    const badge = document.getElementById('retention-pending-badge');
+    const hasPending = !!data.pendingInvoiceMonth || data.pendingTicketCount > 0;
+    if (badge) badge.style.display = hasPending ? 'inline-flex' : 'none';
+
+    if (data.deletedInvoiceCount > 0 || data.deletedTicketCount > 0) {
+      showToast(tFmt('toast_retention_auto_deleted', { invoices: data.deletedInvoiceCount, tickets: data.deletedTicketCount }), 'info');
+    }
+    if (state.currentView === 'admin-data-retention') renderDataRetentionView();
+  } catch (err) {
+    console.warn('Could not check data retention:', err);
+  }
+}
+
+function renderDataRetentionView() {
+  const warnBox = document.getElementById('retention-warning-box');
+  const summaryBox = document.getElementById('retention-last-run-summary');
+  if (!warnBox || !summaryBox) return;
+
+  if (!_retentionStatus) {
+    warnBox.innerHTML = '';
+    summaryBox.innerHTML = `<em>${t('retention_not_checked_yet')}</em>`;
+    checkDataRetention();
+    return;
+  }
+
+  const s = _retentionStatus;
+  let warnHtml = '';
+  if (s.pendingInvoiceMonth) {
+    warnHtml += `
+      <div class="cala-card" style="background:#fff2ec; border:1px solid #ffd4c2; margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+        <strong style="color:var(--cala-orange); display:flex; align-items:center; gap:0.4rem;"><i data-lucide="alert-triangle"></i> ${tFmt('retention_pending_invoices', { month: formatMonthLabel(s.pendingInvoiceMonth) })}</strong>
+        <a class="btn btn-orange btn-sm" href="${API_BASE}/backup/export-invoices?month=${state.currentMonth}">
+          <i data-lucide="download"></i> ${t('btn_download_backup')}
+        </a>
+      </div>
+    `;
+  }
+  if (s.pendingTicketCount > 0) {
+    warnHtml += `
+      <div class="cala-card" style="background:#fff2ec; border:1px solid #ffd4c2; margin-bottom:0.75rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.75rem;">
+        <strong style="color:var(--cala-orange); display:flex; align-items:center; gap:0.4rem;"><i data-lucide="alert-triangle"></i> ${tFmt('retention_pending_tickets', { count: s.pendingTicketCount })}</strong>
+        <a class="btn btn-orange btn-sm" href="${API_BASE}/backup/export-tickets">
+          <i data-lucide="download"></i> ${t('btn_download_backup')}
+        </a>
+      </div>
+    `;
+  }
+  if (!warnHtml) {
+    warnHtml = `<div class="cala-card" style="background:#e6f9f2; border:1px solid #b3f2db; color:var(--cala-emerald); display:flex; align-items:center; gap:0.5rem;"><i data-lucide="check-circle"></i> ${t('retention_all_clear')}</div>`;
+  }
+  warnBox.innerHTML = warnHtml;
+
+  const lines = [];
+  if (s.deletedInvoiceCount > 0) lines.push(tFmt('retention_summary_deleted_invoices', { count: s.deletedInvoiceCount }));
+  if (s.deletedReadingMonths && s.deletedReadingMonths.length) lines.push(tFmt('retention_summary_deleted_readings', { months: s.deletedReadingMonths.map(formatMonthLabel).join(', ') }));
+  if (s.deletedTicketCount > 0) lines.push(tFmt('retention_summary_deleted_tickets', { count: s.deletedTicketCount }));
+  summaryBox.innerHTML = lines.length ? lines.map(l => `<div>${l}</div>`).join('') : `<em>${t('retention_summary_nothing_deleted')}</em>`;
+
+  renderIcons(warnBox);
 }
 
 function showToast(message, type = 'info') {

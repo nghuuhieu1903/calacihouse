@@ -1,6 +1,8 @@
 import os
 import re
+import json
 import base64
+from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, url_for, Response
 from .services import RentalService
 from .storage import Storage
@@ -603,6 +605,40 @@ def delete_ticket():
     ticket_id = data.get('ticketId')
     success = RentalService.delete_ticket(ticket_id)
     return jsonify({'success': success})
+
+@rental_bp.route('/api/data-retention/status', methods=['GET'])
+@superadmin_required
+def data_retention_status():
+    # Runs (and, once past the grace window, actually executes) the
+    # automatic old-data cleanup — see check_data_retention()'s own
+    # docstring for why this is the trigger point instead of a real cron
+    # job: called once after every superadmin login (app.js) and whenever
+    # Sao Lưu Dữ Liệu is opened, so it stays "automatic" from the admin's
+    # perspective without this deployment needing its own scheduler.
+    month = request.args.get('month') or '2026-08'
+    result = RentalService.check_data_retention(month)
+    return jsonify({'success': True, **result})
+
+@rental_bp.route('/api/backup/export-invoices', methods=['GET'])
+@superadmin_required
+def export_pending_invoices():
+    month = request.args.get('month') or '2026-08'
+    data = RentalService.get_pending_invoice_backup(month)
+    body = json.dumps(data, ensure_ascii=False, indent=2)
+    filename = f"calacihouse-backup-hoadon-truoc-{data['cutoffMonth']}.json"
+    return Response(body, mimetype='application/json', headers={
+        'Content-Disposition': f'attachment; filename="{filename}"'
+    })
+
+@rental_bp.route('/api/backup/export-tickets', methods=['GET'])
+@superadmin_required
+def export_pending_tickets():
+    tickets = RentalService.get_pending_ticket_backup()
+    body = json.dumps(tickets, ensure_ascii=False, indent=2)
+    filename = f"calacihouse-backup-ticket-{datetime.now().strftime('%Y-%m-%d')}.json"
+    return Response(body, mimetype='application/json', headers={
+        'Content-Disposition': f'attachment; filename="{filename}"'
+    })
 
 def _user_can_view_room_documents(user, room_id):
     """Gate for the on-demand full-document endpoint below — the bulk
