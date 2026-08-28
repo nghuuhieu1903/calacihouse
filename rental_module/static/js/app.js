@@ -1589,6 +1589,11 @@ const ADMIN_TAB_PERMISSIONS = {
 // that navigates this way, rather than relying on each one to remember.
 function canAccessAdminView(role, viewId) {
   if (viewId === 'admin-permissions') return role === 'superadmin';
+  // Manager's home is Xử Lý Báo Lỗi, not the revenue-oriented Tổng Quan —
+  // deliberately hardcoded per-role rather than a matrix toggle, since
+  // there's no "view" action on a feature called 'dashboard' to hang a
+  // checkbox off of; admin/superadmin still land there as usual.
+  if (viewId === 'admin-dashboard') return role !== 'manager';
   // Meter-photo submission is a dedicated Manager tool (see its own view's
   // comments) — deliberately not in the permission matrix, but admin/
   // superadmin can still reach it directly since they can do anything a
@@ -1668,6 +1673,13 @@ function setupUserRoleUI() {
         }
       }
     });
+    // Manager's landing view is always Xử Lý Báo Lỗi specifically (not
+    // just "whichever tab happens to come first" — admin-houses would
+    // otherwise win that by object-key order for a manager who only has
+    // houses:view), as long as they still have tickets:view at all.
+    if (user.role === 'manager' && canAccessAdminView('manager', 'admin-tickets')) {
+      firstView = 'admin-tickets';
+    }
 
     // Phân Quyền Hệ Thống and Thiết Lập Trang aren't in the `tabs` map
     // above — both are fixed superadmin-only levers, never driven by the
@@ -1697,6 +1709,8 @@ function setupUserRoleUI() {
     toggleBtn('qa-btn-send-invoices', hasPermission(user.role, 'invoices', 'create'));
     toggleBtn('sp-btn-services', canAccessAdminView(user.role, 'admin-services'));
     toggleBtn('sp-btn-send-invoices', hasPermission(user.role, 'invoices', 'create'));
+    toggleBtn('btn-add-house', hasPermission(user.role, 'houses', 'create'));
+    toggleBtn('btn-add-room', hasPermission(user.role, 'rooms', 'create'));
 
     // Dashboard money widgets — tied to the same 'invoices':'view'
     // permission that already gates the whole Quản Lý Hóa Đơn tab, so a
@@ -1878,7 +1892,10 @@ function switchView(viewId) {
   const currentRole = state.currentUser && state.currentUser.role;
   if (currentRole && ['superadmin', 'admin', 'manager'].includes(currentRole) && !canAccessAdminView(currentRole, viewId)) {
     showToast(t('toast_view_not_permitted'), 'error');
-    viewId = 'admin-dashboard';
+    // admin-dashboard is itself off-limits to manager (see
+    // canAccessAdminView) — falling back to it here would just bounce a
+    // blocked manager into another blocked page instead of a real one.
+    viewId = currentRole === 'manager' ? 'admin-tickets' : 'admin-dashboard';
   }
 
   state.currentView = viewId;
@@ -3145,9 +3162,9 @@ function renderSpreadsheet() {
       <td style="text-align: right; font-weight: 800; color: var(--cala-orange); font-size: 0.95rem;">💰 ${formatMoney(grandTotal)} đ</td>
       <td>
         <div style="display:flex; gap:0.4rem;">
-          <button class="btn btn-secondary btn-sm" onclick="openEditRoomModal('${r.id}')" title="${t('title_edit_room_price')}">
+          ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `<button class="btn btn-secondary btn-sm" onclick="openEditRoomModal('${r.id}')" title="${t('title_edit_room_price')}">
             <i data-lucide="edit-3"></i> ${t('btn_edit_price')}
-          </button>
+          </button>` : ''}
           <button class="btn btn-secondary btn-sm" onclick="previewRoomInvoice('${r.id}')" title="${t('title_view_invoice')}">
             <i data-lucide="eye"></i>
           </button>
@@ -4707,9 +4724,9 @@ function renderRoomsManagement() {
                 </div>
               ` : ''}
               <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                <button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditRoomModal('${r.id}')">
+                ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `<button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditRoomModal('${r.id}')">
                   <i data-lucide="edit-2"></i> ${t('btn_edit')}
-                </button>
+                </button>` : ''}
                 <button class="btn btn-orange btn-sm" style="flex:1; justify-content:center;" onclick="openRoomDocumentsModal('${r.id}')">
                   <i data-lucide="image"></i> ${t('contract_photos_label')}${(state.roomDocuments[r.id] || []).length ? ` (${(state.roomDocuments[r.id] || []).length})` : ''}
                 </button>
