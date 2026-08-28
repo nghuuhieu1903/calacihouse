@@ -5290,11 +5290,15 @@ function renderRoomDocumentsList() {
   renderIcons(container);
 }
 
+// Used by every "click a photo thumbnail to see it bigger" spot that
+// isn't the ticket-photo call sites (which already call
+// openImageLightbox directly): room documents, room photos, investor
+// expense receipts, tenant's own contract photos. All of these used to
+// open a brand new browser tab and write the image into it — same fix as
+// tickets, same shared popup, instead of a second, inconsistent
+// mechanism.
 function viewDocumentFullSize(dataUrl) {
-  const win = window.open('');
-  if (win) {
-    win.document.write(`<img src="${dataUrl}" style="max-width:100%; display:block; margin:0 auto;">`);
-  }
+  openImageLightbox(dataUrl);
 }
 
 /* =====================================================================
