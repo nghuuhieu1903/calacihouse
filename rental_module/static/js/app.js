@@ -175,6 +175,7 @@ const I18N = {
     toast_account_pending_approval: 'Tài khoản của bạn đang chờ Admin duyệt!',
     toast_account_blocked: 'Tài khoản của bạn đã bị khóa!',
     toast_view_not_permitted: 'Bạn không có quyền truy cập trang này. Liên hệ Super Admin để được cấp quyền.',
+    toast_action_not_permitted: 'Bạn không có quyền thực hiện thao tác này. Thay đổi chưa được lưu — dữ liệu đã được khôi phục.',
     toast_logout_success: 'Đã đăng xuất tài khoản!',
     role_superadmin_label: 'Super Admin',
     role_admin_label: 'Quản trị viên',
@@ -776,6 +777,7 @@ const I18N = {
     toast_account_pending_approval: 'Your account is pending Admin approval!',
     toast_account_blocked: 'Your account has been blocked!',
     toast_view_not_permitted: 'You do not have access to this page. Contact Super Admin for access.',
+    toast_action_not_permitted: 'You do not have permission to do this. Your change was not saved — data has been restored.',
     toast_logout_success: 'Logged out successfully!',
     role_superadmin_label: 'Super Admin',
     role_admin_label: 'Administrator',
@@ -1303,6 +1305,40 @@ let state = {
 
 const API_BASE = '/api';
 
+// Wraps a mutating POST request with the response check most of this
+// file's save/edit handlers used to skip — fetch() only rejects on a
+// network failure, NEVER on an HTTP error status, so a plain
+// `try { await fetch(...) } catch { ... }` around a 403 (wrong
+// permission), 400, or 500 response doesn't throw at all: the code falls
+// straight through to whatever "success" toast came next. Combined with
+// updating state.* optimistically *before* the request, that showed a
+// manager without 'houses':'edit', say, a convincing "saved!" toast and
+// the edited value sitting right there in the list — even though the
+// server had just rejected the write and never persisted it. Re-syncs
+// from the server on any failure (permission denied, validation error,
+// lost connection, ...) instead of trying to hand-unwind whatever
+// optimistic edit was already applied locally.
+async function postAndVerify(url, body) {
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success === false) {
+      showToast(data.error || t('toast_action_not_permitted'), 'error');
+      await fetchState();
+      return null;
+    }
+    return data;
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+    await fetchState();
+    return null;
+  }
+}
+
 // Set while switchView() is running because a browser back/forward
 // (popstate) triggered it — see the listener near DOMContentLoaded below —
 // so switchView() itself knows not to push ANOTHER history entry for a
@@ -1661,6 +1697,18 @@ function setupUserRoleUI() {
     toggleBtn('qa-btn-send-invoices', hasPermission(user.role, 'invoices', 'create'));
     toggleBtn('sp-btn-services', canAccessAdminView(user.role, 'admin-services'));
     toggleBtn('sp-btn-send-invoices', hasPermission(user.role, 'invoices', 'create'));
+
+    // Dashboard money widgets — tied to the same 'invoices':'view'
+    // permission that already gates the whole Quản Lý Hóa Đơn tab, so a
+    // manager without invoice access doesn't see revenue/collection
+    // figures folded into their dashboard either. Superadmin/admin always
+    // pass hasPermission(), so this never hides anything for them.
+    const canSeeMoney = hasPermission(user.role, 'invoices', 'view');
+    toggleBtn('stat-card-revenue', canSeeMoney);
+    toggleBtn('stat-card-pending-invoices', canSeeMoney);
+    toggleBtn('dashboard-invoice-status-card', canSeeMoney);
+    const lowerGrid = document.getElementById('dashboard-lower-grid');
+    if (lowerGrid) lowerGrid.style.gridTemplateColumns = canSeeMoney ? '2fr 1fr' : '1fr';
 
     if (firstView) {
       switchView(firstView);
@@ -2203,18 +2251,10 @@ function openEditCustomIconPrompt(iconId) {
 }
 
 async function persistCustomIcons() {
-  try {
-    await fetch(`${API_BASE}/custom-icons/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ icons: state.customIcons })
-    });
-  } catch (err) {
-    console.warn('Custom icons saved locally:', err);
-  }
+  return !!(await postAndVerify(`${API_BASE}/custom-icons/save`, { icons: state.customIcons }));
 }
 
-function saveCustomIcon(event) {
+async function saveCustomIcon(event) {
   event.preventDefault();
   const id = document.getElementById('custom-icon-id').value;
   const symbol = document.getElementById('custom-icon-symbol').value.trim();
@@ -2230,13 +2270,14 @@ function saveCustomIcon(event) {
     selectServiceIcon(newItem.id, newItem.symbol);
   }
 
-  persistCustomIcons();
+  const ok = await persistCustomIcons();
+  if (!ok) { renderIconPicker(document.getElementById('service-icon').value); return; }
   renderIconPicker(document.getElementById('service-icon').value);
   closeModal('modal-custom-icon');
   showToast(t('toast_icon_saved'), 'success');
 }
 
-function deleteCustomIcon() {
+async function deleteCustomIcon() {
   const id = document.getElementById('custom-icon-id').value;
   if (!id) return;
   if (!confirm(t('confirm_delete_icon'))) return;
@@ -2248,7 +2289,8 @@ function deleteCustomIcon() {
   if (document.getElementById('service-icon').value === id) {
     selectServiceIcon('package', '📦');
   }
-  persistCustomIcons();
+  const ok = await persistCustomIcons();
+  if (!ok) { renderIconPicker(document.getElementById('service-icon').value); return; }
   renderIconPicker(document.getElementById('service-icon').value);
   closeModal('modal-custom-icon');
   showToast(t('toast_icon_deleted'), 'success');
@@ -2286,21 +2328,19 @@ async function saveHouse(event) {
   const description = document.getElementById('house-desc').value.trim();
 
   const hObj = { id: id || genId('house_'), name, address, description };
+
+  // Applied to local state only after the server actually confirms the
+  // write (see postAndVerify) — a manager without 'houses':'edit' used to
+  // see this succeed regardless, since the old code updated state.houses
+  // and showed "saved!" before even checking the response.
+  const data = await postAndVerify(`${API_BASE}/houses/save`, hObj);
+  if (!data) return;
+
   const idx = state.houses.findIndex(h => h.id === hObj.id);
   if (idx >= 0) state.houses[idx] = hObj;
   else state.houses.push(hObj);
 
   state.currentHouseId = hObj.id;
-
-  try {
-    await fetch(`${API_BASE}/houses/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(hObj)
-    });
-  } catch (err) {
-    console.warn('Saved house locally:', err);
-  }
 
   if (isEdit) {
     showToast(`${t('toast_house_updated_prefix')}"${name}"${t('toast_house_updated_suffix')}`, 'success');
@@ -2337,9 +2377,9 @@ function renderHousesManagement() {
             </div>
             ${h.description ? `<div style="font-size:0.82rem; color:var(--text-secondary); margin-bottom:0.75rem;">${h.description}</div>` : ''}
             <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
-              <button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditHouseModal('${h.id}')">
+              ${hasPermission(state.currentUser.role, 'houses', 'edit') ? `<button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditHouseModal('${h.id}')">
                 <i data-lucide="edit-2"></i> ${t('btn_edit')}
-              </button>
+              </button>` : ''}
               ${canDelete() ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteHouseConfirm('${h.id}')">
                 <i data-lucide="trash-2"></i>
               </button>` : ''}
@@ -2664,6 +2704,9 @@ async function saveService(event) {
     sObj.unit = document.getElementById('service-unit').value;
   }
 
+  const data = await postAndVerify(`${API_BASE}/services/save`, sObj);
+  if (!data) return;
+
   const idx = state.services.findIndex(s => s.id === sObj.id);
   if (idx >= 0) state.services[idx] = sObj;
   else state.services.push(sObj);
@@ -2676,16 +2719,6 @@ async function saveService(event) {
         delete state.readings[state.currentMonth][r.id].parkingFee;
       }
     });
-  }
-
-  try {
-    await fetch(`${API_BASE}/services/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(sObj)
-    });
-  } catch (err) {
-    console.warn('Service saved locally:', err);
   }
 
   showToast(`${t('toast_service_saved_prefix')}"${name}" (${symbol})${t('toast_service_saved_suffix')}`, 'success');
@@ -3219,15 +3252,8 @@ async function updateReadingApi(roomId, field, value) {
   if (!state.readings[state.currentMonth][roomId]) state.readings[state.currentMonth][roomId] = {};
   state.readings[state.currentMonth][roomId][field] = isReadingTextField(field) ? value : (parseFloat(value) || 0);
 
-  try {
-    await fetch(`${API_BASE}/readings/update`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ month: state.currentMonth, roomId, field, value })
-    });
-  } catch (err) {
-    console.warn('API error, reading updated locally:', err);
-  }
+  const data = await postAndVerify(`${API_BASE}/readings/update`, { month: state.currentMonth, roomId, field, value });
+  if (!data) return;
   renderSpreadsheet();
 }
 
@@ -3285,15 +3311,8 @@ async function generateAndSendAllInvoices() {
     else state.invoices.push(invObj);
   });
 
-  try {
-    await fetch(`${API_BASE}/invoices/generate-all`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ month: state.currentMonth })
-    });
-  } catch (err) {
-    console.warn('Invoice generated locally:', err);
-  }
+  const data = await postAndVerify(`${API_BASE}/invoices/generate-all`, { month: state.currentMonth });
+  if (!data) return;
 
   showToast(`${t('toast_invoices_issued_prefix')}${formatMonthLabel(state.currentMonth)}!`, 'success');
   renderCurrentView();
@@ -3336,15 +3355,8 @@ async function markInvoicePaidApi(invoiceId) {
   const inv = state.invoices.find(i => i.id === invoiceId);
   if (inv) inv.status = 'Đã thanh toán';
 
-  try {
-    await fetch(`${API_BASE}/invoices/mark-paid`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ invoiceId })
-    });
-  } catch (err) {
-    console.warn('Marked paid locally:', err);
-  }
+  const data = await postAndVerify(`${API_BASE}/invoices/mark-paid`, { invoiceId });
+  if (!data) return;
 
   showToast(`${t('toast_invoice_marked_paid_prefix')}${invoiceId}!`, 'success');
   renderAdminInvoices();
@@ -3557,15 +3569,8 @@ async function saveServiceInvestorShareInline(serviceId) {
   const value = parseFloat(document.getElementById(`svc-value-${serviceId}`).value) || 0;
   service.investorShare = { enabled, mode, value: mode === 'full' ? 0 : value };
 
-  try {
-    await fetch(`${API_BASE}/services/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(service)
-    });
-  } catch (err) {
-    console.warn('Service investor-share saved locally:', err);
-  }
+  const data = await postAndVerify(`${API_BASE}/services/save`, service);
+  if (!data) { renderInvestorReport(); return; }
   showToast(t('toast_service_investor_share_saved'), 'success');
   renderInvestorReport();
 }
@@ -3645,15 +3650,8 @@ async function saveHouseManagerFee(houseId) {
   const house = state.houses.find(h => h.id === houseId);
   if (house) house.managerFee = { mode, value };
 
-  try {
-    await fetch(`${API_BASE}/houses/manager-fee/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ houseId, mode, value })
-    });
-  } catch (err) {
-    console.warn('Manager fee saved locally:', err);
-  }
+  const data = await postAndVerify(`${API_BASE}/houses/manager-fee/save`, { houseId, mode, value });
+  if (!data) { renderInvestorReport(); return; }
   showToast(t('toast_manager_fee_saved'), 'success');
   renderInvestorReport();
 }
@@ -3670,15 +3668,8 @@ async function saveInvestorReportOverride(houseId) {
   if (idx >= 0) state.investorReportOverrides[idx] = oObj;
   else state.investorReportOverrides.push(oObj);
 
-  try {
-    await fetch(`${API_BASE}/investor-report-overrides/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ houseId, month, amount })
-    });
-  } catch (err) {
-    console.warn('Override saved locally:', err);
-  }
+  const data = await postAndVerify(`${API_BASE}/investor-report-overrides/save`, { houseId, month, amount });
+  if (!data) { renderInvestorReport(); return; }
   showToast(t('toast_override_saved'), 'success');
   renderInvestorReport();
 }
@@ -3687,15 +3678,8 @@ async function clearInvestorReportOverride(houseId) {
   const month = state.currentMonth;
   state.investorReportOverrides = state.investorReportOverrides.filter(o => !(o.houseId === houseId && o.month === month));
 
-  try {
-    await fetch(`${API_BASE}/investor-report-overrides/delete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ houseId, month })
-    });
-  } catch (err) {
-    console.warn('Override cleared locally:', err);
-  }
+  const data = await postAndVerify(`${API_BASE}/investor-report-overrides/delete`, { houseId, month });
+  if (!data) { renderInvestorReport(); return; }
   showToast(t('toast_override_cleared'), 'success');
   renderInvestorReport();
 }
@@ -3908,19 +3892,13 @@ async function submitInvestorExpense(event) {
   const photo = _pendingExpensePhotoDataUrl;
 
   const eObj = { id: id || genId('exp_'), houseId, month, name, description, amount, photo };
+
+  const data = await postAndVerify(`${API_BASE}/investor-expenses/save`, eObj);
+  if (!data) return;
+
   const idx = state.investorExpenses.findIndex(x => x.id === eObj.id);
   if (idx >= 0) state.investorExpenses[idx] = { ...state.investorExpenses[idx], ...eObj };
   else state.investorExpenses.push(eObj);
-
-  try {
-    await fetch(`${API_BASE}/investor-expenses/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(eObj)
-    });
-  } catch (err) {
-    console.warn('Saved expense locally:', err);
-  }
 
   showToast(t('toast_expense_saved'), 'success');
   closeModal('modal-investor-expense');
@@ -4034,27 +4012,19 @@ async function approveUserApi(userId) {
   const roomSelect = document.getElementById(`assign-room-${userId}`);
   const roomId = roomSelect ? roomSelect.value : '';
 
+  const data = await postAndVerify(`${API_BASE}/users/approve`, { userId, roomId });
+  if (!data) return;
+
   const user = state.users.find(u => u.id === userId);
   if (user) {
     user.status = 'approved';
     if (roomId) user.roomId = roomId;
   }
-
-  try {
-    const res = await fetch(`${API_BASE}/users/approve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, roomId })
-    });
-    const data = await res.json();
-    // The room this tenant just got assigned to may already have a
-    // different approved tenant account on it — that account just moved
-    // out, so the server switches it off automatically. Reflect that
-    // locally and let the admin know who.
-    applyDeactivatedUsernames(data.deactivatedUsernames);
-  } catch (err) {
-    console.warn('Approved user locally:', err);
-  }
+  // The room this tenant just got assigned to may already have a
+  // different approved tenant account on it — that account just moved
+  // out, so the server switches it off automatically. Reflect that
+  // locally and let the admin know who.
+  applyDeactivatedUsernames(data.deactivatedUsernames);
 
   showToast(t('toast_user_approved'), 'success');
   renderAdminUsers();
@@ -4099,18 +4069,11 @@ async function setUserActiveApi(userId, isActive) {
 
 async function deleteUserApi(userId) {
   if (!confirm(t('confirm_delete_user'))) return;
+
+  const data = await postAndVerify(`${API_BASE}/users/delete`, { userId });
+  if (!data) return;
+
   state.users = state.users.filter(u => u.id !== userId);
-
-  try {
-    await fetch(`${API_BASE}/users/delete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId })
-    });
-  } catch (err) {
-    console.warn('Deleted user locally:', err);
-  }
-
   showToast(t('toast_user_deleted'), 'success');
   renderAdminUsers();
 }
@@ -4307,6 +4270,12 @@ async function handleAdminSaveUser(event) {
   const newPasswordField = document.getElementById('edit-new-password');
   const newPassword = newPasswordField ? newPasswordField.value.trim() : '';
 
+  const payload = { id, fullName, role, roomId, houseIds, hasVehicle, status };
+  if (newPassword) payload.newPassword = newPassword;
+
+  const data = await postAndVerify(`${API_BASE}/users/save`, payload);
+  if (!data) return;
+
   const uIdx = state.users.findIndex(u => u.id === id);
   if (uIdx >= 0) {
     state.users[uIdx].fullName = fullName;
@@ -4317,21 +4286,7 @@ async function handleAdminSaveUser(event) {
     state.users[uIdx].hasVehicle = hasVehicle;
     state.users[uIdx].status = status;
   }
-
-  const payload = { id, fullName, role, roomId, houseIds, hasVehicle, status };
-  if (newPassword) payload.newPassword = newPassword;
-
-  try {
-    const res = await fetch(`${API_BASE}/users/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    applyDeactivatedUsernames(data.deactivatedUsernames);
-  } catch (err) {
-    console.warn('Saved user locally:', err);
-  }
+  applyDeactivatedUsernames(data.deactivatedUsernames);
 
   const msg = newPassword
     ? t('toast_user_updated_with_password')
@@ -4351,18 +4306,14 @@ async function handleAdminCreateUser(event) {
   const houseIds = role === 'investor' ? getSelectedInvestorHouseIds('create-investor-houses-container') : [];
   const hasVehicle = role === 'tenant' ? document.getElementById('create-has-vehicle').checked : false;
 
-  const newUser = { id: genId('usr_'), username, password, fullName, role, roomId, houseIds, houseId: houseIds[0] || '', hasVehicle, status: 'approved', createdAt: 'Hôm nay' };
-  state.users.push(newUser);
+  const data = await postAndVerify(`${API_BASE}/users/create`, { username, password, fullName, role, roomId, houseIds, hasVehicle });
+  if (!data) return;
 
-  try {
-    await fetch(`${API_BASE}/users/create`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, fullName, role, roomId, houseIds, hasVehicle })
-    });
-  } catch (err) {
-    console.warn('Created user locally:', err);
-  }
+  // Pushes the server's own returned user object rather than a locally-
+  // guessed one — the id here is always server-generated (see
+  // create_user_by_admin), so a client-side genId('usr_') stand-in would
+  // never actually match what got saved.
+  state.users.push(data.user);
 
   showToast(t('toast_user_created'), 'success');
   closeModal('modal-create-user');
@@ -4934,19 +4885,8 @@ async function saveElecReadingField(roomId, field, value) {
   if (!state.readings[state.currentMonth][roomId]) state.readings[state.currentMonth][roomId] = {};
   state.readings[state.currentMonth][roomId][field] = field.endsWith('Photo') ? value : (parseFloat(value) || 0);
 
-  try {
-    const res = await fetch(`${API_BASE}/readings/elec-photo/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ month: state.currentMonth, roomId, field, value })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      showToast(data.error || t('mp_toast_locked_error'), 'error');
-    }
-  } catch (err) {
-    console.warn('API error, reading updated locally:', err);
-  }
+  const data = await postAndVerify(`${API_BASE}/readings/elec-photo/save`, { month: state.currentMonth, roomId, field, value });
+  if (!data) return;
   renderManagerMeterPhotos();
 }
 
@@ -5477,19 +5417,12 @@ async function toggleRoomActive(roomId) {
     });
     if (!ok) return;
     const rObj = { ...r, tenant: '', phone: '' };
-    try {
-      await fetch(`${API_BASE}/rooms/save`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(rObj)
-      });
-      r.tenant = '';
-      r.phone = '';
-      renderRoomsManagement();
-      showToast(t('toast_room_deactivated'), 'success');
-    } catch (err) {
-      showToast(t('toast_server_connection_error'), 'error');
-    }
+    const data = await postAndVerify(`${API_BASE}/rooms/save`, rObj);
+    if (!data) return;
+    r.tenant = '';
+    r.phone = '';
+    renderRoomsManagement();
+    showToast(t('toast_room_deactivated'), 'success');
   } else {
     openActivateRoomModal(roomId);
   }
@@ -5523,20 +5456,13 @@ async function submitActivateRoom() {
   }
 
   const rObj = { ...r, tenant, phone };
-  try {
-    await fetch(`${API_BASE}/rooms/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(rObj)
-    });
-    r.tenant = tenant;
-    r.phone = phone;
-    closeModal('modal-activate-room');
-    renderRoomsManagement();
-    showToast(t('toast_room_activated'), 'success');
-  } catch (err) {
-    showToast(t('toast_server_connection_error'), 'error');
-  }
+  const data = await postAndVerify(`${API_BASE}/rooms/save`, rObj);
+  if (!data) return;
+  r.tenant = tenant;
+  r.phone = phone;
+  closeModal('modal-activate-room');
+  renderRoomsManagement();
+  showToast(t('toast_room_activated'), 'success');
 }
 
 /* =====================================================================
@@ -5751,22 +5677,17 @@ async function submitAdminTicketComment() {
     images: [..._adminImages]
   };
 
-  if (!ticket.comments) ticket.comments = [];
-  ticket.comments.push(comment);
-  ticket.status = newStatus;
-  ticket.response = message;
-
   if (msgEl) msgEl.value = '';
   _adminImages = [];
   renderAdminImagePreviews();
 
-  try {
-    await fetch(`${API_BASE}/tickets/reply`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticketId: ticket.id, status: newStatus, response: message, comment })
-    });
-  } catch (err) { console.warn('Saved ticket reply locally'); }
+  const data = await postAndVerify(`${API_BASE}/tickets/reply`, { ticketId: ticket.id, status: newStatus, response: message, comment });
+  if (!data) return;
+
+  if (!ticket.comments) ticket.comments = [];
+  ticket.comments.push(comment);
+  ticket.status = newStatus;
+  ticket.response = message;
 
   renderTicketComments(ticket);
   // Refresh status badge in info panel
@@ -6170,19 +6091,12 @@ async function saveRoomConfig(event) {
     houseId, name, tenant, phone, roomType, headcount, baseRent, area, description, capacity, deposit, vehicleCount
   };
 
+  const data = await postAndVerify(`${API_BASE}/rooms/save`, rObj);
+  if (!data) return;
+
   const idx = state.rooms.findIndex(r => r.id === rObj.id);
   if (idx >= 0) state.rooms[idx] = rObj;
   else state.rooms.push(rObj);
-
-  try {
-    await fetch(`${API_BASE}/rooms/save`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(rObj)
-    });
-  } catch (err) {
-    console.warn('Saved room locally:', err);
-  }
 
   showToast(`${t('toast_room_saved_prefix')}"${name}"${t('toast_room_saved_suffix')}`, 'success');
   closeModal('modal-room-config');
@@ -6475,18 +6389,13 @@ async function submitTenantTicketComment() {
     statusChange: null 
   };
 
-  if (!ticket.comments) ticket.comments = [];
-  ticket.comments.push(comment);
-
   if (msgEl) msgEl.value = '';
 
-  try {
-    await fetch(`${API_BASE}/tickets/reply`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticketId: ticket.id, status: ticket.status, response: ticket.response, comment })
-    });
-  } catch (err) { console.warn('Saved ticket reply locally'); }
+  const data = await postAndVerify(`${API_BASE}/tickets/tenant-reply`, { ticketId: ticket.id, comment });
+  if (!data) return;
+
+  if (!ticket.comments) ticket.comments = [];
+  ticket.comments.push(comment);
 
   renderTenantTicketComments(ticket);
   showToast(t('toast_comment_sent'), 'success');

@@ -292,7 +292,7 @@
 
         <div id="view-admin-dashboard" class="view-panel">
           <div class="stats-grid">
-            <div class="stat-card">
+            <div id="stat-card-revenue" class="stat-card">
               <div>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;" data-i18n="stat_revenue">Tổng thu dự kiến</div>
                 <div class="stat-val" id="stat-total-revenue">0 đ</div>
@@ -312,7 +312,7 @@
               </div>
             </div>
 
-            <div class="stat-card">
+            <div id="stat-card-pending-invoices" class="stat-card">
               <div>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;" data-i18n="stat_pending">Hóa đơn chờ thu</div>
                 <div class="stat-val" id="stat-pending-invoices">0</div>
@@ -333,7 +333,7 @@
             </div>
           </div>
 
-          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
+          <div id="dashboard-lower-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem;">
             <div class="cala-card">
               <h3 style="margin-bottom: 1.25rem;"><i data-lucide="sparkles" style="color: var(--cala-orange); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="quick_actions">Phím Tắt Thao Tác Nhanh</span></h3>
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem;">
@@ -349,7 +349,7 @@
               </div>
             </div>
 
-            <div class="cala-card">
+            <div id="dashboard-invoice-status-card" class="cala-card">
               <h3 style="margin-bottom: 1rem;"><i data-lucide="activity" style="color: var(--cala-blue); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="invoice_status">Trạng Thái Hóa Đơn</span></h3>
               <div id="dashboard-invoice-summary" style="display: flex; flex-direction: column; gap: 0.75rem;"></div>
             </div>

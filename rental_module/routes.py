@@ -473,6 +473,40 @@ def reply_ticket():
     )
     return jsonify({'success': success})
 
+@rental_bp.route('/api/tickets/tenant-reply', methods=['POST'])
+@login_required
+def tenant_reply_ticket():
+    # Separate from reply_ticket() above on purpose: permission_required's
+    # 'tickets':'edit' check never allows tenant/investor through at all
+    # (see its own docstring) — that route is for staff replying to any
+    # ticket, gated by the admin permission matrix. A tenant replying on
+    # their OWN ticket is a different, always-allowed action that was
+    # previously routed through that same admin-only endpoint and so was
+    # silently rejected (403) every single time — the reply only ever
+    # looked like it sent because the frontend never checked the response.
+    user = session.get('user') or {}
+    if user.get('role') != 'tenant':
+        return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
+    data = request.json or {}
+    ticket_id = data.get('ticketId')
+    ticket = Storage.get_ticket_full(ticket_id)
+    if not ticket:
+        return jsonify({'success': False, 'error': 'Không tìm thấy báo lỗi'}), 404
+    owns_ticket = ticket.get('roomId') == user.get('roomId') or ticket.get('tenant') == user.get('fullName')
+    if not owns_ticket:
+        return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
+    success = RentalService.reply_ticket(
+        ticket_id,
+        # A tenant can only ever add a comment, never change the ticket's
+        # status — that stays admin/manager-only, matching what the
+        # frontend already sends (the ticket's own current status,
+        # unchanged) but enforced here too rather than trusted blindly.
+        ticket.get('status'),
+        ticket.get('response'),
+        data.get('comment')
+    )
+    return jsonify({'success': success})
+
 @rental_bp.route('/api/permissions/save', methods=['POST'])
 @superadmin_required
 def save_permissions():
