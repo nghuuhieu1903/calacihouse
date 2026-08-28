@@ -1484,8 +1484,15 @@ function applySiteSettings(settings) {
   if (ogTitleTag) ogTitleTag.setAttribute('content', settings.title || siteName);
   const ogDescTag = document.getElementById('meta-og-description-tag');
   if (ogDescTag && settings.description) ogDescTag.setAttribute('content', settings.description);
+  // Points at the real, independently-fetchable /og-image route (see
+  // routes.py) instead of the raw stored data: URL — a link-preview
+  // crawler is what actually needs this value (see index()'s own
+  // server-rendered version of this same tag), and a data: URI isn't
+  // something it can fetch at all. This client-side update just keeps an
+  // already-open tab's DOM consistent with that after a settings change;
+  // it has no effect on what a crawler sees.
   const ogImageTag = document.getElementById('meta-og-image-tag');
-  if (ogImageTag) ogImageTag.setAttribute('content', settings.shareImage || '');
+  if (ogImageTag) ogImageTag.setAttribute('content', settings.shareImage ? `${location.origin}/og-image` : '');
 
   if (settings.favicon) {
     let faviconLink = document.getElementById('favicon-link-tag');

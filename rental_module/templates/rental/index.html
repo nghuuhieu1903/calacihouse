@@ -3,12 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title id="page-title-tag">CalaciHouse - Hệ Thống Quản Lý Phòng Trọ</title>
-  <meta id="meta-description-tag" name="description" content="Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động">
-  <meta id="meta-keywords-tag" name="keywords" content="">
-  <meta id="meta-og-title-tag" property="og:title" content="CalaciHouse">
-  <meta id="meta-og-description-tag" property="og:description" content="Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động">
-  <meta id="meta-og-image-tag" property="og:image" content="">
+  <!-- Rendered from the current Thiết Lập Trang settings server-side (see
+       index() in routes.py) — a link-preview crawler (Facebook, Zalo, ...)
+       parses this raw HTML and never runs app.js, so applySiteSettings()
+       updating these same tags client-side (it still does, for anyone
+       with the page open when settings change) was never enough on its
+       own for what an actually-shared link shows. -->
+  <title id="page-title-tag">{{ page_title }}</title>
+  <meta id="meta-description-tag" name="description" content="{{ page_description }}">
+  <meta id="meta-keywords-tag" name="keywords" content="{{ page_keywords }}">
+  <meta id="meta-og-title-tag" property="og:title" content="{{ page_title }}">
+  <meta id="meta-og-description-tag" property="og:description" content="{{ page_description }}">
+  <meta id="meta-og-image-tag" property="og:image" content="{{ og_image_url }}">
   <!-- Default favicon/app icon — applySiteSettings() in app.js overrides
        the favicon <link> only if the admin has actually configured a
        custom one in Thiết Lập Trang; without a baseline here the tab/

@@ -1,5 +1,7 @@
 import os
-from flask import Blueprint, render_template, request, jsonify, session, url_for
+import re
+import base64
+from flask import Blueprint, render_template, request, jsonify, session, url_for, Response
 from .services import RentalService
 from .storage import Storage
 from .auth import login_required, roles_required, admin_required, superadmin_required, permission_required
@@ -25,13 +27,64 @@ def _static_file_version(filename):
     except OSError:
         return 0
 
+def _decode_data_uri(data_uri):
+    """Splits a data:<mime>;base64,<...> string into (mime_type, raw
+    bytes) — returns (None, None) for anything else (empty, already a
+    real URL, malformed)."""
+    if not data_uri or not data_uri.startswith('data:'):
+        return None, None
+    match = re.match(r'^data:([^;]+);base64,(.+)$', data_uri, re.DOTALL)
+    if not match:
+        return None, None
+    mime_type, b64_data = match.groups()
+    try:
+        return mime_type, base64.b64decode(b64_data)
+    except Exception:
+        return None, None
+
+@rental_bp.route('/og-image')
+def og_image():
+    # Social-media link-preview crawlers (Facebook, Zalo, Messenger, ...)
+    # fetch the URL in <meta property="og:image">'s content THEMSELVES,
+    # server-side, without ever running this page's JS — a data: URI
+    # embedded straight into that attribute isn't something a remote
+    # crawler can fetch at all (it displays fine in a real browser only
+    # because the browser decodes it locally, same document). This route
+    # re-serves the exact same stored image as its own real, independently
+    # fetchable URL for index() to point og:image at instead.
+    settings = Storage.get_site_settings()
+    mime_type, raw = _decode_data_uri(settings.get('shareImage'))
+    if not raw:
+        return '', 404
+    return Response(raw, mimetype=mime_type or 'image/jpeg')
+
 @rental_bp.route('/')
 def index():
+    # og:title/description/image used to only ever get set client-side (see
+    # applySiteSettings() in app.js) — fine for a real visitor's browser,
+    # but a link-preview crawler parses the raw HTML this route returns and
+    # never executes any JS, so it always saw the hardcoded template
+    # defaults (or an empty og:image) no matter what was configured in
+    # Thiết Lập Trang. Rendering the actual current settings server-side
+    # here fixes that for crawlers too, not just for someone's open tab.
+    settings = Storage.get_site_settings()
+    site_name = settings.get('siteName') or 'CalaciHouse'
+    page_title = settings.get('title') or site_name
+    page_description = settings.get('description') or 'Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động'
+    page_keywords = settings.get('keywords') or ''
+    # Absolute URL required — crawlers don't reliably resolve a relative
+    # one against the page they fetched it from.
+    og_image_url = f"{request.url_root.rstrip('/')}{url_for('rental.og_image')}" if settings.get('shareImage') else ''
     return render_template(
         'rental/index.html',
         asset_version_js=_static_file_version('js/app.js'),
         asset_version_css=_static_file_version('css/styles.css'),
-        asset_version_lucide=_static_file_version('js/vendor/lucide.min.js')
+        asset_version_lucide=_static_file_version('js/vendor/lucide.min.js'),
+        site_name=site_name,
+        page_title=page_title,
+        page_description=page_description,
+        page_keywords=page_keywords,
+        og_image_url=og_image_url
     )
 
 def _refresh_session_user():
