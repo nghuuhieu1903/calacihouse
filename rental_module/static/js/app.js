@@ -1711,6 +1711,10 @@ function setupUserRoleUI() {
     toggleBtn('sp-btn-send-invoices', hasPermission(user.role, 'invoices', 'create'));
     toggleBtn('btn-add-house', hasPermission(user.role, 'houses', 'create'));
     toggleBtn('btn-add-room', hasPermission(user.role, 'rooms', 'create'));
+    toggleBtn('btn-add-service', hasPermission(user.role, 'services', 'create'));
+    toggleBtn('btn-add-expense', hasPermission(user.role, 'investor_expenses', 'create'));
+    toggleBtn('btn-add-user', hasPermission(user.role, 'accounts', 'create'));
+    toggleBtn('admin-reply-form-box', hasPermission(user.role, 'tickets', 'edit'));
 
     // Dashboard money widgets — tied to the same 'invoices':'view'
     // permission that already gates the whole Quản Lý Hóa Đơn tab, so a
@@ -2188,7 +2192,7 @@ function renderServicesConfig() {
         <td>${calcTypeHtml}</td>
         <td>${ruleHtml}</td>
         <td style="text-align: right;">
-          <button class="btn btn-secondary btn-sm" onclick="editService('${s.id}')" title="${t('title_edit_service_icon')}"><i data-lucide="edit"></i> ${t('btn_edit')}</button>
+          ${hasPermission(state.currentUser.role, 'services', 'edit') ? `<button class="btn btn-secondary btn-sm" onclick="editService('${s.id}')" title="${t('title_edit_service_icon')}"><i data-lucide="edit"></i> ${t('btn_edit')}</button>` : ''}
           ${canDelete() ? `<button class="btn btn-secondary btn-sm" onclick="deleteServiceApi('${s.id}')" style="color: var(--cala-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>` : ''}
         </td>
       `;
@@ -3797,7 +3801,7 @@ function renderInvestorExpensesTable() {
         <td style="text-align:right; font-weight:700; color:var(--cala-red);">${formatMoney(e.amount)} đ</td>
         <td style="text-align:right;">
           <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
-            <button class="btn btn-secondary btn-sm" onclick="openEditInvestorExpenseModal('${e.id}')"><i data-lucide="edit-2"></i></button>
+            ${hasPermission(state.currentUser.role, 'investor_expenses', 'edit') ? `<button class="btn btn-secondary btn-sm" onclick="openEditInvestorExpenseModal('${e.id}')"><i data-lucide="edit-2"></i></button>` : ''}
             ${canDelete() ? `<button class="btn btn-secondary btn-sm" onclick="deleteInvestorExpenseApi('${e.id}')" style="color:var(--cala-red);"><i data-lucide="trash-2"></i></button>` : ''}
           </div>
         </td>
@@ -3988,12 +3992,12 @@ function renderAdminUsers() {
       <td><small style="color:var(--text-muted);">${u.createdAt ? statusLabel(u.createdAt) : t('new_label')}</small></td>
       <td>
         <div style="display:flex; gap:0.5rem;">
-          ${u.status === 'pending' ? `
+          ${u.status === 'pending' && hasPermission(state.currentUser.role, 'accounts', 'edit') ? `
             <button class="btn btn-blue btn-sm" onclick="approveUserApi('${u.id}')">
               <i data-lucide="check"></i> ${dict.btn_approve}
             </button>
           ` : ''}
-          ${u.id !== 'usr_admin' && u.status !== 'pending' ? (
+          ${u.id !== 'usr_admin' && u.status !== 'pending' && hasPermission(state.currentUser.role, 'accounts', 'edit') ? (
             u.status === 'approved' ? `
               <button class="btn btn-secondary btn-sm" style="color:var(--cala-orange); border-color:var(--cala-orange);" onclick="setUserActiveApi('${u.id}', false)" title="${t('btn_deactivate')}">
                 <i data-lucide="user-x"></i> ${t('btn_deactivate')}
@@ -4004,9 +4008,9 @@ function renderAdminUsers() {
               </button>
             `
           ) : ''}
-          <button class="btn btn-blue btn-sm" onclick="openEditUserModal('${u.id}')">
+          ${hasPermission(state.currentUser.role, 'accounts', 'edit') ? `<button class="btn btn-blue btn-sm" onclick="openEditUserModal('${u.id}')">
             <i data-lucide="edit-2"></i> ${t('btn_edit')}
-          </button>
+          </button>` : ''}
           ${u.id !== 'usr_admin' && canDelete() ? `
             <button class="btn btn-secondary btn-sm" onclick="deleteUserApi('${u.id}')" style="color:var(--cala-red);">
               <i data-lucide="trash-2"></i> ${dict.btn_delete}
@@ -4705,10 +4709,12 @@ function renderRoomsManagement() {
                   <div style="font-weight:800; font-size:1rem;">${r.name}</div>
                   <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || t('no_tenant_label')} ${r.phone ? '· ' + r.phone : ''}</div>
                 </div>
+                ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `
                 <label class="switch-toggle" onclick="event.preventDefault(); toggleRoomActive('${r.id}');" title="${r.tenant ? t('tooltip_deactivate_room') : t('tooltip_activate_room')}">
                   <input type="checkbox" ${r.tenant ? 'checked' : ''} readonly>
                   <span class="switch-slider"></span>
                 </label>
+                ` : `<span class="badge ${r.tenant ? 'badge-paid' : 'badge-open'}" style="font-size:0.68rem;">${r.tenant ? t('status_occupied') : t('vacant_label')}</span>`}
               </div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.4rem; font-size:0.82rem; margin-bottom:0.75rem;">
                 <div><span style="color:var(--text-muted);">${t('rent_price_label')}</span><br><strong>${formatMoney(r.baseRent)}đ/${t('per_month_label')}</strong></div>

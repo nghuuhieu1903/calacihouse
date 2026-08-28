@@ -256,7 +256,7 @@
           <div class="cala-card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
               <h3><i data-lucide="sliders" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="services_config_title">Bảng Cấu Hình Dịch Vụ & Điện Nước</span> (<span id="current-house-name-label" style="color: var(--cala-blue);">Tất Cả Tòa Nhà</span>)</h3>
-              <button class="btn btn-orange btn-sm" onclick="openAddServiceModal()">
+              <button id="btn-add-service" class="btn btn-orange btn-sm" onclick="openAddServiceModal()">
                 <i data-lucide="plus"></i> <span data-i18n="btn_add_service">Thêm Dịch Vụ Mới</span>
               </button>
             </div>
@@ -605,7 +605,7 @@
                 <h3 data-i18n="ir_expenses_title">🔧 Chi Phí Lắp Đặt / Sửa Chữa Trong Tháng</h3>
                 <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;" data-i18n="ir_expenses_desc">Các khoản chi này sẽ được trừ vào doanh thu trước khi tính phần chia cho chủ đầu tư.</p>
               </div>
-              <button class="btn btn-orange btn-sm" onclick="openAddInvestorExpenseModal()">
+              <button id="btn-add-expense" class="btn btn-orange btn-sm" onclick="openAddInvestorExpenseModal()">
                 <i data-lucide="plus"></i> <span data-i18n="btn_add_expense">Thêm Chi Phí</span>
               </button>
             </div>
@@ -786,7 +786,7 @@
               <h3 data-i18n="users_title">Quản Lý Tài Khoản Khách Thuê & Duyệt Đăng Ký</h3>
               <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="users_subtitle">Duyệt tài khoản mới đăng ký, gán phòng hoặc tạo tài khoản mới</p>
             </div>
-            <button class="btn btn-orange" onclick="openCreateUserModal()">
+            <button id="btn-add-user" class="btn btn-orange" onclick="openCreateUserModal()">
               <i data-lucide="user-plus"></i> <span data-i18n="btn_create_user">Tạo Tài Khoản Mới</span>
             </button>
           </div>
