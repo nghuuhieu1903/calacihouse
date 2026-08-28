@@ -441,7 +441,7 @@ class Storage:
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT * FROM houses ORDER BY id")
+                cur.execute("SELECT * FROM houses ORDER BY sort_order ASC, id ASC")
                 rows = cur.fetchall()
         finally:
             conn.close()
@@ -463,16 +463,30 @@ class Storage:
         near-simultaneously (or even just a request reading a slightly
         stale list) could silently overwrite each other's edit to a
         DIFFERENT house with old data. A single-row write can't clobber
-        anything it doesn't touch."""
+        anything it doesn't touch.
+
+        INSERT .. ON DUPLICATE KEY UPDATE instead of REPLACE INTO on
+        purpose: REPLACE is a DELETE+INSERT under the hood, so a plain
+        REPLACE with an explicit column list resets every OTHER column —
+        sort_order included — back to its table default on every single
+        edit. ON DUPLICATE KEY UPDATE only ever touches the columns listed
+        in its own clause, so an existing house's manually-set position
+        survives editing its name/address exactly like every other column
+        not being touched here."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
                 fee = h.get('managerFee') or {}
+                cur.execute("SELECT COALESCE(MAX(sort_order), -1) AS m FROM houses")
+                next_order = cur.fetchone()['m'] + 1
                 cur.execute(
-                    "REPLACE INTO houses (id, name, address, description, manager_fee_mode, manager_fee_value) VALUES (%s,%s,%s,%s,%s,%s)",
+                    "INSERT INTO houses (id, name, address, description, manager_fee_mode, manager_fee_value, sort_order) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s) "
+                    "ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), description=VALUES(description), "
+                    "manager_fee_mode=VALUES(manager_fee_mode), manager_fee_value=VALUES(manager_fee_value)",
                     (
                         h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''),
-                        fee.get('mode', 'percent'), fee.get('value', 20)
+                        fee.get('mode', 'percent'), fee.get('value', 20), next_order
                     )
                 )
             conn.commit()
@@ -485,6 +499,19 @@ class Storage:
         try:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM houses WHERE id=%s", (house_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def set_houses_order(house_ids):
+        """Persists a manually-dragged/arrow-reordered house list — each
+        id's position in the given list becomes its sort_order."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                for idx, hid in enumerate(house_ids):
+                    cur.execute("UPDATE houses SET sort_order=%s WHERE id=%s", (idx, hid))
             conn.commit()
         finally:
             conn.close()
@@ -592,7 +619,7 @@ class Storage:
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT * FROM rooms ORDER BY id")
+                cur.execute("SELECT * FROM rooms ORDER BY sort_order ASC, id ASC")
                 rows = cur.fetchall()
         finally:
             conn.close()
@@ -604,14 +631,24 @@ class Storage:
     @staticmethod
     def save_room(r):
         """Upserts this one row by primary key only — see save_house() for
-        why a single-row write matters here."""
+        why a single-row write matters here, and why this is ON DUPLICATE
+        KEY UPDATE rather than REPLACE INTO now (a REPLACE would silently
+        reset sort_order back to 0 on every edit, since it isn't one of
+        the columns this statement itself sets)."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
+                cur.execute("SELECT COALESCE(MAX(sort_order), -1) AS m FROM rooms")
+                next_order = cur.fetchone()['m'] + 1
                 cur.execute(
-                    "REPLACE INTO rooms "
-                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description, capacity, deposit, vehicle_count) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "INSERT INTO rooms "
+                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description, capacity, deposit, vehicle_count, sort_order) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    "ON DUPLICATE KEY UPDATE house_id=VALUES(house_id), name=VALUES(name), tenant=VALUES(tenant), "
+                    "phone=VALUES(phone), base_rent=VALUES(base_rent), headcount=VALUES(headcount), room_type=VALUES(room_type), "
+                    "elec_formula=VALUES(elec_formula), water_formula=VALUES(water_formula), contract_start=VALUES(contract_start), "
+                    "contract_end=VALUES(contract_end), area=VALUES(area), description=VALUES(description), capacity=VALUES(capacity), "
+                    "deposit=VALUES(deposit), vehicle_count=VALUES(vehicle_count)",
                     (
                         r['id'],
                         r.get('houseId', ''),
@@ -629,7 +666,8 @@ class Storage:
                         r.get('description', ''),
                         r.get('capacity', 0),
                         r.get('deposit', 0),
-                        r.get('vehicleCount', 0)
+                        r.get('vehicleCount', 0),
+                        next_order
                     )
                 )
             conn.commit()
@@ -642,6 +680,23 @@ class Storage:
         try:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM rooms WHERE id=%s", (room_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def set_rooms_order(room_ids):
+        """Persists a manually-dragged/arrow-reordered room list. The list
+        passed in is always the FULL flattened order (every house's rooms,
+        in house order, then room order within it) — a plain sort_order
+        ASC on rooms alone already reproduces that exact nesting anywhere
+        else rooms are listed (invoices, Bảng Tính, ...), no need to also
+        sort by the room's house's own position at read time."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                for idx, rid in enumerate(room_ids):
+                    cur.execute("UPDATE rooms SET sort_order=%s WHERE id=%s", (idx, rid))
             conn.commit()
         finally:
             conn.close()

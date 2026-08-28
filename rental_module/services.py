@@ -391,6 +391,11 @@ class RentalService:
         return True, None
 
     @staticmethod
+    def reorder_houses(house_ids):
+        Storage.set_houses_order(house_ids)
+        return True
+
+    @staticmethod
     def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None, investor_share=None):
         srv_id = service_id or f"srv_{uuid.uuid4().hex[:6]}"
         # applyRooms is a leftover column from an older scoping mechanism
@@ -514,6 +519,11 @@ class RentalService:
         Storage.delete_room(room_id)
         RentalService.sync_readings_with_services()
         return unlinked_username
+
+    @staticmethod
+    def reorder_rooms(room_ids):
+        Storage.set_rooms_order(room_ids)
+        return True
 
     @staticmethod
     def update_room_contract(room_id, contract_start, contract_end):

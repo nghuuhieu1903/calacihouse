@@ -234,6 +234,8 @@ const I18N = {
     empty_tenant_label: '(Trống)',
     not_applicable_label: '(Không áp dụng)',
     title_edit_room_price: 'Chỉnh sửa thông tin & giá tiền riêng phòng này',
+    title_move_up: 'Di chuyển lên',
+    title_move_down: 'Di chuyển xuống',
     btn_edit_price: 'Sửa Giá',
     title_view_invoice: 'Xem hóa đơn',
     invoices_empty_state: 'Chưa có hóa đơn tháng này. Nhấn "Cập Nhật Hóa Đơn" để sinh tự động.',
@@ -836,6 +838,8 @@ const I18N = {
     empty_tenant_label: '(Vacant)',
     not_applicable_label: '(Not applicable)',
     title_edit_room_price: 'Edit this room\'s details & individual pricing',
+    title_move_up: 'Move up',
+    title_move_down: 'Move down',
     btn_edit_price: 'Edit Price',
     title_view_invoice: 'View invoice',
     invoices_empty_state: 'No invoices for this month yet. Click "Refresh Invoices" to generate automatically.',
@@ -2390,16 +2394,25 @@ function renderHousesManagement() {
     return;
   }
 
+  const canEditHouses = hasPermission(state.currentUser.role, 'houses', 'edit');
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
-      ${state.houses.map(h => {
+      ${state.houses.map((h, idx) => {
         const roomCount = state.rooms.filter(r => r.houseId === h.id).length;
         return `
           <div class="cala-card" style="padding: 1.1rem 1.25rem;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
-              <div>
-                <div style="font-weight:800; font-size:1rem;">${h.name}</div>
-                <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">${t('lbl_house_address_short')} ${h.address || '—'}</div>
+              <div style="display:flex; align-items:flex-start; gap:0.5rem; min-width:0;">
+                ${canEditHouses ? `
+                <div style="display:flex; flex-direction:column; gap:1px; flex-shrink:0; margin-top:2px;">
+                  <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_up')}" ${idx === 0 ? 'disabled' : ''} onclick="moveHouse('${h.id}', -1)"><i data-lucide="chevron-up" style="width:12px;height:12px;pointer-events:none;"></i></button>
+                  <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_down')}" ${idx === state.houses.length - 1 ? 'disabled' : ''} onclick="moveHouse('${h.id}', 1)"><i data-lucide="chevron-down" style="width:12px;height:12px;pointer-events:none;"></i></button>
+                </div>
+                ` : ''}
+                <div style="min-width:0;">
+                  <div style="font-weight:800; font-size:1rem;">${h.name}</div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">${t('lbl_house_address_short')} ${h.address || '—'}</div>
+                </div>
               </div>
               <span class="badge badge-resolved" style="font-size:0.7rem; flex-shrink:0;">${roomCount} ${t('rooms_unit_label')}</span>
             </div>
@@ -2418,6 +2431,21 @@ function renderHousesManagement() {
     </div>
   `;
   renderIcons(container);
+}
+
+// Swaps this house with its neighbor and persists the whole new order —
+// same pattern as moveRoom()/reorderRoomsApi() below, see those for why a
+// flat sort_order alone is enough.
+async function moveHouse(houseId, direction) {
+  const idx = state.houses.findIndex(h => h.id === houseId);
+  const swapIdx = idx + direction;
+  if (idx < 0 || swapIdx < 0 || swapIdx >= state.houses.length) return;
+  [state.houses[idx], state.houses[swapIdx]] = [state.houses[swapIdx], state.houses[idx]];
+
+  renderHousesManagement();
+  renderHouseSelector();
+  const data = await postAndVerify(`${API_BASE}/houses/reorder`, { houseIds: state.houses.map(h => h.id) });
+  if (!data) return;
 }
 
 async function deleteHouseConfirm(houseId) {
@@ -3350,6 +3378,21 @@ function renderAdminInvoices() {
   const tbody = document.getElementById('admin-invoices-tbody');
   tbody.innerHTML = '';
   const monthInvoices = state.invoices.filter(i => i.month === state.currentMonth && (state.currentHouseId === 'all' || i.houseId === state.currentHouseId));
+
+  // Invoices accumulate over time in whatever order they happened to get
+  // (re)generated in — an existing room's invoice gets updated in place
+  // (keeping its old array position) while a brand-new one gets appended
+  // at the end, so the list drifts further from the actual room order the
+  // longer the app's been used ("thứ tự đang xấu quá khi làm hoá đơn
+  // tổng"). Re-sort by each invoice's room's position in the
+  // admin-arranged state.rooms order (server-side sort_order) every
+  // render instead of trusting the array's own order.
+  const roomOrderIndex = new Map(state.rooms.map((r, i) => [r.id, i]));
+  monthInvoices.sort((a, b) => {
+    const idxA = roomOrderIndex.has(a.roomId) ? roomOrderIndex.get(a.roomId) : Infinity;
+    const idxB = roomOrderIndex.has(b.roomId) ? roomOrderIndex.get(b.roomId) : Infinity;
+    return idxA - idxB;
+  });
 
   if (monthInvoices.length === 0) {
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('invoices_empty_state')}</td></tr>`;
@@ -4670,7 +4713,12 @@ function renderRoomsManagement() {
     return;
   }
 
-  // Group by house
+  // Group by house — rooms stay in the exact order state.rooms already
+  // has them in (server-side sort_order, see moveRoom()/reorderRoomsApi()
+  // below), no re-derived sort here anymore. This used to re-sort every
+  // house's rooms by the numeric part of the room name on every render,
+  // which would have silently undone any manual reordering the moment
+  // this page re-rendered.
   const byHouse = {};
   state.rooms.forEach(r => {
     const hid = r.houseId || 'unknown';
@@ -4678,29 +4726,21 @@ function renderRoomsManagement() {
     byHouse[hid].push(r);
   });
 
-  // Sort by the numeric part of the room name (e.g. "Phòng 4401" -> 4401)
-  // so rooms read in ascending order instead of whatever order they were
-  // created/saved in. Falls back to plain text comparison for names with
-  // no digits at all.
-  const roomSortKey = r => {
-    const match = (r.name || '').match(/\d+/);
-    return match ? parseInt(match[0], 10) : null;
-  };
-  Object.keys(byHouse).forEach(hid => {
-    byHouse[hid].sort((a, b) => {
-      const numA = roomSortKey(a);
-      const numB = roomSortKey(b);
-      if (numA !== null && numB !== null && numA !== numB) return numA - numB;
-      if (numA !== null && numB === null) return -1;
-      if (numA === null && numB !== null) return 1;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-  });
+  // Houses themselves are walked in state.houses's own order (also
+  // server-sorted) rather than Object.keys(byHouse) — that would reflect
+  // whatever order houses happened to be first *encountered* while
+  // looping over rooms above, not the admin's actual arranged house
+  // order. Any room whose houseId doesn't match a known house (orphaned
+  // reference) still gets a trailing group so it's never silently
+  // dropped from the page.
+  const orderedHouseIds = state.houses.map(h => h.id);
+  Object.keys(byHouse).forEach(hid => { if (!orderedHouseIds.includes(hid)) orderedHouseIds.push(hid); });
 
   let html = '';
-  Object.keys(byHouse).forEach(hid => {
-    const house = state.houses.find(h => h.id === hid);
+  orderedHouseIds.forEach((hid, houseIdx) => {
     const rooms = byHouse[hid];
+    if (!rooms || rooms.length === 0) return;
+    const house = state.houses.find(h => h.id === hid);
     html += `
       <div style="margin-bottom: 1.5rem;">
         <div style="font-size: 1rem; font-weight: 800; color: var(--cala-blue); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -4709,12 +4749,20 @@ function renderRoomsManagement() {
           <span class="badge badge-resolved" style="font-size:0.7rem;">${rooms.length} ${t('rooms_unit_label')}</span>
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
-          ${rooms.map(r => `
+          ${rooms.map((r, roomIdx) => `
             <div class="cala-card" style="position:relative; padding: 1.1rem 1.25rem;">
               <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
-                <div>
-                  <div style="font-weight:800; font-size:1rem;">${r.name}</div>
-                  <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || t('no_tenant_label')} ${r.phone ? '· ' + r.phone : ''}</div>
+                <div style="display:flex; align-items:flex-start; gap:0.5rem; min-width:0;">
+                  ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `
+                  <div style="display:flex; flex-direction:column; gap:1px; flex-shrink:0; margin-top:2px;">
+                    <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_up')}" ${roomIdx === 0 ? 'disabled' : ''} onclick="moveRoom('${r.id}', -1)"><i data-lucide="chevron-up" style="width:12px;height:12px;pointer-events:none;"></i></button>
+                    <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_down')}" ${roomIdx === rooms.length - 1 ? 'disabled' : ''} onclick="moveRoom('${r.id}', 1)"><i data-lucide="chevron-down" style="width:12px;height:12px;pointer-events:none;"></i></button>
+                  </div>
+                  ` : ''}
+                  <div style="min-width:0;">
+                    <div style="font-weight:800; font-size:1rem;">${r.name}</div>
+                    <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || t('no_tenant_label')} ${r.phone ? '· ' + r.phone : ''}</div>
+                  </div>
                 </div>
                 ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `
                 <label class="switch-toggle" onclick="event.preventDefault(); toggleRoomActive('${r.id}');" title="${r.tenant ? t('tooltip_deactivate_room') : t('tooltip_activate_room')}">
@@ -4761,6 +4809,37 @@ function renderRoomsManagement() {
   renderIcons(container);
 }
 
+// Moves one room up/down within its own house's group (direction is -1 or
+// +1) — swaps it with the adjacent room, then rebuilds state.rooms as one
+// flat list (every house in its current order, each house's rooms in
+// their now-updated order) and persists that exact sequence as
+// everyone's sort_order. A single flat sort_order this way is enough on
+// its own to reproduce the same nesting anywhere else rooms are listed
+// (Bảng Tính, Hóa Đơn, ...) — no separate per-house numbering needed.
+async function moveRoom(roomId, direction) {
+  const room = state.rooms.find(r => r.id === roomId);
+  if (!room) return;
+  const hid = room.houseId || 'unknown';
+  const houseRooms = state.rooms.filter(r => (r.houseId || 'unknown') === hid);
+  const idx = houseRooms.findIndex(r => r.id === roomId);
+  const swapIdx = idx + direction;
+  if (swapIdx < 0 || swapIdx >= houseRooms.length) return;
+
+  // Swap by finding each room's position in the real state.rooms array
+  // (houseRooms is a filtered copy) and exchanging them there.
+  const realIdxA = state.rooms.findIndex(r => r.id === houseRooms[idx].id);
+  const realIdxB = state.rooms.findIndex(r => r.id === houseRooms[swapIdx].id);
+  [state.rooms[realIdxA], state.rooms[realIdxB]] = [state.rooms[realIdxB], state.rooms[realIdxA]];
+
+  renderRoomsManagement();
+  await reorderRoomsApi();
+}
+
+async function reorderRoomsApi() {
+  const data = await postAndVerify(`${API_BASE}/rooms/reorder`, { roomIds: state.rooms.map(r => r.id) });
+  if (!data) return;
+}
+
 // Manager-only page for submitting the new electricity meter reading photo
 // — deliberately narrower than the admin Bảng Tính spreadsheet (only
 // elecNew + its photo, card layout like Quản Lý Phòng) and backed by its
@@ -4777,34 +4856,26 @@ function renderManagerMeterPhotos() {
     return;
   }
 
+  // Rooms stay in state.rooms's own order (server-side sort_order, same
+  // admin-arranged order as Quản Lý Phòng) — no re-derived numeric-name
+  // sort here anymore. Houses are walked in state.houses's own order too,
+  // not just whichever order they were first encountered in above.
   const byHouse = {};
   rooms.forEach(r => {
     const hid = r.houseId || 'unknown';
     if (!byHouse[hid]) byHouse[hid] = [];
     byHouse[hid].push(r);
   });
-
-  const roomSortKey = r => {
-    const match = (r.name || '').match(/\d+/);
-    return match ? parseInt(match[0], 10) : null;
-  };
-  Object.keys(byHouse).forEach(hid => {
-    byHouse[hid].sort((a, b) => {
-      const numA = roomSortKey(a);
-      const numB = roomSortKey(b);
-      if (numA !== null && numB !== null && numA !== numB) return numA - numB;
-      if (numA !== null && numB === null) return -1;
-      if (numA === null && numB !== null) return 1;
-      return (a.name || '').localeCompare(b.name || '');
-    });
-  });
+  const orderedHouseIds = state.houses.map(h => h.id);
+  Object.keys(byHouse).forEach(hid => { if (!orderedHouseIds.includes(hid)) orderedHouseIds.push(hid); });
 
   const monthReadings = state.readings[state.currentMonth] || {};
 
   let html = '';
-  Object.keys(byHouse).forEach(hid => {
-    const house = state.houses.find(h => h.id === hid);
+  orderedHouseIds.forEach(hid => {
     const houseRooms = byHouse[hid];
+    if (!houseRooms || houseRooms.length === 0) return;
+    const house = state.houses.find(h => h.id === hid);
     html += `
       <div style="margin-bottom: 1.5rem;">
         <div style="font-size: 1rem; font-weight: 800; color: var(--cala-blue); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -4981,26 +5052,13 @@ function renderSalerRooms() {
     return;
   }
 
-  const roomSortKey = r => {
-    const match = (r.name || '').match(/\d+/);
-    return match ? parseInt(match[0], 10) : null;
-  };
   // One flat overview list (not grouped into per-house sections) — house
   // name is shown inline on each row instead, since a saler scans across
   // all houses at once looking for "which room, what price" first and
-  // only expands the ones worth a closer look.
-  const rooms = state.rooms.slice().sort((a, b) => {
-    const houseA = state.houses.find(h => h.id === a.houseId);
-    const houseB = state.houses.find(h => h.id === b.houseId);
-    const houseCmp = (houseA ? houseA.name : '').localeCompare(houseB ? houseB.name : '');
-    if (houseCmp !== 0) return houseCmp;
-    const numA = roomSortKey(a);
-    const numB = roomSortKey(b);
-    if (numA !== null && numB !== null && numA !== numB) return numA - numB;
-    if (numA !== null && numB === null) return -1;
-    if (numA === null && numB !== null) return 1;
-    return (a.name || '').localeCompare(b.name || '');
-  });
+  // only expands the ones worth a closer look. Already in the admin-
+  // arranged order (server-side sort_order, house then room) — no
+  // re-derived sort needed here.
+  const rooms = state.rooms;
 
   const servicePriceHtml = s => {
     if (s.calcType === 'formula') {

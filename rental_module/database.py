@@ -1,4 +1,5 @@
 import os
+import re
 import pymysql
 import pymysql.cursors
 
@@ -192,6 +193,52 @@ def _ensure_column(cur, table, column, ddl):
         cur.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
 
 
+def _numeric_name_key(name):
+    # Same "extract the number out of the name" rule the room list already
+    # sorted by client-side before this feature existed (e.g. "Phòng 4401"
+    # -> 4401) — falls back to plain text for a name with no digits at all.
+    match = re.search(r'\d+', name or '')
+    return (0, int(match.group())) if match else (1, name or '')
+
+
+def _backfill_house_sort_order(cur):
+    """The sort_order column above lands at 0 for every existing row (the
+    ALTER TABLE default) — leaving them all tied would make the new
+    manual-reorder feature start from whatever order MySQL happens to
+    return with no ORDER BY (effectively random-looking), instead of the
+    order everyone's already used to seeing. Runs once: as soon as any row
+    has a non-zero value (this backfill already ran, or someone's since
+    reordered by hand), it's a no-op forever after — never touches an
+    order that's actually been set."""
+    cur.execute("SELECT COUNT(*) AS c FROM houses WHERE sort_order != 0")
+    if cur.fetchone()['c'] > 0:
+        return
+    cur.execute("SELECT id, name FROM houses")
+    rows = sorted(cur.fetchall(), key=lambda row: row['name'] or '')
+    for idx, row in enumerate(rows):
+        cur.execute("UPDATE houses SET sort_order=%s WHERE id=%s", (idx, row['id']))
+
+
+def _backfill_room_sort_order(cur):
+    """Same idea as _backfill_house_sort_order, but rooms are clustered by
+    house first (in that house's own now-backfilled order) and only
+    numeric-sorted *within* each house — a flat numeric-only sort here
+    would interleave e.g. house A's room 101 and house B's room 102
+    instead of grouping each house's rooms together, which is what every
+    other room listing on this page groups by."""
+    cur.execute("SELECT COUNT(*) AS c FROM rooms WHERE sort_order != 0")
+    if cur.fetchone()['c'] > 0:
+        return
+    cur.execute("SELECT id, sort_order FROM houses ORDER BY sort_order ASC, id ASC")
+    house_order = [row['id'] for row in cur.fetchall()]
+    cur.execute("SELECT id, name, house_id FROM rooms")
+    rooms = cur.fetchall()
+    house_index = {hid: i for i, hid in enumerate(house_order)}
+    rooms.sort(key=lambda r: (house_index.get(r['house_id'], len(house_order)), _numeric_name_key(r['name'])))
+    for idx, row in enumerate(rooms):
+        cur.execute("UPDATE rooms SET sort_order=%s WHERE id=%s", (idx, row['id']))
+
+
 def _promote_admins_to_superadmin(cur):
     """One-time role split: 'admin' used to mean full power including
     delete; now 'superadmin' does, and 'admin' means everything except
@@ -230,7 +277,11 @@ def init_db():
             _ensure_column(cur, 'rooms', 'vehicle_count', "INT DEFAULT 0")
             _ensure_column(cur, 'users', 'has_vehicle', "TINYINT(1) DEFAULT 0")
             _ensure_column(cur, 'investor_expenses', 'name', "TEXT")
+            _ensure_column(cur, 'houses', 'sort_order', "INT DEFAULT 0")
+            _ensure_column(cur, 'rooms', 'sort_order', "INT DEFAULT 0")
             _promote_admins_to_superadmin(cur)
+            _backfill_house_sort_order(cur)
+            _backfill_room_sort_order(cur)
         conn.commit()
     finally:
         conn.close()

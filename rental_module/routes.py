@@ -194,6 +194,13 @@ def delete_house():
         return jsonify({'success': False, 'error': error}), 400
     return jsonify({'success': True})
 
+@rental_bp.route('/api/houses/reorder', methods=['POST'])
+@permission_required('houses', 'edit')
+def reorder_houses():
+    data = request.json or {}
+    RentalService.reorder_houses(data.get('houseIds') or [])
+    return jsonify({'success': True})
+
 @rental_bp.route('/api/services/save', methods=['POST'])
 @permission_required('services', lambda body: 'edit' if body.get('id') else 'create')
 def save_service():
@@ -297,6 +304,13 @@ def delete_room():
     room_id = data.get('id') or data.get('roomId')
     unlinked_username = RentalService.delete_room(room_id)
     return jsonify({'success': True, 'unlinkedUsername': unlinked_username})
+
+@rental_bp.route('/api/rooms/reorder', methods=['POST'])
+@permission_required('rooms', 'edit')
+def reorder_rooms():
+    data = request.json or {}
+    RentalService.reorder_rooms(data.get('roomIds') or [])
+    return jsonify({'success': True})
 
 @rental_bp.route('/api/users/approve', methods=['POST'])
 @permission_required('accounts', 'edit')
