@@ -3013,12 +3013,16 @@ function renderSpreadsheet() {
           const newPhoto = isElec ? rd.elecNewPhoto : rd.waterNewPhoto;
           rowHtml += `
             <td>
-              <input type="number" class="excel-input" value="${oldVal || 0}" onchange="updateReadingApi('${r.id}', '${oldField}', this.value)">
-              ${meterPhotoButtonHtml(r.id, oldField + 'Photo', oldPhoto)}
+              <div style="display:flex; align-items:center; gap:0.4rem;">
+                <input type="number" class="excel-input" value="${oldVal || 0}" onchange="updateReadingApi('${r.id}', '${oldField}', this.value)">
+                ${meterPhotoButtonHtml(r.id, oldField + 'Photo', oldPhoto)}
+              </div>
             </td>
             <td>
-              <input type="number" class="excel-input" value="${newVal || 0}" onchange="updateReadingApi('${r.id}', '${newField}', this.value)">
-              ${meterPhotoButtonHtml(r.id, newField + 'Photo', newPhoto)}
+              <div style="display:flex; align-items:center; gap:0.4rem;">
+                <input type="number" class="excel-input" value="${newVal || 0}" onchange="updateReadingApi('${r.id}', '${newField}', this.value)">
+                ${meterPhotoButtonHtml(r.id, newField + 'Photo', newPhoto)}
+              </div>
             </td>
             <td style="text-align: right; font-weight: 800; color: var(--cala-blue);">${usage}</td>
             <td style="text-align: right; font-weight: 700; color: var(--cala-blue);">${s.symbol || '🧮'} ${formatMoney(cost)} đ</td>
@@ -3080,10 +3084,9 @@ function meterPhotoButtonHtml(roomId, field, photoDataUrl) {
   const hasPhoto = !!photoDataUrl;
   return `
     <input type="file" accept="image/*" id="${inputId}" style="display:none" onchange="handleMeterPhotoUpload(event, '${roomId}', '${field}')">
-    <button type="button" class="btn btn-sm" title="${hasPhoto ? t('btn_meter_photo_view') : t('btn_meter_photo_upload')}"
-      style="padding:2px 5px; margin-top:2px; ${hasPhoto ? 'color:var(--cala-blue); border-color:var(--cala-blue);' : ''}"
+    <button type="button" class="photo-toggle-btn${hasPhoto ? ' has-photo' : ''}" title="${hasPhoto ? t('btn_meter_photo_view') : t('btn_meter_photo_upload')}"
       onclick="${hasPhoto ? `viewMeterPhoto('${roomId}', '${field}')` : `document.getElementById('${inputId}').click()`}">
-      <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
+      <i data-lucide="camera"></i>
     </button>
   `;
 }
@@ -4814,19 +4817,21 @@ function elecPhotoButtonHtml(roomId, photoDataUrl, locked) {
   if (locked) {
     // No file input at all while locked — nothing to click into except
     // viewing the existing photo (view-only branch inside viewElecPhoto).
+    // Locked only ever happens once a photo has actually been uploaded and
+    // marked Hoàn Thành, so this is always the has-photo state.
     return `
-      <button type="button" class="btn btn-sm" style="padding:6px 8px; color:var(--cala-blue); border-color:var(--cala-blue);"
+      <button type="button" class="photo-toggle-btn has-photo"
         title="${t('btn_meter_photo_view')}" onclick="viewElecPhoto('${roomId}')">
-        <i data-lucide="camera" style="width:14px;height:14px;pointer-events:none;"></i>
+        <i data-lucide="camera"></i>
       </button>
     `;
   }
   return `
     <input type="file" accept="image/*" id="${inputId}" style="display:none" onchange="handleElecPhotoUpload(event, '${roomId}')">
-    <button type="button" class="btn btn-sm" style="padding:6px 8px; ${hasPhoto ? 'color:var(--cala-blue); border-color:var(--cala-blue);' : ''}"
+    <button type="button" class="photo-toggle-btn${hasPhoto ? ' has-photo' : ''}"
       title="${hasPhoto ? t('btn_meter_photo_view') : t('btn_meter_photo_upload')}"
       onclick="${hasPhoto ? `viewElecPhoto('${roomId}')` : `document.getElementById('${inputId}').click()`}">
-      <i data-lucide="camera" style="width:14px;height:14px;pointer-events:none;"></i>
+      <i data-lucide="camera"></i>
     </button>
   `;
 }

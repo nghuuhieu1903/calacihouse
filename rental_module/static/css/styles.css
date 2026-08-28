@@ -231,6 +231,23 @@ select.form-control { padding-right: 2.25rem; }
 .excel-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
 .excel-input { width: 95px; padding: 0.45rem; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: right; font-weight: 700; color: var(--text-primary); }
 
+/* METER/ELECTRICITY PHOTO TOGGLE BUTTON — the small camera icon next to a
+   reading cell (Bảng Tính Điện Nước, Cập Nhật Ảnh Số Điện) that opens the
+   upload picker when there's no photo yet, or views the photo once there
+   is one. Fixed 40x40 square so it reads the same everywhere it appears,
+   with a deliberately strong color jump between the two states — this is
+   the one visual cue managers/tenants have for "chưa chụp" vs "đã chụp",
+   so it needs to survive a quick glance, not just a close look. */
+.photo-toggle-btn {
+  width: 40px; height: 40px; flex-shrink: 0; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 8px; border: 1px solid var(--border-color);
+  background: var(--bg-base); color: var(--text-muted); cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.photo-toggle-btn svg { width: 20px; height: 20px; pointer-events: none; }
+.photo-toggle-btn.has-photo { background: var(--cala-blue-light); color: var(--cala-blue-dark); border-color: var(--cala-blue-light); }
+
 /* BADGES */
 .badge { display: inline-flex; align-items: center; gap: 4px; padding: 0.28rem 0.6rem; border-radius: var(--radius-sm); font-size: 0.75rem; font-weight: 800; text-transform: uppercase; white-space: nowrap; }
 .badge-paid { background: #e6f9f2; color: var(--cala-emerald); border: 1px solid #b3f2db; }
