@@ -3448,8 +3448,13 @@ async function generateAndSendAllInvoices() {
     const elecUsage = Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0));
     const waterUsage = Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
 
-    const invoiceId = `INV-${state.currentMonth.replace('-', '')}-${r.id}`;
-    const idx = state.invoices.findIndex(i => i.id === invoiceId);
+    const invoiceId = formatInvoiceId(r.name, state.currentMonth);
+    // Matched by roomId + month, not the id string above — two rooms in
+    // different houses can share the same name (nothing enforces
+    // uniqueness across houses), which would otherwise collide on the
+    // same invoiceId and let one room's invoice silently overwrite the
+    // other's here. Mirrors the same fix in _rebuild_invoices (services.py).
+    const idx = state.invoices.findIndex(i => i.roomId === r.id && i.month === state.currentMonth);
     const invObj = {
       id: invoiceId, month: state.currentMonth, roomId: r.id, houseId: r.houseId, roomName: r.name, tenant: r.tenant, phone: r.phone,
       baseRent: roomRentTotal(r), elecOld: rd.elecOld, elecNew: rd.elecNew, elecUsage, elecFormula: elecFormulaText, elecCost,
@@ -4788,7 +4793,8 @@ function viewInvestorInvoiceDetail(invoiceId) {
 
 function previewRoomInvoice(roomId) {
   generateAndSendAllInvoices();
-  const invoiceId = `INV-${state.currentMonth.replace('-', '')}-${roomId}`;
+  const room = state.rooms.find(r => r.id === roomId);
+  const invoiceId = formatInvoiceId(room ? room.name : roomId, state.currentMonth);
   viewInvoiceDetail(invoiceId);
 }
 
@@ -6441,6 +6447,16 @@ function formatMoney(num) {
 function formatMonthLabel(monthStr) {
   const [year, month] = monthStr.split('-');
   return `${month}/${year}`;
+}
+
+// INV_<tên phòng>_<tháng><2 số cuối năm> — e.g. "INV_Phòng 101_0826" for
+// August 2026. Mirrored exactly in _rebuild_invoices (services.py), which
+// is the actual source of truth once a save round-trips to the server;
+// this client-side copy only needs to match closely enough to look up
+// the right invoice locally right after generating it.
+function formatInvoiceId(roomName, monthStr) {
+  const [year, month] = monthStr.split('-');
+  return `INV_${roomName}_${month}${year.slice(-2)}`;
 }
 
 // t('some_key_with_{placeholder}') then swap in each named value — reads

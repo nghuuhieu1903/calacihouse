@@ -804,9 +804,16 @@ class RentalService:
 
             total_amount = room_rent + elec_cost + water_cost + service_fee + parking_fee
 
-            invoice_id = f"INV-{month.replace('-', '')}-{r['id']}"
+            year, mm = month.split('-')
+            invoice_id = f"INV_{r['name']}_{mm}{year[-2:]}"
 
-            existing_idx = next((i for i, inv in enumerate(invoices) if inv['id'] == invoice_id), -1)
+            # Matched by roomId + month, NOT by the id string above — two
+            # rooms in different houses can share the same name (nothing
+            # enforces uniqueness across houses), which would otherwise
+            # collide on the same invoice_id and let one room's invoice
+            # silently overwrite the other's here. roomId is the one
+            # thing that's actually guaranteed unique.
+            existing_idx = next((i for i, inv in enumerate(invoices) if inv.get('roomId') == r['id'] and inv.get('month') == month), -1)
             invoice_obj = {
                 'id': invoice_id,
                 'month': month,
