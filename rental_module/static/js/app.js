@@ -386,6 +386,9 @@ const I18N = {
     btn_download_invoices: 'Tải Hoá Đơn (PDF)',
     btn_download_tickets_pdf: 'Tải Ticket Kèm Ảnh (PDF)',
     btn_download_tickets: 'Tải Ticket (JSON)',
+    btn_download_selected_tickets: 'Tải Về ({count} đã chọn)',
+    modal_download_tickets_title: 'Tải Ticket Đã Chọn',
+    modal_download_tickets_count: 'Đã chọn {count} ticket. Chọn định dạng để tải về:',
     retention_policy_title: '📋 Quy Tắc Đang Áp Dụng',
     retention_rule_invoices: 'Hóa đơn & số điện nước: giữ lại 3 tháng gần nhất, tự động xoá tháng cũ hơn.',
     retention_rule_tickets: 'Báo lỗi (ticket): giữ lại 1 năm kể từ ngày gửi, tự động xoá sau đó. Xoá tay không tính vào quy tắc này.',
@@ -1017,6 +1020,9 @@ const I18N = {
     btn_download_invoices: 'Download Invoices (PDF)',
     btn_download_tickets_pdf: 'Download Tickets with Photos (PDF)',
     btn_download_tickets: 'Download Tickets (JSON)',
+    btn_download_selected_tickets: 'Download ({count} selected)',
+    modal_download_tickets_title: 'Download Selected Tickets',
+    modal_download_tickets_count: '{count} ticket(s) selected. Choose a format to download:',
     retention_policy_title: '📋 Current Policy',
     retention_rule_invoices: 'Invoices & meter readings: kept for the trailing 3 months, older ones deleted automatically.',
     retention_rule_tickets: 'Tickets: kept for 1 year from when they were sent, then deleted automatically. Manually deleting one has no effect on this rule.',
@@ -5920,6 +5926,11 @@ function ticketCategoryIcon(category) {
   return map[category] || 'wrench';
 }
 
+// Ticket-list checkbox selection, for the "Tải Về" bulk-download button —
+// a Set survives re-renders (e.g. after a status change) without losing
+// the user's picks, unlike re-deriving it from checkbox DOM state each time.
+let _selectedTicketIds = new Set();
+
 function renderAdminTickets() {
   const tbody = document.getElementById('admin-tickets-tbody');
   const cardsBox = document.getElementById('admin-tickets-cards');
@@ -5927,9 +5938,15 @@ function renderAdminTickets() {
   tbody.innerHTML = '';
   if (cardsBox) cardsBox.innerHTML = '';
 
+  // Drop selections for tickets that no longer exist (deleted, or a stale
+  // selection from before a refetch) so the count/button stay honest.
+  const liveIds = new Set(state.tickets.map(t => t.id));
+  _selectedTicketIds.forEach(id => { if (!liveIds.has(id)) _selectedTicketIds.delete(id); });
+
   if (state.tickets.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('tickets_empty_state')}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('tickets_empty_state')}</td></tr>`;
     if (cardsBox) cardsBox.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('tickets_empty_state')}</div>`;
+    updateTicketSelectionUI();
     return;
   }
 
@@ -5937,8 +5954,10 @@ function renderAdminTickets() {
 
   state.tickets.forEach(t => {
     const imgCount = t.imagesCount != null ? t.imagesCount : (t.images || []).length;
+    const checked = _selectedTicketIds.has(t.id);
     const tr = document.createElement('tr');
     tr.innerHTML = `
+      <td><input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleTicketSelection('${t.id}', this.checked)"></td>
       <td><strong>${t.id}</strong></td>
       <td>${t.roomName || t.roomId}</td>
       <td><span class="badge badge-resolved">${statusLabel(t.category)}</span></td>
@@ -5962,10 +5981,12 @@ function renderAdminTickets() {
     if (cardsBox) {
       const card = document.createElement('div');
       card.className = 'ticket-card';
-      card.onclick = () => openTicketDetail(t.id);
       card.innerHTML = `
         <div class="ticket-card-top">
-          <strong>${t.id}</strong>
+          <label style="display:flex; align-items:center; gap:0.4rem;" onclick="event.stopPropagation();">
+            <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleTicketSelection('${t.id}', this.checked)">
+            <strong>${t.id}</strong>
+          </label>
           <span class="badge ${ticketStatusBadgeClass(t.status)}">${statusLabel(t.status)}</span>
         </div>
         <div class="ticket-card-room">${t.roomName || t.roomId} · ${t.tenant}</div>
@@ -5982,12 +6003,58 @@ function renderAdminTickets() {
           </div>
         </div>
       `;
+      card.onclick = (e) => {
+        if (e.target.closest('.ticket-card-delete') || e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL') return;
+        openTicketDetail(t.id);
+      };
       cardsBox.appendChild(card);
     }
   });
 
   renderIcons(tbody);
   if (cardsBox) renderIcons(cardsBox);
+  updateTicketSelectionUI();
+}
+
+function toggleTicketSelection(ticketId, checked) {
+  if (checked) _selectedTicketIds.add(ticketId);
+  else _selectedTicketIds.delete(ticketId);
+  updateTicketSelectionUI();
+}
+
+function toggleSelectAllTickets(checked) {
+  if (checked) state.tickets.forEach(t => _selectedTicketIds.add(t.id));
+  else _selectedTicketIds.clear();
+  renderAdminTickets();
+}
+
+function updateTicketSelectionUI() {
+  const count = _selectedTicketIds.size;
+  const btn = document.getElementById('btn-download-selected-tickets');
+  const label = document.getElementById('btn-download-selected-tickets-label');
+  if (btn) btn.style.display = count > 0 ? 'inline-flex' : 'none';
+  if (label) label.textContent = tFmt('btn_download_selected_tickets', { count });
+  const selectAll = document.getElementById('ticket-select-all');
+  if (selectAll) selectAll.checked = state.tickets.length > 0 && count === state.tickets.length;
+}
+
+function openTicketDownloadModal() {
+  if (_selectedTicketIds.size === 0) return;
+  const countEl = document.getElementById('modal-download-tickets-count');
+  if (countEl) countEl.textContent = tFmt('modal_download_tickets_count', { count: _selectedTicketIds.size });
+  document.getElementById('modal-download-tickets').classList.add('active');
+}
+
+function downloadSelectedTickets(format) {
+  const ids = Array.from(_selectedTicketIds).join(',');
+  const endpoint = format === 'pdf' ? 'export-all-tickets-zip' : 'export-all-tickets';
+  const url = `${API_BASE}/backup/${endpoint}?ids=${encodeURIComponent(ids)}`;
+  const a = document.createElement('a');
+  a.href = url;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  closeModal('modal-download-tickets');
 }
 
 async function deleteTicketApi(ticketId) {

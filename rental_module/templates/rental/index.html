@@ -698,14 +698,20 @@
 
         <div id="view-admin-tickets" class="view-panel" style="display: none;">
           <div id="ticket-list-view">
-            <div style="margin-bottom: 1.25rem;">
-              <h3 data-i18n="tickets_title">Danh Sách Báo Lỗi Từ Khách Thuê</h3>
-              <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="tickets_subtitle">Tiếp nhận sự cố, cập nhật trạng thái và phản hồi khách thuê</p>
+            <div style="margin-bottom: 1.25rem; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:0.75rem;">
+              <div>
+                <h3 data-i18n="tickets_title">Danh Sách Báo Lỗi Từ Khách Thuê</h3>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="tickets_subtitle">Tiếp nhận sự cố, cập nhật trạng thái và phản hồi khách thuê</p>
+              </div>
+              <button type="button" class="btn btn-orange btn-sm" id="btn-download-selected-tickets" style="display:none;" onclick="openTicketDownloadModal()">
+                <i data-lucide="download"></i> <span id="btn-download-selected-tickets-label"></span>
+              </button>
             </div>
             <div class="excel-table-wrapper tickets-desktop-table">
               <table class="excel-table">
                 <thead>
                   <tr>
+                    <th style="width:2.2rem;"><input type="checkbox" id="ticket-select-all" onchange="toggleSelectAllTickets(this.checked)"></th>
                     <th data-i18n="col_ticket_id">Mã Ticket</th>
                     <th data-i18n="col_room">Phòng</th>
                     <th data-i18n="col_category">Phân Loại</th>
@@ -984,6 +990,25 @@
   </div>
 
   <!-- MODALS -->
+
+  <!-- Modal: choose format to download selected tickets -->
+  <div class="modal-backdrop" id="modal-download-tickets">
+    <div class="modal-card" style="max-width: 420px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="download" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="modal_download_tickets_title">Tải Ticket Đã Chọn</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-download-tickets')"><i data-lucide="x"></i></button>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.25rem;" id="modal-download-tickets-count"></p>
+      <div style="display:flex; flex-direction:column; gap:0.6rem;">
+        <button type="button" class="btn btn-orange" style="justify-content:center;" onclick="downloadSelectedTickets('pdf')">
+          <i data-lucide="file-archive"></i> <span data-i18n="btn_download_tickets_pdf">Tải Ticket Kèm Ảnh (PDF)</span>
+        </button>
+        <button type="button" class="btn btn-secondary" style="justify-content:center;" onclick="downloadSelectedTickets('json')">
+          <i data-lucide="download"></i> <span data-i18n="btn_download_tickets">Tải Ticket (JSON)</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Modal Add House / Property -->
   <div class="modal-backdrop" id="modal-add-house">

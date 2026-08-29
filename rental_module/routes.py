@@ -673,13 +673,24 @@ def export_all_invoices_zip():
         'Content-Disposition': f'attachment; filename="{filename}"'
     })
 
+def _filter_tickets_by_ids(tickets):
+    """Shared 'ids' query-param handling for the two export routes below —
+    a comma-separated list of ticket ids (from the checkbox selection on
+    the Tickets page) narrows the export to just those; omitted/empty
+    means "export everything", same as before this was added."""
+    ids_param = request.args.get('ids')
+    if not ids_param:
+        return tickets
+    wanted = {i.strip() for i in ids_param.split(',') if i.strip()}
+    return [tk for tk in tickets if tk.get('id') in wanted]
+
 @rental_bp.route('/api/backup/export-all-tickets', methods=['GET'])
-@superadmin_required
+@permission_required('tickets', 'view')
 def export_all_tickets():
-    # General-purpose "tải ticket về máy" button — every ticket ever
-    # submitted (full detail, images/comments included), not just the ones
-    # about to be auto-deleted.
-    tickets = Storage.get_tickets()
+    # General-purpose "tải ticket về máy" button — every ticket (or just
+    # the ones picked via ?ids=, from the Tickets page's checkbox
+    # selection), full detail (images/comments included).
+    tickets = _filter_tickets_by_ids(Storage.get_tickets())
     body = json.dumps(tickets, ensure_ascii=False, indent=2)
     filename = f"calacihouse-ticket-{datetime.now().strftime('%Y-%m-%d')}.json"
     return Response(body, mimetype='application/json', headers={
@@ -687,14 +698,15 @@ def export_all_tickets():
     })
 
 @rental_bp.route('/api/backup/export-all-tickets-zip', methods=['GET'])
-@superadmin_required
+@permission_required('tickets', 'view')
 def export_all_tickets_zip():
     # Same ticket data as export-all-tickets, but as one PDF per ticket
     # (description + attached photos + full reply thread with its own
     # photos) instead of raw JSON — for keeping visual "đã sửa" proof
-    # instead of base64 blobs.
+    # instead of base64 blobs. Also honors ?ids= (see
+    # _filter_tickets_by_ids).
     from .pdf_export import generate_tickets_zip
-    tickets = Storage.get_tickets()
+    tickets = _filter_tickets_by_ids(Storage.get_tickets())
     zip_bytes = generate_tickets_zip(tickets)
     filename = f"calacihouse-ticket-anh-{datetime.now().strftime('%Y-%m-%d')}.zip"
     return Response(zip_bytes, mimetype='application/zip', headers={
