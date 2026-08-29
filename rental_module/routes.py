@@ -657,6 +657,35 @@ def export_pending_tickets():
         'Content-Disposition': f'attachment; filename="{filename}"'
     })
 
+@rental_bp.route('/api/backup/export-all-invoices-zip', methods=['GET'])
+@superadmin_required
+def export_all_invoices_zip():
+    # General-purpose "tải hoá đơn về máy" button — every invoice ever
+    # generated, not just the ones about to be auto-deleted (that's what
+    # export-invoices-zip above is for). Same PDF-per-room-per-house-folder
+    # format.
+    from .pdf_export import generate_invoices_zip
+    invoices = Storage.get_invoices()
+    houses_by_id = {h['id']: h for h in Storage.get_houses()}
+    zip_bytes = generate_invoices_zip(invoices, houses_by_id)
+    filename = f"calacihouse-hoadon-{datetime.now().strftime('%Y-%m-%d')}.zip"
+    return Response(zip_bytes, mimetype='application/zip', headers={
+        'Content-Disposition': f'attachment; filename="{filename}"'
+    })
+
+@rental_bp.route('/api/backup/export-all-tickets', methods=['GET'])
+@superadmin_required
+def export_all_tickets():
+    # General-purpose "tải ticket về máy" button — every ticket ever
+    # submitted (full detail, images/comments included), not just the ones
+    # about to be auto-deleted.
+    tickets = Storage.get_tickets()
+    body = json.dumps(tickets, ensure_ascii=False, indent=2)
+    filename = f"calacihouse-ticket-{datetime.now().strftime('%Y-%m-%d')}.json"
+    return Response(body, mimetype='application/json', headers={
+        'Content-Disposition': f'attachment; filename="{filename}"'
+    })
+
 def _user_can_view_room_documents(user, room_id):
     """Gate for the on-demand full-document endpoint below — the bulk
     /api/data payload only ever ships light (no dataUrl) entries now, so a
