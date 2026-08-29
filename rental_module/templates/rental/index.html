@@ -417,6 +417,20 @@
             </div>
           </div>
 
+          <!-- The headline number: what the owner will actually pocket this
+               month after installation/repair costs are deducted. -->
+          <div class="cala-card" style="background: linear-gradient(135deg, var(--cala-blue) 0%, #0a5fb0 100%); color: #fff;">
+            <h3 style="margin-bottom: 1rem; color: #fff;"><i data-lucide="wallet" style="vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="inv_profit_title">Lợi Nhuận Dự Kiến Nhận Tháng Này</span></h3>
+            <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; align-items:baseline; margin-bottom: 0.75rem;">
+              <div style="font-size: 2rem; font-weight: 800;" id="investor-profit-net">0 đ</div>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; font-size: 0.85rem; opacity: 0.9;">
+              <div><span data-i18n="inv_profit_revenue_label">Doanh thu tháng này:</span> <strong id="investor-profit-revenue">0 đ</strong></div>
+              <div><span data-i18n="inv_profit_expenses_label">Trừ chi phí lắp đặt/sửa chữa:</span> <strong id="investor-profit-expenses">−0 đ</strong></div>
+            </div>
+            <p style="font-size: 0.78rem; opacity: 0.8; margin-top: 0.75rem; margin-bottom:0;" data-i18n="inv_profit_desc">Con số dự kiến dựa trên doanh thu và chi phí đã ghi nhận trong tháng — có thể thay đổi nếu có cập nhật thêm.</p>
+          </div>
+
           <div class="cala-card">
             <h3 style="margin-bottom: 1.25rem;"><i data-lucide="pie-chart" style="color: var(--cala-blue); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="inv_breakdown_title">Cơ Cấu Doanh Thu Tháng</span></h3>
             <div id="investor-revenue-breakdown"></div>

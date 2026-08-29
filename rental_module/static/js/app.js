@@ -71,6 +71,10 @@ const I18N = {
     inv_stat_collected: 'Đã thu tháng này',
     inv_stat_outstanding: 'Công nợ chưa thu',
     inv_stat_tickets: 'Báo lỗi đang mở',
+    inv_profit_title: 'Lợi Nhuận Dự Kiến Nhận Tháng Này',
+    inv_profit_revenue_label: 'Doanh thu tháng này:',
+    inv_profit_expenses_label: 'Trừ chi phí lắp đặt/sửa chữa:',
+    inv_profit_desc: 'Con số dự kiến dựa trên doanh thu và chi phí đã ghi nhận trong tháng — có thể thay đổi nếu có cập nhật thêm.',
     inv_breakdown_title: 'Cơ Cấu Doanh Thu Tháng',
     inv_house_breakdown_title: 'Doanh Thu Theo Tòa Nhà',
     inv_rooms_title: 'Chi Tiết Doanh Thu Theo Phòng',
@@ -705,6 +709,10 @@ const I18N = {
     inv_stat_collected: 'Collected this month',
     inv_stat_outstanding: 'Outstanding balance',
     inv_stat_tickets: 'Open issue tickets',
+    inv_profit_title: 'Expected Take-Home Profit This Month',
+    inv_profit_revenue_label: 'Revenue this month:',
+    inv_profit_expenses_label: 'Less installation/repair costs:',
+    inv_profit_desc: 'An estimate based on the revenue and costs recorded so far this month — may change if more is added.',
     inv_breakdown_title: 'Monthly Revenue Breakdown',
     inv_house_breakdown_title: 'Revenue By Building',
     inv_rooms_title: 'Revenue Detail By Room',
@@ -3089,6 +3097,24 @@ function renderInvestorDashboard() {
   setText('inv-stat-collected', formatMoney(collectedAmount) + ' đ');
   setText('inv-stat-outstanding', formatMoney(outstandingAmount) + ' đ');
   setText('inv-stat-tickets', openTickets);
+
+  // Lợi Nhuận Dự Kiến — the headline "how much will I actually get this
+  // month" number: this month's revenue share minus this month's
+  // installation/repair deductions. Computed from the same totalRevenue
+  // projection as inv-stat-revenue (not tied to whether invoices have
+  // actually been marked paid yet), so it reads as "expected", matching
+  // the disclaimer text under it.
+  const totalExpensesForProfit = state.investorExpenses
+    .filter(e => e.month === state.currentMonth && (state.currentHouseId === 'all' || e.houseId === state.currentHouseId))
+    .reduce((s, e) => s + (e.amount || 0), 0);
+  const netProfit = totalRevenue - totalExpensesForProfit;
+  setText('investor-profit-revenue', formatMoney(totalRevenue) + ' đ');
+  setText('investor-profit-expenses', '−' + formatMoney(totalExpensesForProfit) + ' đ');
+  const netProfitEl = document.getElementById('investor-profit-net');
+  if (netProfitEl) {
+    netProfitEl.innerText = formatMoney(netProfit) + ' đ';
+    netProfitEl.style.color = netProfit < 0 ? '#ffb4b4' : '#fff';
+  }
 
   const breakdownEl = document.getElementById('investor-revenue-breakdown');
   if (breakdownEl) {
