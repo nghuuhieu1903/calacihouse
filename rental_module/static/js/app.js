@@ -237,6 +237,7 @@ const I18N = {
     col_usage_prefix: 'Số ',
     spreadsheet_empty_state: 'Chưa có phòng trọ nào phù hợp với bộ lọc.',
     empty_tenant_label: '(Trống)',
+    badge_room_vacant: 'Phòng trống',
     not_applicable_label: '(Không áp dụng)',
     title_edit_room_price: 'Chỉnh sửa thông tin & giá tiền riêng phòng này',
     title_move_up: 'Di chuyển lên',
@@ -875,6 +876,7 @@ const I18N = {
     col_usage_prefix: 'Usage ',
     spreadsheet_empty_state: 'No rooms match the current filter.',
     empty_tenant_label: '(Vacant)',
+    badge_room_vacant: 'Vacant room',
     not_applicable_label: '(Not applicable)',
     title_edit_room_price: 'Edit this room\'s details & individual pricing',
     title_move_up: 'Move up',
@@ -3056,8 +3058,12 @@ function renderInvestorDashboard() {
   let totalRent = 0, totalElec = 0, totalWater = 0, totalService = 0;
   let occupiedCount = 0;
 
+  // A vacant room has no tenant paying rent — it must not contribute to
+  // "doanh thu" (revenue) or "công nợ" (outstanding) even if an invoice
+  // record happens to exist for it, since nobody actually owes that money.
   activeRooms.forEach(r => {
-    if (r.tenant) occupiedCount++;
+    if (!r.tenant) return;
+    occupiedCount++;
     totalRent += roomRentTotal(r);
 
     const rd = monthReadings[r.id] || {};
@@ -3082,7 +3088,11 @@ function renderInvestorDashboard() {
 
   const totalRevenue = totalRent + totalElec + totalWater + totalService;
 
-  const monthInvoices = state.invoices.filter(inv => inv.month === state.currentMonth && (state.currentHouseId === 'all' || inv.houseId === state.currentHouseId));
+  // Same reasoning for collected/outstanding: an invoice tied to a room
+  // that's vacant right now isn't real money owed by anyone, so it's
+  // excluded from both regardless of what its stored status says.
+  const occupiedRoomIds = new Set(state.rooms.filter(r => r.tenant).map(r => r.id));
+  const monthInvoices = state.invoices.filter(inv => inv.month === state.currentMonth && (state.currentHouseId === 'all' || inv.houseId === state.currentHouseId) && occupiedRoomIds.has(inv.roomId));
   const paidInvoices = monthInvoices.filter(i => i.status === 'Đã thanh toán');
   const pendingInvoices = monthInvoices.filter(i => i.status !== 'Đã thanh toán');
   const collectedAmount = paidInvoices.reduce((sum, i) => sum + computeInvestorInvoiceBreakdown(i).total, 0);
@@ -3146,19 +3156,23 @@ function renderInvestorDashboard() {
       tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('spreadsheet_empty_state')}</td></tr>`;
     } else {
       tbody.innerHTML = activeRooms.map(r => {
-        const inv = monthInvoices.find(i => i.roomId === r.id);
-        const total = inv ? computeInvestorInvoiceBreakdown(inv).total : roomRentTotal(r);
-        const statusBadge = inv
-          ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
-          : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`;
+        // Vacant rooms never show a rent/invoice figure here — see the
+        // occupiedRoomIds filtering above for why.
+        const inv = r.tenant ? monthInvoices.find(i => i.roomId === r.id) : null;
+        const total = inv ? computeInvestorInvoiceBreakdown(inv).total : (r.tenant ? roomRentTotal(r) : 0);
+        const statusBadge = !r.tenant
+          ? `<span class="badge badge-resolved">${t('badge_room_vacant')}</span>`
+          : (inv
+            ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
+            : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`);
         const house = state.houses.find(h => h.id === r.houseId);
         return `
           <tr>
             <td><strong>${r.name}</strong>${house ? `<br><small style="color:var(--text-muted);">${house.name}</small>` : ''}</td>
             <td>${r.tenant || `<em>${t('empty_tenant_label')}</em>`}</td>
             <td>${r.headcount}</td>
-            <td>${formatMoney(roomRentTotal(r))} đ</td>
-            <td style="font-weight:800; color:var(--cala-orange);">${formatMoney(total)} đ</td>
+            <td>${r.tenant ? formatMoney(roomRentTotal(r)) + ' đ' : '—'}</td>
+            <td style="font-weight:800; color:var(--cala-orange);">${r.tenant ? formatMoney(total) + ' đ' : '—'}</td>
             <td>${statusBadge}</td>
             <td>${inv ? `<button class="btn btn-secondary btn-sm" onclick="viewInvestorInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i> ${t('btn_view_details')}</button>` : ''}</td>
           </tr>
@@ -3174,7 +3188,7 @@ function renderInvestorDashboard() {
     if (state.houses.length > 1) {
       houseBreakdownCard.style.display = 'block';
       houseBreakdownBody.innerHTML = state.houses.map(h => {
-        const houseInvoices = state.invoices.filter(i => i.month === state.currentMonth && i.houseId === h.id);
+        const houseInvoices = state.invoices.filter(i => i.month === state.currentMonth && i.houseId === h.id && occupiedRoomIds.has(i.roomId));
         const houseTotal = houseInvoices.reduce((s, i) => s + computeInvestorInvoiceBreakdown(i).total, 0);
         const houseRooms = state.rooms.filter(r => r.houseId === h.id);
         const houseOccupied = houseRooms.filter(r => r.tenant).length;
