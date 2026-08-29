@@ -11,6 +11,7 @@
 # unmodified Vietnamese-subset build fetched directly from Google Fonts'
 # own CDN and converted from its WOFF delivery format to TTF (a lossless,
 # same-glyph-data conversion) since reportlab needs TTF/OTF, not WOFF.
+import base64
 import io
 import os
 import zipfile
@@ -20,8 +21,9 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
 from reportlab.lib.styles import ParagraphStyle
+from PIL import Image as PILImage
 
 _FONTS_DIR = os.path.join(os.path.dirname(__file__), 'static', 'fonts')
 _FONTS_REGISTERED = False
@@ -146,6 +148,109 @@ def generate_invoice_pdf(invoice, house):
     elements.append(Paragraph(f"Trạng thái thanh toán: <b>{status_label}</b>", label_style))
 
     doc.build(elements)
+    return buf.getvalue()
+
+
+def _decode_data_uri_image(data_uri, max_width_mm=70):
+    """Turns a 'data:image/jpeg;base64,...' string (what ticket.images /
+    comment.images actually store — see compressImageFile() in app.js)
+    into a reportlab Image flowable sized to fit the page. Returns None on
+    anything malformed instead of raising, so one bad/corrupt image can't
+    take down the whole PDF."""
+    try:
+        header, b64data = data_uri.split(',', 1)
+        raw = base64.b64decode(b64data)
+        pil_img = PILImage.open(io.BytesIO(raw))
+        w, h = pil_img.size
+        if w <= 0 or h <= 0:
+            return None
+        max_w = max_width_mm * mm
+        draw_w = min(max_w, w)
+        draw_h = draw_w * (h / w)
+        return RLImage(io.BytesIO(raw), width=draw_w, height=draw_h)
+    except Exception:
+        return None
+
+
+def generate_ticket_pdf(ticket):
+    """Renders one ticket (báo lỗi/sự cố) to PDF bytes — description +
+    attached photos, then the full reply thread (each comment's text,
+    status change, and photos) in order, exactly what's shown in the
+    ticket detail modal in-app. This is the "ảnh làm bằng chứng đã sửa"
+    document: photos stay embedded and visible instead of being separate
+    base64 blobs in a JSON file."""
+    _ensure_fonts_registered()
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=18 * mm, bottomMargin=18 * mm, leftMargin=18 * mm, rightMargin=18 * mm)
+
+    title_style = ParagraphStyle('Title', fontName='NotoSans-Bold', fontSize=16, leading=20, spaceAfter=8)
+    meta_style = ParagraphStyle('Meta', fontName='NotoSans', fontSize=9.5, textColor=colors.HexColor('#687176'), spaceAfter=2)
+    label_style = ParagraphStyle('Label', fontName='NotoSans', fontSize=9.5, spaceAfter=4)
+    section_style = ParagraphStyle('Section', fontName='NotoSans-Bold', fontSize=11, textColor=colors.HexColor('#0178d2'), spaceBefore=10, spaceAfter=6)
+    body_style = ParagraphStyle('Body', fontName='NotoSans', fontSize=9.5, leading=13)
+    comment_meta_style = ParagraphStyle('CommentMeta', fontName='NotoSans-Bold', fontSize=9, textColor=colors.HexColor('#0178d2'), spaceAfter=2)
+
+    elements = [
+        Paragraph(f"BÁO CÁO SỰ CỐ — {ticket.get('id', '')}", title_style),
+        Paragraph(
+            f"Phòng: <b>{ticket.get('roomName', '')}</b> &nbsp;&nbsp; Khách thuê: <b>{ticket.get('tenant', '') or 'Chưa có khách'}</b>",
+            meta_style
+        ),
+        Paragraph(
+            f"Danh mục: {ticket.get('category', '')} &nbsp;&nbsp; Mức độ: {ticket.get('priority', '')} &nbsp;&nbsp; Thời gian gửi: {ticket.get('timestamp', '')}",
+            meta_style
+        ),
+        Paragraph(f"Trạng thái hiện tại: <b>{ticket.get('status', '')}</b>", meta_style),
+        Spacer(1, 8),
+    ]
+
+    elements.append(Paragraph('Mô Tả Sự Cố', section_style))
+    elements.append(Paragraph(ticket.get('description', '') or '(Không có mô tả)', body_style))
+
+    images = ticket.get('images') or []
+    if images:
+        elements.append(Spacer(1, 6))
+        img_flowables = [f for f in (_decode_data_uri_image(src) for src in images) if f]
+        for img in img_flowables:
+            elements.append(img)
+            elements.append(Spacer(1, 4))
+
+    comments = ticket.get('comments') or []
+    if not comments and ticket.get('response'):
+        comments = [{'author': 'Admin', 'role': 'admin', 'text': ticket['response'], 'time': ticket.get('timestamp', '')}]
+
+    if comments:
+        elements.append(Paragraph('Lịch Sử Phản Hồi', section_style))
+        for c in comments:
+            who = 'Quản lý/Admin' if c.get('role') == 'admin' else (c.get('author') or 'Khách thuê')
+            header = f"{who} — {c.get('time', '')}"
+            if c.get('statusChange'):
+                header += f"  (Đổi trạng thái: {c['statusChange']})"
+            elements.append(Paragraph(header, comment_meta_style))
+            if c.get('text'):
+                elements.append(Paragraph(c['text'], body_style))
+            c_images = c.get('images') or []
+            for src in c_images:
+                img = _decode_data_uri_image(src)
+                if img:
+                    elements.append(img)
+                    elements.append(Spacer(1, 4))
+            elements.append(Spacer(1, 6))
+
+    doc.build(elements)
+    return buf.getvalue()
+
+
+def generate_tickets_zip(tickets):
+    """Bundles one PDF per ticket into a flat ZIP — tickets aren't tied to
+    a single house/folder the way invoices are (a ticket belongs to a
+    room, and room names aren't unique across houses), so this stays flat
+    rather than guessing a grouping."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for tk in tickets:
+            filename = f"{_safe_filename(tk.get('id', 'ticket'))}_{_safe_filename(tk.get('roomName', ''))}.pdf"
+            zf.writestr(filename, generate_ticket_pdf(tk))
     return buf.getvalue()
 
 

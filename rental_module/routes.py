@@ -686,6 +686,21 @@ def export_all_tickets():
         'Content-Disposition': f'attachment; filename="{filename}"'
     })
 
+@rental_bp.route('/api/backup/export-all-tickets-zip', methods=['GET'])
+@superadmin_required
+def export_all_tickets_zip():
+    # Same ticket data as export-all-tickets, but as one PDF per ticket
+    # (description + attached photos + full reply thread with its own
+    # photos) instead of raw JSON — for keeping visual "đã sửa" proof
+    # instead of base64 blobs.
+    from .pdf_export import generate_tickets_zip
+    tickets = Storage.get_tickets()
+    zip_bytes = generate_tickets_zip(tickets)
+    filename = f"calacihouse-ticket-anh-{datetime.now().strftime('%Y-%m-%d')}.zip"
+    return Response(zip_bytes, mimetype='application/zip', headers={
+        'Content-Disposition': f'attachment; filename="{filename}"'
+    })
+
 def _user_can_view_room_documents(user, room_id):
     """Gate for the on-demand full-document endpoint below — the bulk
     /api/data payload only ever ships light (no dataUrl) entries now, so a
