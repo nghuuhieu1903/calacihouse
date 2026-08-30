@@ -237,7 +237,6 @@ const I18N = {
     col_usage_prefix: 'Số ',
     spreadsheet_empty_state: 'Chưa có phòng trọ nào phù hợp với bộ lọc.',
     empty_tenant_label: '(Trống)',
-    badge_room_vacant: 'Phòng trống',
     not_applicable_label: '(Không áp dụng)',
     title_edit_room_price: 'Chỉnh sửa thông tin & giá tiền riêng phòng này',
     title_move_up: 'Di chuyển lên',
@@ -876,7 +875,6 @@ const I18N = {
     col_usage_prefix: 'Usage ',
     spreadsheet_empty_state: 'No rooms match the current filter.',
     empty_tenant_label: '(Vacant)',
-    badge_room_vacant: 'Vacant room',
     not_applicable_label: '(Not applicable)',
     title_edit_room_price: 'Edit this room\'s details & individual pricing',
     title_move_up: 'Move up',
@@ -3152,27 +3150,27 @@ function renderInvestorDashboard() {
 
   const tbody = document.getElementById('investor-rooms-table-body');
   if (tbody) {
-    if (activeRooms.length === 0) {
+    // Vacant rooms are left out entirely here — no tenant means no money
+    // involved, and a "—" row still invited investors to ask what it
+    // meant. Simpler and unambiguous to just not list it.
+    const occupiedRooms = activeRooms.filter(r => r.tenant);
+    if (occupiedRooms.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('spreadsheet_empty_state')}</td></tr>`;
     } else {
-      tbody.innerHTML = activeRooms.map(r => {
-        // Vacant rooms never show a rent/invoice figure here — see the
-        // occupiedRoomIds filtering above for why.
-        const inv = r.tenant ? monthInvoices.find(i => i.roomId === r.id) : null;
-        const total = inv ? computeInvestorInvoiceBreakdown(inv).total : (r.tenant ? roomRentTotal(r) : 0);
-        const statusBadge = !r.tenant
-          ? `<span class="badge badge-resolved">${t('badge_room_vacant')}</span>`
-          : (inv
-            ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
-            : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`);
+      tbody.innerHTML = occupiedRooms.map(r => {
+        const inv = monthInvoices.find(i => i.roomId === r.id);
+        const total = inv ? computeInvestorInvoiceBreakdown(inv).total : roomRentTotal(r);
+        const statusBadge = inv
+          ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
+          : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`;
         const house = state.houses.find(h => h.id === r.houseId);
         return `
           <tr>
             <td><strong>${r.name}</strong>${house ? `<br><small style="color:var(--text-muted);">${house.name}</small>` : ''}</td>
-            <td>${r.tenant || `<em>${t('empty_tenant_label')}</em>`}</td>
+            <td>${r.tenant}</td>
             <td>${r.headcount}</td>
-            <td>${r.tenant ? formatMoney(roomRentTotal(r)) + ' đ' : '—'}</td>
-            <td style="font-weight:800; color:var(--cala-orange);">${r.tenant ? formatMoney(total) + ' đ' : '—'}</td>
+            <td>${formatMoney(roomRentTotal(r))} đ</td>
+            <td style="font-weight:800; color:var(--cala-orange);">${formatMoney(total)} đ</td>
             <td>${statusBadge}</td>
             <td>${inv ? `<button class="btn btn-secondary btn-sm" onclick="viewInvestorInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i> ${t('btn_view_details')}</button>` : ''}</td>
           </tr>
