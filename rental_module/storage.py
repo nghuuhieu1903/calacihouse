@@ -249,6 +249,13 @@ def _user(row):
         'houseId': row['house_id'] or '',
         'houseIds': house_ids,
         'hasVehicle': bool(row.get('has_vehicle')),
+        # KTX/dorm-only, per-occupant — see database.py's migration
+        # comment. vehicleServiceId empty means "no vehicle"; a value is
+        # the id of whichever configured parking-fee service this
+        # person's vehicle counts against.
+        'vehicleServiceId': row.get('vehicle_service_id') or '',
+        'contractStart': row.get('contract_start') or '',
+        'contractEnd': row.get('contract_end') or '',
         'status': row['status'],
         'createdAt': row['created_at'] or ''
     }
@@ -553,8 +560,9 @@ class Storage:
                 house_ids = u.get('houseIds') or ([u['houseId']] if u.get('houseId') else [])
                 cur.execute(
                     "REPLACE INTO users "
-                    "(id, username, password, full_name, role, room_id, house_id, house_ids, has_vehicle, status, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, username, password, full_name, role, room_id, house_id, house_ids, has_vehicle, "
+                    "vehicle_service_id, contract_start, contract_end, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         u['id'],
                         u['username'],
@@ -565,6 +573,9 @@ class Storage:
                         house_ids[0] if house_ids else '',
                         json.dumps(house_ids),
                         1 if u.get('hasVehicle') else 0,
+                        u.get('vehicleServiceId', ''),
+                        u.get('contractStart', ''),
+                        u.get('contractEnd', ''),
                         u.get('status', 'pending'),
                         u.get('createdAt', '')
                     )
@@ -592,8 +603,9 @@ class Storage:
                 house_ids = u.get('houseIds') or ([u['houseId']] if u.get('houseId') else [])
                 cur.execute(
                     "INSERT INTO users "
-                    "(id, username, password, full_name, role, room_id, house_id, house_ids, has_vehicle, status, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, username, password, full_name, role, room_id, house_id, house_ids, has_vehicle, "
+                    "vehicle_service_id, contract_start, contract_end, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         u['id'],
                         u['username'],
@@ -604,6 +616,9 @@ class Storage:
                         house_ids[0] if house_ids else '',
                         json.dumps(house_ids),
                         1 if u.get('hasVehicle') else 0,
+                        u.get('vehicleServiceId', ''),
+                        u.get('contractStart', ''),
+                        u.get('contractEnd', ''),
                         u.get('status', 'pending'),
                         u.get('createdAt', '')
                     )

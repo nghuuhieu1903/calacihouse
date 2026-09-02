@@ -340,6 +340,16 @@ def init_db():
             _ensure_column(cur, 'houses', 'sort_order', "INT DEFAULT 0")
             _ensure_column(cur, 'rooms', 'sort_order', "INT DEFAULT 0")
             _ensure_column(cur, 'services', 'sort_order', "INT DEFAULT 0")
+            # KTX/dorm rooms share one roomId across several tenant
+            # accounts — has_vehicle (a plain yes/no) couldn't say WHICH
+            # of possibly several configured parking-fee services (e.g.
+            # "Phí Gửi Xe Máy Chung Cư" vs "...Căn Hộ") a given occupant's
+            # vehicle actually belongs to, and contract_start/end living
+            # only on the room meant every occupant was forced to share
+            # one contract window even though each moved in separately.
+            _ensure_column(cur, 'users', 'vehicle_service_id', "VARCHAR(191) DEFAULT ''")
+            _ensure_column(cur, 'users', 'contract_start', "VARCHAR(10) DEFAULT ''")
+            _ensure_column(cur, 'users', 'contract_end', "VARCHAR(10) DEFAULT ''")
             _promote_admins_to_superadmin(cur)
             _backfill_house_sort_order(cur)
             _backfill_room_sort_order(cur)

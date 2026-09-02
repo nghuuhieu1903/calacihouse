@@ -44,7 +44,8 @@ const I18N = {
     lbl_room_capacity: 'Số Người Tổng (Sức chứa — chỉ để tham khảo, không tính vào công thức)',
     lbl_room_vehicle_count: 'Số Xe Gửi (để tính phí gửi xe = đơn giá × số xe)',
     lbl_room_vehicle_count_short: 'Số xe',
-    hint_room_vehicle_count_dorm: 'Phòng KTX: số xe tự động tính theo từng tài khoản đã tích "Có gửi xe" trong Quản Lý Tài Khoản, không sửa trực tiếp ở đây được.',
+    lbl_dorm_occupant_contracts: 'Hợp đồng từng người',
+    hint_room_vehicle_count_dorm: 'Phòng KTX: số xe tự động tính theo dịch vụ phí xe đã chọn cho từng tài khoản trong Quản Lý Tài Khoản, không sửa trực tiếp ở đây được.',
     capacity_label: 'Sức chứa:',
     lbl_room_description: 'Mô Tả / Ghi Chú Phòng (hiển thị công khai cho Saler)',
     btn_room_photos: 'Ảnh Phòng (Saler xem được)',
@@ -598,6 +599,8 @@ const I18N = {
     lbl_role_permission: 'Vai trò / Quyền hạn',
     lbl_residing_room: 'Phòng lưu trú',
     lbl_has_vehicle: 'Có gửi xe (tính phí gửi xe riêng cho người này)',
+    lbl_vehicle_service: 'Gửi xe (chọn dịch vụ phí xe)',
+    option_no_vehicle: 'Không gửi xe',
     lbl_account_status: 'Trạng thái tài khoản',
     option_status_approved: 'Đã duyệt (Hoạt động)',
     option_status_pending: 'Chờ duyệt (Chưa kích hoạt)',
@@ -691,7 +694,8 @@ const I18N = {
     lbl_room_capacity: 'Total Capacity (informational only, not used in any formula)',
     lbl_room_vehicle_count: 'Vehicle Count (used for parking fee = price × vehicle count)',
     lbl_room_vehicle_count_short: 'Vehicles',
-    hint_room_vehicle_count_dorm: 'Dorm room: vehicle count is auto-calculated from each account checked "Has a vehicle" in Account Management — not directly editable here.',
+    lbl_dorm_occupant_contracts: 'Per-occupant contracts',
+    hint_room_vehicle_count_dorm: 'Dorm room: vehicle count is auto-calculated from each account\'s chosen parking-fee service in Account Management — not directly editable here.',
     capacity_label: 'Capacity:',
     lbl_room_description: 'Room description / notes (publicly shown to Saler)',
     btn_room_photos: 'Room Photos (visible to Saler)',
@@ -1245,6 +1249,8 @@ const I18N = {
     lbl_role_permission: 'Role / Permission',
     lbl_residing_room: 'Assigned room',
     lbl_has_vehicle: 'Has a vehicle (billed for parking separately)',
+    lbl_vehicle_service: 'Vehicle parking (choose a fee service)',
+    option_no_vehicle: 'No vehicle',
     lbl_account_status: 'Account status',
     option_status_approved: 'Approved (Active)',
     option_status_pending: 'Pending (Not activated)',
@@ -2274,7 +2280,12 @@ function calculateServiceCostForRoom(service, room) {
     return price * headcount;
   }
   if (unit === 'Theo xe / tháng') {
-    return price * (room.vehicleCount || 0);
+    // A KTX room's occupants can be split across more than one parking
+    // service (see _apply_dorm_vehicle_counts in services.py) — use THIS
+    // service's own count when that breakdown exists; a single room (no
+    // per-service breakdown) falls back to its one flat vehicleCount.
+    const vehicleCount = room.vehicleCountByService ? (room.vehicleCountByService[service.id] || 0) : (room.vehicleCount || 0);
+    return price * vehicleCount;
   }
   return price;
 }
@@ -2301,7 +2312,8 @@ function calculateRoomServiceTotal(room) {
 
     if (nameLower.includes('xe') || unit === 'Theo xe / tháng') {
       parkingTotal += cost;
-      const parkingUnit = unit === 'Theo xe / tháng' ? `${room.vehicleCount || 0} xe x ${formatMoney(s.price)}đ` : unit;
+      const svcVehicleCount = room.vehicleCountByService ? (room.vehicleCountByService[s.id] || 0) : (room.vehicleCount || 0);
+      const parkingUnit = unit === 'Theo xe / tháng' ? `${svcVehicleCount} xe x ${formatMoney(s.price)}đ` : unit;
       items.push({ id: s.id, name, symbol, price: s.price, unit: parkingUnit, total: cost, isParking: true });
     } else {
       serviceTotal += cost;
@@ -4720,18 +4732,45 @@ function handleCreateHouseChange() {
   if (!roomSelect) return;
   const filteredRooms = state.rooms.filter(r => r.houseId === houseId);
   roomSelect.innerHTML = filteredRooms.map(r => `<option value="${r.id}">${r.name} (${r.tenant || t('vacant_label')})</option>`).join('');
-  toggleCreateHasVehicleBox();
+  toggleCreateDormFields();
 }
 
-// The "Có gửi xe" checkbox only makes sense for a dorm room, where each
-// resident's parking fee is billed individually — a single room's tenant
-// pays one lump-sum total instead, so there's nothing per-person to toggle.
-function toggleCreateHasVehicleBox() {
+// The vehicle-service picker + per-person contract dates only make sense
+// for a dorm room, where each resident is billed (and may have signed up)
+// individually — a single room's one tenant pays one lump-sum total and
+// shares the room's own contract dates instead, so there's nothing
+// per-person to fill in there.
+function toggleCreateDormFields() {
   const room = state.rooms.find(r => r.id === document.getElementById('create-room-id').value);
   const isDorm = !!(room && room.roomType === 'dorm');
-  const box = document.getElementById('box-create-has-vehicle');
+  const box = document.getElementById('box-create-dorm-fields');
   if (box) box.style.display = isDorm ? 'block' : 'none';
-  if (!isDorm) document.getElementById('create-has-vehicle').checked = false;
+  if (isDorm) {
+    populateVehicleServiceOptions('create-vehicle-service', room, '');
+  } else {
+    document.getElementById('create-vehicle-service').value = '';
+    document.getElementById('create-contract-start').value = '';
+    document.getElementById('create-contract-end').value = '';
+  }
+}
+
+// Lists the fixed-fee services that would actually bill THIS room as a
+// vehicle/parking charge (same test calculate_room_services_total()
+// itself uses: name contains "xe", or the dedicated per-vehicle unit) —
+// a KTX room's residents can be split across more than one of these
+// (e.g. "Phí Gửi Xe Máy Chung Cư" vs "...Căn Hộ"), so this is a specific
+// service to assign per person, not a plain yes/no.
+function populateVehicleServiceOptions(selectId, room, selectedServiceId) {
+  const select = document.getElementById(selectId);
+  if (!select || !room) return;
+  const vehicleServices = state.services.filter(s =>
+    s.calcType !== 'formula' &&
+    serviceMatchesHouse(s, room.houseId) && serviceMatchesRoom(s, room.id) &&
+    ((s.name || '').toLowerCase().includes('xe') || s.unit === 'Theo xe / tháng')
+  );
+  select.innerHTML = `<option value="">${t('option_no_vehicle')}</option>` +
+    vehicleServices.map(s => `<option value="${s.id}" ${s.id === selectedServiceId ? 'selected' : ''}>${s.symbol || '🛵'} ${s.name}</option>`).join('');
+  select.value = selectedServiceId || '';
 }
 
 function toggleRoomSelectInCreateModal() {
@@ -4778,7 +4817,11 @@ function openEditUserModal(userId) {
     const userHouseId = userRoom ? userRoom.houseId : (state.houses[0] ? state.houses[0].id : '');
     if (houseSelect && userHouseId) houseSelect.value = userHouseId;
     handleEditHouseChange(u.roomId);
-    document.getElementById('edit-has-vehicle').checked = !!u.hasVehicle;
+    // handleEditHouseChange() above already calls toggleEditDormFields()
+    // to size the box for the room — call it again now with this user's
+    // own saved values so a dorm tenant's picker/dates actually prefill
+    // instead of resetting to empty every time this modal reopens.
+    toggleEditDormFields(u);
   }
 
   // Clear password field - always blank when modal opens
@@ -4797,15 +4840,23 @@ function handleEditHouseChange(selectedRoomId = '') {
   const filteredRooms = state.rooms.filter(r => r.houseId === houseId);
   roomSelect.innerHTML = `<option value="">-- ${t('unassigned_none_placeholder')} --</option>` +
     filteredRooms.map(r => `<option value="${r.id}" ${r.id === selectedRoomId ? 'selected' : ''}>${r.name} (${r.tenant || t('vacant_label')})</option>`).join('');
-  toggleEditHasVehicleBox();
+  toggleEditDormFields();
 }
 
-function toggleEditHasVehicleBox() {
+function toggleEditDormFields(prefill) {
   const room = state.rooms.find(r => r.id === document.getElementById('edit-room-id').value);
   const isDorm = !!(room && room.roomType === 'dorm');
-  const box = document.getElementById('box-edit-has-vehicle');
+  const box = document.getElementById('box-edit-dorm-fields');
   if (box) box.style.display = isDorm ? 'block' : 'none';
-  if (!isDorm) document.getElementById('edit-has-vehicle').checked = false;
+  if (isDorm) {
+    populateVehicleServiceOptions('edit-vehicle-service', room, prefill ? prefill.vehicleServiceId : '');
+    document.getElementById('edit-contract-start').value = prefill ? (prefill.contractStart || '') : '';
+    document.getElementById('edit-contract-end').value = prefill ? (prefill.contractEnd || '') : '';
+  } else {
+    document.getElementById('edit-vehicle-service').value = '';
+    document.getElementById('edit-contract-start').value = '';
+    document.getElementById('edit-contract-end').value = '';
+  }
 }
 
 function toggleRoomSelectInEditModal() {
@@ -4834,12 +4885,15 @@ async function handleAdminSaveUser(event) {
   const role = document.getElementById('edit-role').value;
   const roomId = role === 'tenant' ? document.getElementById('edit-room-id').value : '';
   const houseIds = role === 'investor' ? getSelectedInvestorHouseIds('edit-investor-houses-container') : [];
-  const hasVehicle = role === 'tenant' ? document.getElementById('edit-has-vehicle').checked : false;
+  const isDormTenant = role === 'tenant' && document.getElementById('box-edit-dorm-fields').style.display !== 'none';
+  const vehicleServiceId = isDormTenant ? document.getElementById('edit-vehicle-service').value : '';
+  const contractStart = isDormTenant ? document.getElementById('edit-contract-start').value : '';
+  const contractEnd = isDormTenant ? document.getElementById('edit-contract-end').value : '';
   const status = document.getElementById('edit-status').value;
   const newPasswordField = document.getElementById('edit-new-password');
   const newPassword = newPasswordField ? newPasswordField.value.trim() : '';
 
-  const payload = { id, fullName, role, roomId, houseIds, hasVehicle, status };
+  const payload = { id, fullName, role, roomId, houseIds, vehicleServiceId, contractStart, contractEnd, status };
   if (newPassword) payload.newPassword = newPassword;
 
   const data = await postAndVerify(`${API_BASE}/users/save`, payload);
@@ -4852,7 +4906,9 @@ async function handleAdminSaveUser(event) {
     state.users[uIdx].roomId = roomId;
     state.users[uIdx].houseIds = houseIds;
     state.users[uIdx].houseId = houseIds[0] || '';
-    state.users[uIdx].hasVehicle = hasVehicle;
+    state.users[uIdx].vehicleServiceId = vehicleServiceId;
+    state.users[uIdx].contractStart = contractStart;
+    state.users[uIdx].contractEnd = contractEnd;
     state.users[uIdx].status = status;
   }
   applyDeactivatedUsernames(data.deactivatedUsernames);
@@ -4873,9 +4929,12 @@ async function handleAdminCreateUser(event) {
   const role = document.getElementById('create-role').value;
   const roomId = role === 'tenant' ? document.getElementById('create-room-id').value : '';
   const houseIds = role === 'investor' ? getSelectedInvestorHouseIds('create-investor-houses-container') : [];
-  const hasVehicle = role === 'tenant' ? document.getElementById('create-has-vehicle').checked : false;
+  const isDormTenant = role === 'tenant' && document.getElementById('box-create-dorm-fields').style.display !== 'none';
+  const vehicleServiceId = isDormTenant ? document.getElementById('create-vehicle-service').value : '';
+  const contractStart = isDormTenant ? document.getElementById('create-contract-start').value : '';
+  const contractEnd = isDormTenant ? document.getElementById('create-contract-end').value : '';
 
-  const data = await postAndVerify(`${API_BASE}/users/create`, { username, password, fullName, role, roomId, houseIds, hasVehicle });
+  const data = await postAndVerify(`${API_BASE}/users/create`, { username, password, fullName, role, roomId, houseIds, vehicleServiceId, contractStart, contractEnd });
   if (!data) return;
 
   // Pushes the server's own returned user object rather than a locally-
@@ -5277,13 +5336,13 @@ function renderRoomsManagement() {
                 ${r.roomType === 'dorm' && r.capacity ? `<div><span style="color:var(--text-muted);">${t('capacity_label')}</span><br><strong>${r.capacity} ${t('formula_per_person_label')}</strong></div>` : ''}
                 <div><span style="color:var(--text-muted);">🛵 ${t('lbl_room_vehicle_count_short')}</span><br><strong>${r.vehicleCount || 0}</strong></div>
               </div>
-              ${r.contractStart || r.contractEnd ? `
+              ${r.roomType === 'dorm' ? dormOccupantContractsHtml(r) : (r.contractStart || r.contractEnd ? `
                 <div style="display:flex; align-items:center; gap:0.4rem; font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.75rem;">
                   <i data-lucide="calendar" style="width:13px; height:13px; flex-shrink:0;"></i>
                   <span>${r.contractStart || '?'} → ${r.contractEnd || t('contract_no_end_date')}</span>
                   ${contractStatusBadgeHtml(r)}
                 </div>
-              ` : ''}
+              ` : '')}
               <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
                 ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `<button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditRoomModal('${r.id}')">
                   <i data-lucide="edit-2"></i> ${t('btn_edit')}
@@ -5801,6 +5860,29 @@ function contractStatusBadgeHtml(room) {
     return `<span class="badge badge-pending" style="font-size:0.68rem;">${t('contract_status_expiring_soon')} · ${daysLeft} ${t('contract_days_left_suffix')}</span>`;
   }
   return '';
+}
+
+// A KTX room's occupants can each have signed up at a different time —
+// the room's own single contractStart/End (still used for a single room)
+// can't represent that, so this lists every current approved tenant on
+// this room with their OWN contract dates + the same expiring-soon/
+// expired badge contractStatusBadgeHtml() already draws per-room.
+function dormOccupantContractsHtml(room) {
+  const occupants = state.users.filter(u => u.role === 'tenant' && u.status === 'approved' && u.roomId === room.id && (u.contractStart || u.contractEnd));
+  if (occupants.length === 0) return '';
+  return `
+    <div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.75rem;">
+      <div style="font-weight:700; margin-bottom:0.3rem; display:flex; align-items:center; gap:0.3rem;">
+        <i data-lucide="calendar" style="width:13px; height:13px;"></i> ${t('lbl_dorm_occupant_contracts')}
+      </div>
+      ${occupants.map(u => `
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:0.4rem; padding:0.2rem 0;">
+          <span>${u.fullName || u.username}: ${u.contractStart || '?'} → ${u.contractEnd || t('contract_no_end_date')}</span>
+          ${contractStatusBadgeHtml(u)}
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 async function handleRoomDocumentSelect(event) {

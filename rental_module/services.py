@@ -98,7 +98,14 @@ class RentalService:
 
             if 'xe' in name_lower or unit == 'Theo xe / tháng':
                 if unit == 'Theo xe / tháng':
-                    vehicle_count = room.get('vehicleCount', 0)
+                    # A KTX room's occupants can be split across more than
+                    # one parking service (see _apply_dorm_vehicle_counts)
+                    # — use THIS service's own count when that breakdown
+                    # exists; a single room (no per-service breakdown at
+                    # all) falls back to its one flat vehicleCount exactly
+                    # as before.
+                    by_service = room.get('vehicleCountByService')
+                    vehicle_count = by_service.get(s.get('id'), 0) if by_service is not None else room.get('vehicleCount', 0)
                     item_price = price * vehicle_count
                     item_unit = f"{vehicle_count} xe x {price:,.0f}đ"
                 else:
@@ -119,23 +126,34 @@ class RentalService:
 
     @staticmethod
     def _apply_dorm_vehicle_counts(rooms, users):
-        """A dorm room's vehicleCount isn't typed in directly (see
-        save_room) — it's the number of that room's currently-approved
-        tenant accounts individually marked "có gửi xe" in Quản Lý Tài
-        Khoản, recomputed live every time rooms are read rather than
-        synced on write, so it can never drift out of date (e.g. after a
-        tenant moves out or a checkbox changes on a different page). A
-        single room's vehicleCount is untouched — there it's just the
-        direct value the admin typed on the room itself."""
-        vehicle_counts_by_room = {}
+        """A dorm room's vehicle count isn't typed in directly (see
+        save_room) — it's derived from that room's currently-approved
+        tenant accounts, each individually assigned (in Quản Lý Tài
+        Khoản) to whichever configured parking-fee service their vehicle
+        actually belongs to (vehicleServiceId — a KTX room can have
+        occupants split across more than one parking service, e.g. "Phí
+        Gửi Xe Máy Chung Cư" vs "...Căn Hộ"). Recomputed live every time
+        rooms are read rather than synced on write, so it can never drift
+        out of date (a tenant moves out, or their vehicle assignment
+        changes, on a different page). vehicleCountByService: {serviceId:
+        count} feeds calculate_room_services_total's per-service pricing;
+        vehicleCount (the old flat total, summed across every service) is
+        kept alongside for anything still displaying a single number. A
+        single room's vehicleCount is untouched either way — there it's
+        just the direct value the admin typed on the room itself, same
+        as before this existed."""
+        counts_by_room_and_service = {}
         for u in users:
-            if u.get('role') == 'tenant' and u.get('status') == 'approved' and u.get('hasVehicle') and u.get('roomId'):
-                vehicle_counts_by_room[u['roomId']] = vehicle_counts_by_room.get(u['roomId'], 0) + 1
+            if u.get('role') == 'tenant' and u.get('status') == 'approved' and u.get('vehicleServiceId') and u.get('roomId'):
+                room_counts = counts_by_room_and_service.setdefault(u['roomId'], {})
+                svc_id = u['vehicleServiceId']
+                room_counts[svc_id] = room_counts.get(svc_id, 0) + 1
 
         result = []
         for r in rooms:
             if r.get('roomType') == 'dorm':
-                r = {**r, 'vehicleCount': vehicle_counts_by_room.get(r['id'], 0)}
+                by_service = counts_by_room_and_service.get(r['id'], {})
+                r = {**r, 'vehicleCountByService': by_service, 'vehicleCount': sum(by_service.values())}
             result.append(r)
         return result
 
@@ -710,7 +728,7 @@ class RentalService:
         return False, []
 
     @staticmethod
-    def create_user_by_admin(username, password, full_name, role, room_id, house_id='', house_ids=None, has_vehicle=False):
+    def create_user_by_admin(username, password, full_name, role, room_id, house_id='', house_ids=None, has_vehicle=False, vehicle_service_id='', contract_start='', contract_end=''):
         users = Storage.get_users()
         if any(u['username'].lower() == username.lower() for u in users):
             return None, 'Tên tài khoản đã tồn tại!'
@@ -727,11 +745,17 @@ class RentalService:
             'role': role,
             'roomId': room_id if role == 'tenant' else '',
             'houseIds': investor_house_ids if role == 'investor' else [],
-            # Only meaningful for a tenant in a dorm room — see
-            # _apply_dorm_vehicle_counts() for how this rolls up into the
-            # room's billed vehicle count. Harmless to store for anyone
-            # else, just never read back.
+            # hasVehicle is no longer set from the UI (superseded by
+            # vehicleServiceId below) — kept in the row purely so an old
+            # value already on an existing account isn't silently wiped.
             'hasVehicle': bool(has_vehicle),
+            # Both only meaningful for a tenant in a dorm room — see
+            # _apply_dorm_vehicle_counts() for vehicleServiceId, and the
+            # KTX occupant list for contract_start/end. Harmless to store
+            # for anyone else, just never read back.
+            'vehicleServiceId': vehicle_service_id or '',
+            'contractStart': contract_start or '',
+            'contractEnd': contract_end or '',
             'status': 'approved',
             'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
@@ -745,7 +769,7 @@ class RentalService:
         return new_user, None
 
     @staticmethod
-    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id='', house_ids=None, has_vehicle=None):
+    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id='', house_ids=None, has_vehicle=None, vehicle_service_id=None, contract_start=None, contract_end=None):
         user = next((u for u in Storage.get_users() if u['id'] == user_id), None)
         if user:
             investor_house_ids = house_ids if house_ids else ([house_id] if house_id else [])
@@ -770,6 +794,12 @@ class RentalService:
                 user['status'] = status
                 if has_vehicle is not None:
                     user['hasVehicle'] = bool(has_vehicle)
+                if vehicle_service_id is not None:
+                    user['vehicleServiceId'] = vehicle_service_id
+                if contract_start is not None:
+                    user['contractStart'] = contract_start
+                if contract_end is not None:
+                    user['contractEnd'] = contract_end
 
             # Only update password if a new one was explicitly provided
             if new_password:

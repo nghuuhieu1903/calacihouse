@@ -1298,13 +1298,25 @@
         </div>
         <div style="margin-bottom: 1.5rem;" id="box-assign-room">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="col_assigned_room">Gán phòng</label>
-          <select id="create-room-id" class="form-control" onchange="toggleCreateHasVehicleBox()"></select>
+          <select id="create-room-id" class="form-control" onchange="toggleCreateDormFields()"></select>
         </div>
-        <div style="margin-bottom: 1.5rem; display: none;" id="box-create-has-vehicle">
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" id="create-has-vehicle">
-            <span style="font-size: 0.85rem; font-weight: 700;" data-i18n="lbl_has_vehicle">Có gửi xe (tính phí gửi xe riêng cho người này)</span>
-          </label>
+        <div style="margin-bottom: 1.5rem; display: none;" id="box-create-dorm-fields">
+          <div style="margin-bottom: 1rem;">
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_vehicle_service">Gửi xe (chọn dịch vụ phí xe)</label>
+            <select id="create-vehicle-service" class="form-control">
+              <option value="" data-i18n="option_no_vehicle">Không gửi xe</option>
+            </select>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <div style="flex: 1;">
+              <label style="font-size: 0.78rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;" data-i18n="lbl_contract_start">Ngày Bắt Đầu</label>
+              <input type="date" id="create-contract-start" class="form-control">
+            </div>
+            <div style="flex: 1;">
+              <label style="font-size: 0.78rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;" data-i18n="lbl_contract_end">Ngày Kết Thúc</label>
+              <input type="date" id="create-contract-end" class="form-control">
+            </div>
+          </div>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create-user')" data-i18n="btn_cancel">Hủy</button>
@@ -1350,13 +1362,25 @@
         </div>
         <div style="margin-bottom: 1rem;" id="box-edit-assign-room">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_residing_room">Phòng lưu trú</label>
-          <select id="edit-room-id" class="form-control" onchange="toggleEditHasVehicleBox()"></select>
+          <select id="edit-room-id" class="form-control" onchange="toggleEditDormFields()"></select>
         </div>
-        <div style="margin-bottom: 1.5rem; display: none;" id="box-edit-has-vehicle">
-          <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-            <input type="checkbox" id="edit-has-vehicle">
-            <span style="font-size: 0.85rem; font-weight: 700;" data-i18n="lbl_has_vehicle">Có gửi xe (tính phí gửi xe riêng cho người này)</span>
-          </label>
+        <div style="margin-bottom: 1.5rem; display: none;" id="box-edit-dorm-fields">
+          <div style="margin-bottom: 1rem;">
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_vehicle_service">Gửi xe (chọn dịch vụ phí xe)</label>
+            <select id="edit-vehicle-service" class="form-control">
+              <option value="" data-i18n="option_no_vehicle">Không gửi xe</option>
+            </select>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <div style="flex: 1;">
+              <label style="font-size: 0.78rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;" data-i18n="lbl_contract_start">Ngày Bắt Đầu</label>
+              <input type="date" id="edit-contract-start" class="form-control">
+            </div>
+            <div style="flex: 1;">
+              <label style="font-size: 0.78rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;" data-i18n="lbl_contract_end">Ngày Kết Thúc</label>
+              <input type="date" id="edit-contract-end" class="form-control">
+            </div>
+          </div>
         </div>
         <div style="margin-bottom: 1.5rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_account_status">Trạng thái tài khoản</label>
