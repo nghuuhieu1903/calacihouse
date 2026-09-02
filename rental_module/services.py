@@ -157,19 +157,38 @@ class RentalService:
         rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), Storage.get_users())
         services = Storage.get_services()
 
+        prev_month = RentalService._shift_month(month, -1)
+
         def mutate(readings):
             if month not in readings:
                 readings[month] = {}
+            prev_readings = readings.get(prev_month, {})
 
             for r in rooms:
                 srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
                 if r['id'] not in readings[month]:
+                    # First time this room shows up in this month's
+                    # readings — carry last month's "New" reading forward
+                    # as this month's "Old" one (same physical meter, same
+                    # number, just now the starting point instead of last
+                    # month's ending point) so whoever fills this in only
+                    # ever has to type the new number, not re-type last
+                    # month's closing number too.
+                    prev_rd = prev_readings.get(r['id'], {})
                     readings[month][r['id']] = {
-                        'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
+                        'elecOld': prev_rd.get('elecNew', 0), 'elecNew': 0,
+                        'waterOld': prev_rd.get('waterNew', 0), 'waterNew': 0,
                         'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
                         'waterFormula': r.get('waterFormula', 'water_flat_18000'),
                         'serviceFee': srv_tot, 'parkingFee': prk_tot
                     }
+                    # Same idea for the meter photos — last month's "New"
+                    # photo IS a photo of this month's starting number, so
+                    # it carries forward as this month's "Old" photo too.
+                    if prev_rd.get('elecNewPhoto'):
+                        readings[month][r['id']]['elecOldPhoto'] = prev_rd['elecNewPhoto']
+                    if prev_rd.get('waterNewPhoto'):
+                        readings[month][r['id']]['waterOldPhoto'] = prev_rd['waterNewPhoto']
                 else:
                     readings[month][r['id']]['serviceFee'] = srv_tot
                     readings[month][r['id']]['parkingFee'] = prk_tot
