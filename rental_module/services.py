@@ -140,7 +140,14 @@ class RentalService:
         return result
 
     @staticmethod
-    def sync_readings_with_services(month='2026-08'):
+    def sync_readings_with_services(month=None):
+        # month=None (rather than a hardcoded fallback string) because a
+        # Python default argument is evaluated once, at import time, not
+        # per-call — a literal '2026-08' here would have kept every
+        # no-argument caller below syncing against August 2026 forever,
+        # long after the real calendar moved on.
+        if not month:
+            month = datetime.now().strftime('%Y-%m')
         # Runs on every page load / data fetch (called from get_full_state
         # below), so a plain get-then-save here raced constantly against
         # in-flight update_room_reading() calls — e.g. switching months in
@@ -173,7 +180,9 @@ class RentalService:
         return readings[month]
 
     @staticmethod
-    def get_full_state(month='2026-08', current_user=None):
+    def get_full_state(month=None, current_user=None):
+        if not month:
+            month = datetime.now().strftime('%Y-%m')
         houses = Storage.get_houses()
         users = Storage.get_users()
         rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), users)

@@ -1337,11 +1337,21 @@ const DEFAULT_CLIENT_USERS = [
   { username: 'tranthibich', password: '123', fullName: 'Trần Thị Bích', role: 'tenant', roomId: 'R102', status: 'approved' }
 ];
 
+// Was hardcoded '2026-08' — correct for however long "today" actually
+// fell in August 2026, but would have silently gone stale as soon as the
+// real calendar rolled into September and nobody had touched the Kỳ Hóa
+// Đơn dropdown yet. Derived from the real clock instead, same formula
+// renderMonthSelector() already uses for the dropdown's own options.
+function currentMonthStr() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
 let state = {
   lang: 'vi',
   currentUser: null,
   currentView: 'admin-dashboard',
-  currentMonth: '2026-08',
+  currentMonth: currentMonthStr(),
   currentHouseId: 'all',
   currentRoomId: 'all',
   theme: 'light',
@@ -1878,6 +1888,9 @@ function renderMonthSelector() {
     const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
     months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
   }
+  // (Same formula as currentMonthStr() above, used for state's initial
+  // default — kept inline here since this loop already needs a Date per
+  // offset anyway.)
   // Whatever's currently selected stays a real option even if it falls
   // outside that window (e.g. state carried over from a previous session
   // on a different date) — never silently switch the selected period out

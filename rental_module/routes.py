@@ -111,7 +111,7 @@ def _refresh_session_user():
 @rental_bp.route('/api/data', methods=['GET'])
 @login_required
 def get_data():
-    month = request.args.get('month', '2026-08')
+    month = request.args.get('month') or datetime.now().strftime('%Y-%m')
     data = RentalService.get_full_state(month, _refresh_session_user())
     return jsonify(data)
 
@@ -615,14 +615,14 @@ def data_retention_status():
     # job: called once after every superadmin login (app.js) and whenever
     # Sao Lưu Dữ Liệu is opened, so it stays "automatic" from the admin's
     # perspective without this deployment needing its own scheduler.
-    month = request.args.get('month') or '2026-08'
+    month = request.args.get('month') or datetime.now().strftime('%Y-%m')
     result = RentalService.check_data_retention(month)
     return jsonify({'success': True, **result})
 
 @rental_bp.route('/api/backup/export-invoices', methods=['GET'])
 @superadmin_required
 def export_pending_invoices():
-    month = request.args.get('month') or '2026-08'
+    month = request.args.get('month') or datetime.now().strftime('%Y-%m')
     data = RentalService.get_pending_invoice_backup(month)
     body = json.dumps(data, ensure_ascii=False, indent=2)
     filename = f"calacihouse-backup-hoadon-truoc-{data['cutoffMonth']}.json"
@@ -638,7 +638,7 @@ def export_pending_invoices_zip():
     # underlying "what's currently pending" data as the JSON export above,
     # just rendered instead of serialized.
     from .pdf_export import generate_invoices_zip
-    month = request.args.get('month') or '2026-08'
+    month = request.args.get('month') or datetime.now().strftime('%Y-%m')
     data = RentalService.get_pending_invoice_backup(month)
     houses_by_id = {h['id']: h for h in Storage.get_houses()}
     zip_bytes = generate_invoices_zip(data['invoices'], houses_by_id)
