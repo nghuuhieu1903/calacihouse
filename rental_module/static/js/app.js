@@ -195,6 +195,7 @@ const I18N = {
     house_no_rooms_label: 'Chưa có phòng',
     services_empty_state: 'Chưa có dịch vụ nào. Nhấn "Thêm Dịch Vụ Mới" để tạo.',
     services_empty_for_house: 'Không có dịch vụ nào riêng cho "{house}" — dịch vụ khác vẫn còn, chỉ đang bị lọc theo tòa nhà này thôi.',
+    users_empty_for_house: 'Không có tài khoản nào thuộc "{house}" — tài khoản khác vẫn còn, chỉ đang bị lọc theo tòa nhà này thôi.',
     btn_show_all_houses: 'Xem Tất Cả Tòa Nhà',
     calc_type_formula: 'THEO CÔNG THỨC',
     calc_type_fixed: 'CỐ ĐỊNH',
@@ -245,6 +246,7 @@ const I18N = {
     title_edit_room_price: 'Chỉnh sửa thông tin & giá tiền riêng phòng này',
     title_move_up: 'Di chuyển lên',
     title_move_down: 'Di chuyển xuống',
+    title_drag_to_reorder: 'Kéo để sắp xếp lại vị trí',
     btn_edit_price: 'Sửa Giá',
     title_view_invoice: 'Xem hóa đơn',
     invoices_empty_state: 'Chưa có hóa đơn tháng này. Nhấn "Cập Nhật Hóa Đơn" để sinh tự động.',
@@ -840,6 +842,7 @@ const I18N = {
     house_no_rooms_label: 'No rooms yet',
     services_empty_state: 'No services yet. Click "Add New Service" to create one.',
     services_empty_for_house: 'No services specific to "{house}" — other services still exist, this is just filtered to this one house.',
+    users_empty_for_house: 'No accounts belong to "{house}" — other accounts still exist, this is just filtered to this one house.',
     btn_show_all_houses: 'Show All Houses',
     calc_type_formula: 'BY FORMULA',
     calc_type_fixed: 'FIXED',
@@ -890,6 +893,7 @@ const I18N = {
     title_edit_room_price: 'Edit this room\'s details & individual pricing',
     title_move_up: 'Move up',
     title_move_down: 'Move down',
+    title_drag_to_reorder: 'Drag to reorder',
     btn_edit_price: 'Edit Price',
     title_view_invoice: 'View invoice',
     invoices_empty_state: 'No invoices for this month yet. Click "Refresh Invoices" to generate automatically.',
@@ -1896,7 +1900,7 @@ function renderHouseSelector() {
   // đầu tư) and the one inside trang Quản Lý Hóa Đơn (Admin/Quản lý). Only
   // one is ever visible per role, but keep both populated/in sync so
   // switching roles or views never shows a stale selector.
-  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house'].forEach(id => {
+  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house', 'users-select-house'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
   });
@@ -1958,7 +1962,7 @@ function handleHouseChange(sourceEl) {
   const value = sourceEl ? sourceEl.value : document.getElementById('select-house').value;
   state.currentHouseId = value;
   state.currentRoomId = 'all';
-  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house'].forEach(id => {
+  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house', 'users-select-house'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el !== sourceEl) el.value = value;
   });
@@ -2396,11 +2400,22 @@ function renderServicesConfig() {
 
       const iconSymbol = s.symbol || '📦';
 
+      const canEditThisService = hasPermission(state.currentUser.role, 'services', 'edit');
       const tr = document.createElement('tr');
+      tr.className = 'drag-reorder-row';
+      if (canEditThisService) {
+        tr.draggable = true;
+        tr.addEventListener('dragstart', () => dragRowStart('services', s.id));
+        tr.addEventListener('dragover', dragRowOver);
+        tr.addEventListener('dragleave', dragRowLeave);
+        tr.addEventListener('drop', (event) => dragRowDrop(event, 'services', s.id));
+        tr.addEventListener('dragend', dragRowEnd);
+      }
       tr.innerHTML = `
         <td>
           <div style="display:flex; align-items:center; gap:0.6rem;">
-            <div style="width:36px; height:36px; border-radius:50%; background:var(--cala-blue-light); color:var(--cala-blue); display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:bold;">
+            ${canEditThisService ? `<i data-lucide="grip-vertical" class="drag-handle-grip" title="${t('title_drag_to_reorder')}"></i>` : ''}
+            <div style="width:36px; height:36px; border-radius:50%; background:var(--cala-blue-light); color:var(--cala-blue); display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:bold; flex-shrink:0;">
               ${iconSymbol}
             </div>
             <div>
@@ -2613,10 +2628,11 @@ function renderHousesManagement() {
       ${state.houses.map((h, idx) => {
         const roomCount = state.rooms.filter(r => r.houseId === h.id).length;
         return `
-          <div class="cala-card" style="padding: 1.1rem 1.25rem;">
+          <div class="cala-card drag-reorder-row" style="padding: 1.1rem 1.25rem;" ${canEditHouses ? `draggable="true" data-drag-id="${h.id}" ondragstart="dragRowStart('houses','${h.id}')" ondragover="dragRowOver(event)" ondragleave="dragRowLeave(event)" ondrop="dragRowDrop(event,'houses','${h.id}')" ondragend="dragRowEnd(event)"` : ''}>
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
               <div style="display:flex; align-items:flex-start; gap:0.5rem; min-width:0;">
                 ${canEditHouses ? `
+                <i data-lucide="grip-vertical" class="drag-handle-grip" title="${t('title_drag_to_reorder')}"></i>
                 <div style="display:flex; flex-direction:column; gap:1px; flex-shrink:0; margin-top:2px;">
                   <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_up')}" ${idx === 0 ? 'disabled' : ''} onclick="moveHouse('${h.id}', -1)"><i data-lucide="chevron-up" style="width:12px;height:12px;pointer-events:none;"></i></button>
                   <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_down')}" ${idx === state.houses.length - 1 ? 'disabled' : ''} onclick="moveHouse('${h.id}', 1)"><i data-lucide="chevron-down" style="width:12px;height:12px;pointer-events:none;"></i></button>
@@ -2661,6 +2677,80 @@ async function moveHouse(houseId, direction) {
   if (!data) return;
 }
 
+/* =====================================================================
+   GENERIC DRAG-TO-REORDER — native HTML5 drag/drop, shared by Quản Lý
+   Tòa Nhà, Quản Lý Phòng and Cấu Hình Dịch Vụ. Faster than repeated
+   arrow-button clicks for a long list; the arrow buttons stay too since
+   native HTML5 drag doesn't work reliably on touch/mobile.
+===================================================================== */
+let _dragReorderSource = null; // { kind, id }
+
+function dragRowStart(kind, id) {
+  _dragReorderSource = { kind, id };
+}
+
+function dragRowOver(event) {
+  event.preventDefault();
+  const row = event.currentTarget;
+  if (row) row.classList.add('drag-reorder-over');
+}
+
+function dragRowLeave(event) {
+  const row = event.currentTarget;
+  if (row) row.classList.remove('drag-reorder-over');
+}
+
+function dragRowEnd(event) {
+  document.querySelectorAll('.drag-reorder-over').forEach(el => el.classList.remove('drag-reorder-over'));
+  // dragRowDrop() already clears _dragReorderSource itself right after
+  // reading it — NOT also clearing it here matters because dragend (this
+  // handler, fired on the drag SOURCE) isn't reliably guaranteed to run
+  // strictly after drop (fired on the TARGET) finishes across every
+  // browser/automation environment; clearing it here too raced drop's own
+  // read of it to null in some cases, silently turning every drop into a
+  // no-op.
+}
+
+function dragRowDrop(event, kind, targetId, extra) {
+  event.preventDefault();
+  const row = event.currentTarget;
+  if (row) row.classList.remove('drag-reorder-over');
+  const source = _dragReorderSource;
+  _dragReorderSource = null;
+  if (!source || source.kind !== kind || source.id === targetId) return;
+  if (kind === 'houses') reorderHousesByDrag(source.id, targetId);
+  else if (kind === 'services') reorderServicesByDrag(source.id, targetId);
+  else if (kind === 'rooms') reorderRoomsByDrag(source.id, targetId);
+}
+
+// Moves `fromId` next to `toId`, within the same array — used by all
+// three reorderXByDrag() functions below. Direction matters: dropping A
+// onto the very next item B and always inserting "at B's position" put A
+// right back where it started (removing A shifts B left by one, so
+// re-inserting A there lands on A's own old spot — a silent no-op for
+// adjacent drags specifically). Inserting AFTER the target when moving
+// down the list (and before it when moving up) matches the drag actually
+// landing where the user dropped it either way.
+function arrayMoveBeforeTarget(arr, fromId, toId, idKey = 'id') {
+  const fromIdx = arr.findIndex(x => x[idKey] === fromId);
+  const toIdxOriginal = arr.findIndex(x => x[idKey] === toId);
+  if (fromIdx < 0 || toIdxOriginal < 0 || fromIdx === toIdxOriginal) return false;
+  const movingDown = fromIdx < toIdxOriginal;
+  const [item] = arr.splice(fromIdx, 1);
+  let insertIdx = arr.findIndex(x => x[idKey] === toId);
+  if (movingDown) insertIdx += 1;
+  arr.splice(insertIdx, 0, item);
+  return true;
+}
+
+async function reorderHousesByDrag(fromId, toId) {
+  if (!arrayMoveBeforeTarget(state.houses, fromId, toId)) return;
+  renderHousesManagement();
+  renderHouseSelector();
+  const data = await postAndVerify(`${API_BASE}/houses/reorder`, { houseIds: state.houses.map(h => h.id) });
+  if (!data) return;
+}
+
 // Same idea as moveHouse() above / moveRoom() below, but swaps within
 // whatever's currently ON SCREEN (getFilteredServices() — the Tòa Nhà
 // filter can narrow this to a subset) rather than the whole list, then
@@ -2679,6 +2769,14 @@ async function moveService(serviceId, direction) {
   const realIdxB = state.services.findIndex(s => s.id === activeServices[swapIdx].id);
   [state.services[realIdxA], state.services[realIdxB]] = [state.services[realIdxB], state.services[realIdxA]];
 
+  renderServicesConfig();
+  if (state.currentView === 'admin-spreadsheet') renderSpreadsheet();
+  const data = await postAndVerify(`${API_BASE}/services/reorder`, { serviceIds: state.services.map(s => s.id) });
+  if (!data) return;
+}
+
+async function reorderServicesByDrag(fromId, toId) {
+  if (!arrayMoveBeforeTarget(state.services, fromId, toId)) return;
   renderServicesConfig();
   if (state.currentView === 'admin-spreadsheet') renderSpreadsheet();
   const data = await postAndVerify(`${API_BASE}/services/reorder`, { serviceIds: state.services.map(s => s.id) });
@@ -4365,12 +4463,41 @@ async function deleteInvestorExpenseApi(expenseId) {
   renderInvestorReport();
 }
 
+// Whether user `u` belongs to `targetHouseId` — tenant via their room's
+// house, investor/manager via houseIds (possibly ['all']). An account
+// with no house info at all (admin/superadmin/saler, or a tenant not yet
+// assigned a room) always matches: filtering by house has no meaningful
+// answer for it either way, so hiding it would just be confusing rather
+// than correct.
+function userMatchesHouse(u, targetHouseId) {
+  if (targetHouseId === 'all') return true;
+  if (u.role === 'tenant') {
+    const room = state.rooms.find(r => r.id === u.roomId);
+    return !room || room.houseId === targetHouseId;
+  }
+  const houseIds = u.houseIds && u.houseIds.length ? u.houseIds : (u.houseId ? [u.houseId] : []);
+  return houseIds.length === 0 || houseIds.includes('all') || houseIds.includes(targetHouseId);
+}
+
 function renderAdminUsers() {
   const tbody = document.getElementById('admin-users-tbody');
   tbody.innerHTML = '';
   const dict = I18N[state.lang] || I18N.vi;
 
-  state.users.forEach(u => {
+  const filteredUsers = state.users.filter(u => userMatchesHouse(u, state.currentHouseId));
+
+  if (filteredUsers.length === 0 && state.users.length > 0 && state.currentHouseId !== 'all') {
+    const currentHouse = state.houses.find(h => h.id === state.currentHouseId);
+    tbody.innerHTML = `
+      <tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">
+        ${tFmt('users_empty_for_house', { house: currentHouse ? currentHouse.name : state.currentHouseId })}<br>
+        <button type="button" class="btn btn-secondary btn-sm" style="margin-top:0.6rem;" onclick="document.getElementById('users-select-house').value='all'; handleHouseChange(null);">${t('btn_show_all_houses')}</button>
+      </td></tr>
+    `;
+    return;
+  }
+
+  filteredUsers.forEach(u => {
     const room = state.rooms.find(r => r.id === u.roomId);
     // Deleting a room now clears roomId off any tenant pointing at it, but
     // older data from before that fix (or a room deleted some other way)
@@ -5122,10 +5249,11 @@ function renderRoomsManagement() {
         </div>
         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem;">
           ${rooms.map((r, roomIdx) => `
-            <div class="cala-card" style="position:relative; padding: 1.1rem 1.25rem;">
+            <div class="cala-card drag-reorder-row" style="position:relative; padding: 1.1rem 1.25rem;" ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `draggable="true" ondragstart="dragRowStart('rooms','${r.id}')" ondragover="dragRowOver(event)" ondragleave="dragRowLeave(event)" ondrop="dragRowDrop(event,'rooms','${r.id}')" ondragend="dragRowEnd(event)"` : ''}>
               <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem;">
                 <div style="display:flex; align-items:flex-start; gap:0.5rem; min-width:0;">
                   ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `
+                  <i data-lucide="grip-vertical" class="drag-handle-grip" title="${t('title_drag_to_reorder')}"></i>
                   <div style="display:flex; flex-direction:column; gap:1px; flex-shrink:0; margin-top:2px;">
                     <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_up')}" ${roomIdx === 0 ? 'disabled' : ''} onclick="moveRoom('${r.id}', -1)"><i data-lucide="chevron-up" style="width:12px;height:12px;pointer-events:none;"></i></button>
                     <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_down')}" ${roomIdx === rooms.length - 1 ? 'disabled' : ''} onclick="moveRoom('${r.id}', 1)"><i data-lucide="chevron-down" style="width:12px;height:12px;pointer-events:none;"></i></button>
@@ -5210,6 +5338,16 @@ async function moveRoom(roomId, direction) {
 async function reorderRoomsApi() {
   const data = await postAndVerify(`${API_BASE}/rooms/reorder`, { roomIds: state.rooms.map(r => r.id) });
   if (!data) return;
+}
+
+// Drag handlers are only ever wired up between two rooms rendered inside
+// the same house's own sublist (see renderRoomsManagement()'s rooms.map
+// above), so moving fromId to sit at toId's position in the flat
+// state.rooms array can't cross into a different house's block.
+async function reorderRoomsByDrag(fromId, toId) {
+  if (!arrayMoveBeforeTarget(state.rooms, fromId, toId)) return;
+  renderRoomsManagement();
+  await reorderRoomsApi();
 }
 
 // Manager-only page for submitting the new electricity meter reading photo
