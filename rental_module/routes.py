@@ -764,6 +764,36 @@ def get_room_photos_full(room_id):
     photos = Storage.get_room_photos().get(room_id, [])
     return jsonify({'success': True, 'photos': photos})
 
+@rental_bp.route('/api/readings/photo', methods=['GET'])
+@login_required
+def get_reading_photo():
+    # On-demand fetch for one meter-photo field — the bulk /api/data
+    # payload only ships a boolean per field now (see
+    # Storage.get_readings_light()); this is what viewMeterPhoto()/
+    # viewElecPhoto() call when a camera button is actually clicked.
+    room_id = request.args.get('roomId', '')
+    month = request.args.get('month', '')
+    field = request.args.get('field', '')
+    if not _user_can_view_room_documents(session.get('user'), room_id):
+        return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
+    photo = Storage.get_reading_photo(month, room_id, field)
+    return jsonify({'success': True, 'photo': photo})
+
+@rental_bp.route('/api/invoices/photo', methods=['GET'])
+@login_required
+def get_invoice_photo():
+    # Same idea as get_reading_photo() above, for an invoice's own copy of
+    # the 4 meter-photo fields (see Storage.get_invoices_light()).
+    invoice_id = request.args.get('invoiceId', '')
+    field = request.args.get('field', '')
+    invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
+    if not invoice:
+        return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
+    if not _user_can_view_room_documents(session.get('user'), invoice.get('roomId', '')):
+        return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
+    photo = Storage.get_invoice_photo(invoice_id, field)
+    return jsonify({'success': True, 'photo': photo})
+
 @rental_bp.route('/api/rooms/documents/upload', methods=['POST'])
 @login_required
 def upload_room_document():

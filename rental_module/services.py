@@ -179,8 +179,8 @@ class RentalService:
         rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), users)
         services = Storage.get_services()
         formulas = Storage.get_formulas()
-        readings = Storage.get_readings()
-        invoices = Storage.get_invoices()
+        readings = Storage.get_readings_light()
+        invoices = Storage.get_invoices_light()
         tickets = Storage.get_tickets_light()
         permissions = Storage.get_permissions()
         site_settings = Storage.get_site_settings()
@@ -193,7 +193,7 @@ class RentalService:
         investor_report_overrides = Storage.get_investor_report_overrides()
 
         RentalService.sync_readings_with_services(month)
-        readings = Storage.get_readings()
+        readings = Storage.get_readings_light()
 
         # Investors only see the house(s) they are assigned to — possibly
         # several specific ones, or 'all' (auto-covers houses added later).

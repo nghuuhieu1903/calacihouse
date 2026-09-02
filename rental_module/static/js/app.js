@@ -3436,36 +3436,63 @@ async function handleMeterPhotoUpload(event, roomId, field) {
   }
 }
 
-function viewMeterPhoto(roomId, field) {
+async function viewMeterPhoto(roomId, field) {
   const rd = (state.readings[state.currentMonth] || {})[roomId] || {};
-  const dataUrl = rd[field];
-  if (!dataUrl) return;
+  const cached = rd[field];
+  if (!cached) return;
   const inputId = `meter-photo-input-${roomId}-${field}`;
   const content = document.getElementById('modal-meter-photo-content');
-  if (content) {
-    content.innerHTML = `
-      <img src="${dataUrl}" style="width:100%; border-radius:var(--radius-md);">
-      <button type="button" class="btn btn-sm" style="margin-top:0.75rem;" onclick="document.getElementById('${inputId}').click()">
-        <i data-lucide="upload"></i> ${t('btn_meter_photo_replace')}
-      </button>
-    `;
-  }
   document.getElementById('modal-meter-photo').classList.add('active');
+  if (!content) return;
+  // The bulk state only ever holds a boolean placeholder for a photo
+  // fetched from the server (see get_readings_light() in storage.py) —
+  // only a value just uploaded this session is the real data: URL
+  // already, letting that skip the round trip.
+  const dataUrl = typeof cached === 'string' && cached.startsWith('data:')
+    ? cached
+    : await fetchReadingPhoto(state.currentMonth, roomId, field);
+  if (!dataUrl) return;
+  content.innerHTML = `
+    <img src="${dataUrl}" style="width:100%; border-radius:var(--radius-md);">
+    <button type="button" class="btn btn-sm" style="margin-top:0.75rem;" onclick="document.getElementById('${inputId}').click()">
+      <i data-lucide="upload"></i> ${t('btn_meter_photo_replace')}
+    </button>
+  `;
   renderIcons(content);
 }
 
-function openInvoiceMeterPhotos(invoiceId) {
+async function fetchReadingPhoto(month, roomId, field) {
+  try {
+    const res = await fetch(`${API_BASE}/readings/photo?month=${encodeURIComponent(month)}&roomId=${encodeURIComponent(roomId)}&field=${encodeURIComponent(field)}`);
+    const data = await res.json();
+    return data.success ? data.photo : '';
+  } catch (err) {
+    console.warn('Could not load meter photo:', err);
+    return '';
+  }
+}
+
+async function openInvoiceMeterPhotos(invoiceId) {
   const inv = state.invoices.find(i => i.id === invoiceId);
   if (!inv) return;
   const content = document.getElementById('modal-meter-photo-content');
   if (!content) return;
+  document.getElementById('modal-meter-photo').classList.add('active');
 
-  const pairs = [
-    { label: t('line_electricity_short') + ' - ' + t('meter_old_label'), url: inv.elecOldPhoto },
-    { label: t('line_electricity_short') + ' - ' + t('meter_new_label'), url: inv.elecNewPhoto },
-    { label: t('line_water_short') + ' - ' + t('meter_old_label'), url: inv.waterOldPhoto },
-    { label: t('line_water_short') + ' - ' + t('meter_new_label'), url: inv.waterNewPhoto }
-  ].filter(p => p.url);
+  // Same in-memory-real-URL-vs-server-boolean-placeholder split as
+  // viewMeterPhoto() — see get_invoices_light() in storage.py.
+  const flagged = [
+    { label: t('line_electricity_short') + ' - ' + t('meter_old_label'), field: 'elecOldPhoto', cached: inv.elecOldPhoto },
+    { label: t('line_electricity_short') + ' - ' + t('meter_new_label'), field: 'elecNewPhoto', cached: inv.elecNewPhoto },
+    { label: t('line_water_short') + ' - ' + t('meter_old_label'), field: 'waterOldPhoto', cached: inv.waterOldPhoto },
+    { label: t('line_water_short') + ' - ' + t('meter_new_label'), field: 'waterNewPhoto', cached: inv.waterNewPhoto }
+  ].filter(p => p.cached);
+
+  content.innerHTML = `<p style="text-align:center; color:var(--text-secondary); padding:1rem 0;">${t('loading_label')}</p>`;
+  const pairs = (await Promise.all(flagged.map(async p => ({
+    label: p.label,
+    url: (typeof p.cached === 'string' && p.cached.startsWith('data:')) ? p.cached : await fetchInvoicePhoto(invoiceId, p.field)
+  })))).filter(p => p.url);
 
   if (pairs.length === 0) {
     content.innerHTML = `<p style="text-align:center; color:var(--text-secondary); padding:1rem 0;">${t('meter_photo_empty')}</p>`;
@@ -3481,8 +3508,18 @@ function openInvoiceMeterPhotos(invoiceId) {
       </div>
     `;
   }
-  document.getElementById('modal-meter-photo').classList.add('active');
   renderIcons(content);
+}
+
+async function fetchInvoicePhoto(invoiceId, field) {
+  try {
+    const res = await fetch(`${API_BASE}/invoices/photo?invoiceId=${encodeURIComponent(invoiceId)}&field=${encodeURIComponent(field)}`);
+    const data = await res.json();
+    return data.success ? data.photo : '';
+  } catch (err) {
+    console.warn('Could not load invoice meter photo:', err);
+    return '';
+  }
 }
 
 async function updateReadingApi(roomId, field, value) {
@@ -5138,34 +5175,37 @@ function elecPhotoButtonHtml(roomId, photoDataUrl, locked) {
   `;
 }
 
-function viewElecPhoto(roomId) {
+async function viewElecPhoto(roomId) {
   const rd = (state.readings[state.currentMonth] || {})[roomId] || {};
-  const dataUrl = rd.elecNewPhoto;
-  if (!dataUrl) return;
+  const cached = rd.elecNewPhoto;
+  if (!cached) return;
   const locked = !!rd.elecPhotoLocked;
   const inputId = `elec-photo-input-${roomId}`;
   const content = document.getElementById('modal-elec-photo-content');
-  if (content) {
-    content.innerHTML = `
-      <img src="${dataUrl}" style="width:100%; border-radius:var(--radius-md);">
-      ${!locked ? `
-        <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
-          <input type="file" accept="image/*" id="${inputId}" style="display:none" onchange="handleElecPhotoUpload(event, '${roomId}')">
-          <button type="button" class="btn btn-sm" style="flex:1; justify-content:center;" onclick="document.getElementById('${inputId}').click()">
-            <i data-lucide="upload"></i> ${t('btn_meter_photo_replace')}
-          </button>
-          <button type="button" class="btn btn-sm" style="flex:1; justify-content:center; color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteElecPhoto('${roomId}')">
-            <i data-lucide="trash-2"></i> ${t('mp_btn_delete_photo')}
-          </button>
-        </div>
-      ` : `
-        <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-muted); text-align:center; display:flex; align-items:center; justify-content:center; gap:5px;">
-          <i data-lucide="lock" style="width:14px;height:14px;"></i> ${t('mp_locked_note')}
-        </div>
-      `}
-    `;
-  }
   document.getElementById('modal-elec-photo').classList.add('active');
+  if (!content) return;
+  const dataUrl = typeof cached === 'string' && cached.startsWith('data:')
+    ? cached
+    : await fetchReadingPhoto(state.currentMonth, roomId, 'elecNewPhoto');
+  if (!dataUrl) return;
+  content.innerHTML = `
+    <img src="${dataUrl}" style="width:100%; border-radius:var(--radius-md);">
+    ${!locked ? `
+      <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+        <input type="file" accept="image/*" id="${inputId}" style="display:none" onchange="handleElecPhotoUpload(event, '${roomId}')">
+        <button type="button" class="btn btn-sm" style="flex:1; justify-content:center;" onclick="document.getElementById('${inputId}').click()">
+          <i data-lucide="upload"></i> ${t('btn_meter_photo_replace')}
+        </button>
+        <button type="button" class="btn btn-sm" style="flex:1; justify-content:center; color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteElecPhoto('${roomId}')">
+          <i data-lucide="trash-2"></i> ${t('mp_btn_delete_photo')}
+        </button>
+      </div>
+    ` : `
+      <div style="margin-top:0.75rem; font-size:0.8rem; color:var(--text-muted); text-align:center; display:flex; align-items:center; justify-content:center; gap:5px;">
+        <i data-lucide="lock" style="width:14px;height:14px;"></i> ${t('mp_locked_note')}
+      </div>
+    `}
+  `;
   renderIcons(content);
 }
 

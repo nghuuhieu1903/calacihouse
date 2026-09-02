@@ -101,6 +101,12 @@ DEFAULT_ROOMS = [
     {'id': 'R202', 'houseId': 'house_b', 'name': 'Phòng 202 (Tòa B)', 'tenant': 'Phạm Minh Tuấn', 'phone': '0934567890', 'baseRent': 4200000, 'headcount': 2, 'elecFormula': 'elec_flat_4000',  'waterFormula': 'water_flat_18000'}
 ]
 
+# Meter-photo field names — shared by readings (per room/month) and
+# invoices (their own copy, taken at generation time). See
+# Storage.get_readings_light()/get_invoices_light() for why these get
+# stripped out of the bulk /api/data payload.
+READING_PHOTO_FIELDS = ('elecOldPhoto', 'elecNewPhoto', 'waterOldPhoto', 'waterNewPhoto')
+
 DEFAULT_READINGS = {
     '2026-08': {
         'R101': {'elecOld': 1240, 'elecNew': 1395, 'waterOld': 145, 'waterNew': 157, 'elecFormula': 'elec_flat_3500',  'waterFormula': 'water_flat_18000'},
@@ -932,6 +938,38 @@ class Storage:
         return Storage._kv_get('readings', DEFAULT_READINGS)
 
     @staticmethod
+    def get_readings_light():
+        """Same {month: {roomId: {...}}} shape as get_readings(), but every
+        embedded meter-photo data URL is collapsed to a plain boolean —
+        the Nhập Điện Nước / Cập Nhật Ảnh Số Điện screens only need to know
+        whether a photo exists (to draw the camera button's "has photo"
+        state), not its actual bytes. Every one of those photos, for every
+        room, every month still inside the retention window, was otherwise
+        getting shipped in full on every single /api/data fetch — the
+        cause of the admin UI lag/reload whenever a manager uploaded a new
+        one. get_reading_photo() below fetches one photo's real bytes on
+        demand, only when it's actually opened."""
+        readings = Storage.get_readings()
+        light = {}
+        for month, rooms in readings.items():
+            light[month] = {}
+            for room_id, rd in rooms.items():
+                rd_light = dict(rd)
+                for f in READING_PHOTO_FIELDS:
+                    if rd_light.get(f):
+                        rd_light[f] = True
+                light[month][room_id] = rd_light
+        return light
+
+    @staticmethod
+    def get_reading_photo(month, room_id, field):
+        if field not in READING_PHOTO_FIELDS:
+            return ''
+        readings = Storage.get_readings()
+        rd = (readings.get(month) or {}).get(room_id) or {}
+        return rd.get(field) or ''
+
+    @staticmethod
     def save_readings(readings):
         Storage._kv_set('readings', readings)
 
@@ -946,6 +984,31 @@ class Storage:
     @staticmethod
     def get_invoices():
         return Storage._kv_get('invoices', [])
+
+    @staticmethod
+    def get_invoices_light():
+        """Same list as get_invoices(), with each invoice's own copy of the
+        4 meter-photo fields (copied in at generation time — see
+        _rebuild_invoices) collapsed to booleans, for the same reason as
+        get_readings_light() above. get_invoice_photo() fetches one on
+        demand."""
+        invoices = Storage.get_invoices()
+        light = []
+        for inv in invoices:
+            inv_light = dict(inv)
+            for f in READING_PHOTO_FIELDS:
+                if inv_light.get(f):
+                    inv_light[f] = True
+            light.append(inv_light)
+        return light
+
+    @staticmethod
+    def get_invoice_photo(invoice_id, field):
+        if field not in READING_PHOTO_FIELDS:
+            return ''
+        invoices = Storage.get_invoices()
+        inv = next((i for i in invoices if i.get('id') == invoice_id), None)
+        return (inv or {}).get(field) or ''
 
     @staticmethod
     def save_invoices(invoices):
