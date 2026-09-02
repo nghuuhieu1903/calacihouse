@@ -193,6 +193,8 @@ const I18N = {
     rooms_unit_label: 'phòng',
     house_no_rooms_label: 'Chưa có phòng',
     services_empty_state: 'Chưa có dịch vụ nào. Nhấn "Thêm Dịch Vụ Mới" để tạo.',
+    services_empty_for_house: 'Không có dịch vụ nào riêng cho "{house}" — dịch vụ khác vẫn còn, chỉ đang bị lọc theo tòa nhà này thôi.',
+    btn_show_all_houses: 'Xem Tất Cả Tòa Nhà',
     calc_type_formula: 'THEO CÔNG THỨC',
     calc_type_fixed: 'CỐ ĐỊNH',
     evn_tiered_default_label: 'Bậc thang EVN',
@@ -835,6 +837,8 @@ const I18N = {
     rooms_unit_label: 'rooms',
     house_no_rooms_label: 'No rooms yet',
     services_empty_state: 'No services yet. Click "Add New Service" to create one.',
+    services_empty_for_house: 'No services specific to "{house}" — other services still exist, this is just filtered to this one house.',
+    btn_show_all_houses: 'Show All Houses',
     calc_type_formula: 'BY FORMULA',
     calc_type_fixed: 'FIXED',
     evn_tiered_default_label: 'EVN Tiered Rate',
@@ -2316,7 +2320,23 @@ function renderServicesConfig() {
   const activeServices = getFilteredServices();
 
   if (activeServices.length === 0) {
-    sBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('services_empty_state')}</td></tr>`;
+    // "0 dịch vụ" reads as "mất hết dữ liệu" if the admin doesn't
+    // register that the Tòa Nhà dropdown up top is filtering this table
+    // too — easy to miss, especially switching houses while mid-task on
+    // a different page. Distinguish "genuinely nothing configured
+    // anywhere yet" from "you're just looking at one house that happens
+    // to have none of its own" — the latter gets a direct way out
+    // instead of the same generic empty state either way.
+    if (state.services.length > 0 && state.currentHouseId !== 'all') {
+      sBody.innerHTML = `
+        <tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">
+          ${tFmt('services_empty_for_house', { house: currentHouse ? currentHouse.name : state.currentHouseId })}<br>
+          <button type="button" class="btn btn-secondary btn-sm" style="margin-top:0.6rem;" onclick="document.getElementById('select-house').value='all'; handleHouseChange(null);">${t('btn_show_all_houses')}</button>
+        </td></tr>
+      `;
+    } else {
+      sBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('services_empty_state')}</td></tr>`;
+    }
   } else {
     activeServices.forEach(s => {
       let houseBadge = '';
