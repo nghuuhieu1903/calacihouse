@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import pymysql
@@ -239,6 +240,52 @@ def _backfill_room_sort_order(cur):
         cur.execute("UPDATE rooms SET sort_order=%s WHERE id=%s", (idx, row['id']))
 
 
+def _backfill_reading_carryover(cur):
+    """One-time fix for readings created before sync_readings_with_services()
+    (services.py) started carrying the previous month's "New" reading and
+    photo forward as each new month's "Old" one — those already-created
+    months got stuck with Old=0 and no photo forever, forcing whoever
+    filled them in to re-type/re-upload what should carry over on its
+    own. Walks every month in order and, for a room whose Old reading is
+    still the untouched 0 default, backfills it from the previous month's
+    New value (and photo) — exactly what the fixed sync function would
+    have done itself had it existed sooner. Guarded by a kv_store marker
+    (rather than "any non-zero Old exists", which a legitimate brand-new
+    meter starting at 0 could trip on its own) so this only ever runs
+    once — after this, a genuinely-zero Old reading is never touched
+    again."""
+    cur.execute("SELECT `value` FROM kv_store WHERE `key`='readings_carryover_backfilled'")
+    if cur.fetchone():
+        return
+    cur.execute("SELECT `value` FROM kv_store WHERE `key`='readings'")
+    row = cur.fetchone()
+    if row:
+        readings = json.loads(row['value'])
+        months = sorted(readings.keys())
+        for i in range(1, len(months)):
+            prev_rooms = readings.get(months[i - 1], {})
+            for room_id, rd in readings.get(months[i], {}).items():
+                prev_rd = prev_rooms.get(room_id)
+                if not prev_rd:
+                    continue
+                if not rd.get('elecOld') and prev_rd.get('elecNew'):
+                    rd['elecOld'] = prev_rd['elecNew']
+                    if prev_rd.get('elecNewPhoto') and not rd.get('elecOldPhoto'):
+                        rd['elecOldPhoto'] = prev_rd['elecNewPhoto']
+                if not rd.get('waterOld') and prev_rd.get('waterNew'):
+                    rd['waterOld'] = prev_rd['waterNew']
+                    if prev_rd.get('waterNewPhoto') and not rd.get('waterOldPhoto'):
+                        rd['waterOldPhoto'] = prev_rd['waterNewPhoto']
+        cur.execute(
+            "REPLACE INTO kv_store (`key`, `value`) VALUES (%s, %s)",
+            ('readings', json.dumps(readings, ensure_ascii=False))
+        )
+    cur.execute(
+        "REPLACE INTO kv_store (`key`, `value`) VALUES (%s, %s)",
+        ('readings_carryover_backfilled', json.dumps(True))
+    )
+
+
 def _promote_admins_to_superadmin(cur):
     """One-time role split: 'admin' used to mean full power including
     delete; now 'superadmin' does, and 'admin' means everything except
@@ -282,6 +329,7 @@ def init_db():
             _promote_admins_to_superadmin(cur)
             _backfill_house_sort_order(cur)
             _backfill_room_sort_order(cur)
+            _backfill_reading_carryover(cur)
         conn.commit()
     finally:
         conn.close()
