@@ -240,6 +240,19 @@ def _backfill_room_sort_order(cur):
         cur.execute("UPDATE rooms SET sort_order=%s WHERE id=%s", (idx, row['id']))
 
 
+def _backfill_service_sort_order(cur):
+    """Same idea as _backfill_house_sort_order — starts every existing
+    service off in the same order get_services() used to return before
+    sort_order existed (house_id, then id), so turning on manual
+    reordering doesn't itself shuffle anything on first deploy."""
+    cur.execute("SELECT COUNT(*) AS c FROM services WHERE sort_order != 0")
+    if cur.fetchone()['c'] > 0:
+        return
+    cur.execute("SELECT id FROM services ORDER BY house_id, id")
+    for idx, row in enumerate(cur.fetchall()):
+        cur.execute("UPDATE services SET sort_order=%s WHERE id=%s", (idx, row['id']))
+
+
 def _backfill_reading_carryover(cur):
     """One-time fix for readings created before sync_readings_with_services()
     (services.py) started carrying the previous month's "New" reading and
@@ -326,9 +339,11 @@ def init_db():
             _ensure_column(cur, 'investor_expenses', 'name', "TEXT")
             _ensure_column(cur, 'houses', 'sort_order', "INT DEFAULT 0")
             _ensure_column(cur, 'rooms', 'sort_order', "INT DEFAULT 0")
+            _ensure_column(cur, 'services', 'sort_order', "INT DEFAULT 0")
             _promote_admins_to_superadmin(cur)
             _backfill_house_sort_order(cur)
             _backfill_room_sort_order(cur)
+            _backfill_service_sort_order(cur)
             _backfill_reading_carryover(cur)
         conn.commit()
     finally:

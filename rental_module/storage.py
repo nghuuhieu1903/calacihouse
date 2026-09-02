@@ -730,7 +730,7 @@ class Storage:
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT * FROM services ORDER BY house_id, id")
+                cur.execute("SELECT * FROM services ORDER BY sort_order ASC, id ASC")
                 rows = cur.fetchall()
         finally:
             conn.close()
@@ -753,15 +753,29 @@ class Storage:
         editing another (e.g. water pricing for single rooms) used to be
         able to silently revert the first edit's room_ids back to its old
         value, since both saves rewrote every service row from whichever
-        stale in-memory list each request happened to read first."""
+        stale in-memory list each request happened to read first.
+
+        INSERT .. ON DUPLICATE KEY UPDATE instead of REPLACE INTO on
+        purpose — same reasoning as save_house(): REPLACE is a DELETE+
+        INSERT under the hood, so an explicit column list resets every
+        OTHER column (sort_order included) back to its table default on
+        every single edit. ON DUPLICATE KEY UPDATE only touches the
+        columns listed in its own clause, so an existing service's
+        manually-set position survives editing anything else about it."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
                 investor_share = s.get('investorShare') or _default_investor_share(s.get('name', ''), s.get('calcType', 'fixed'))
+                cur.execute("SELECT COALESCE(MAX(sort_order), -1) AS m FROM services")
+                next_order = cur.fetchone()['m'] + 1
                 cur.execute(
-                    "REPLACE INTO services "
-                    "(id, house_id, name, price, unit, icon, symbol, calc_type, formula_id, house_ids, room_ids, apply_rooms, investor_share) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "INSERT INTO services "
+                    "(id, house_id, name, price, unit, icon, symbol, calc_type, formula_id, house_ids, room_ids, apply_rooms, investor_share, sort_order) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    "ON DUPLICATE KEY UPDATE house_id=VALUES(house_id), name=VALUES(name), price=VALUES(price), "
+                    "unit=VALUES(unit), icon=VALUES(icon), symbol=VALUES(symbol), calc_type=VALUES(calc_type), "
+                    "formula_id=VALUES(formula_id), house_ids=VALUES(house_ids), room_ids=VALUES(room_ids), "
+                    "apply_rooms=VALUES(apply_rooms), investor_share=VALUES(investor_share)",
                     (
                         s['id'],
                         s.get('houseId', ''),
@@ -775,9 +789,23 @@ class Storage:
                         json.dumps(s.get('houseIds', ['all'])),
                         json.dumps(s.get('roomIds', ['all'])),
                         json.dumps(s.get('applyRooms', [])),
-                        json.dumps(investor_share)
+                        json.dumps(investor_share),
+                        next_order
                     )
                 )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def set_services_order(service_ids):
+        """Persists a manually arrow-reordered service list — same pattern
+        as set_houses_order()/set_rooms_order()."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                for idx, sid in enumerate(service_ids):
+                    cur.execute("UPDATE services SET sort_order=%s WHERE id=%s", (idx, sid))
             conn.commit()
         finally:
             conn.close()

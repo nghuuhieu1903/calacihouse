@@ -642,6 +642,11 @@ class RentalService:
         return True
 
     @staticmethod
+    def reorder_services(service_ids):
+        Storage.set_services_order(service_ids)
+        return True
+
+    @staticmethod
     def update_room_contract(room_id, contract_start, contract_end):
         if not room_id:
             return None

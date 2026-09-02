@@ -2356,7 +2356,7 @@ function renderServicesConfig() {
       sBody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('services_empty_state')}</td></tr>`;
     }
   } else {
-    activeServices.forEach(s => {
+    activeServices.forEach((s, idx) => {
       // Full names for 3 or fewer, otherwise just a count (with the full
       // list still available as a hover tooltip) — spelling out every
       // one of 10+ room names inline made this list unreadable, and the
@@ -2411,6 +2411,11 @@ function renderServicesConfig() {
         <td>${calcTypeHtml}</td>
         <td>${ruleHtml}</td>
         <td style="text-align: right;">
+          ${hasPermission(state.currentUser.role, 'services', 'edit') ? `
+          <span style="display:inline-flex; flex-direction:column; vertical-align:middle; margin-right:0.3rem;">
+            <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_up')}" ${idx === 0 ? 'disabled' : ''} onclick="moveService('${s.id}', -1)"><i data-lucide="chevron-up" style="width:12px;height:12px;pointer-events:none;"></i></button>
+            <button type="button" class="btn btn-secondary btn-sm" style="padding:1px 4px;" title="${t('title_move_down')}" ${idx === activeServices.length - 1 ? 'disabled' : ''} onclick="moveService('${s.id}', 1)"><i data-lucide="chevron-down" style="width:12px;height:12px;pointer-events:none;"></i></button>
+          </span>` : ''}
           ${hasPermission(state.currentUser.role, 'services', 'edit') ? `<button class="btn btn-secondary btn-sm" onclick="editService('${s.id}')" title="${t('title_edit_service_icon')}"><i data-lucide="edit"></i> ${t('btn_edit')}</button>` : ''}
           ${canDelete() ? `<button class="btn btn-secondary btn-sm" onclick="deleteServiceApi('${s.id}')" style="color: var(--cala-red);" title="${t('btn_delete')}"><i data-lucide="trash-2"></i></button>` : ''}
         </td>
@@ -2653,6 +2658,30 @@ async function moveHouse(houseId, direction) {
   renderHousesManagement();
   renderHouseSelector();
   const data = await postAndVerify(`${API_BASE}/houses/reorder`, { houseIds: state.houses.map(h => h.id) });
+  if (!data) return;
+}
+
+// Same idea as moveHouse() above / moveRoom() below, but swaps within
+// whatever's currently ON SCREEN (getFilteredServices() — the Tòa Nhà
+// filter can narrow this to a subset) rather than the whole list, then
+// applies that same swap to the two services' real positions in
+// state.services — so e.g. reordering while filtered to one house still
+// persists a sensible position relative to everything else. Lets two
+// services (say, both "tính tiền điện") get moved next to each other for
+// side-by-side comparison, instead of a fixed, unchangeable list order.
+async function moveService(serviceId, direction) {
+  const activeServices = getFilteredServices();
+  const idx = activeServices.findIndex(s => s.id === serviceId);
+  const swapIdx = idx + direction;
+  if (idx < 0 || swapIdx < 0 || swapIdx >= activeServices.length) return;
+
+  const realIdxA = state.services.findIndex(s => s.id === activeServices[idx].id);
+  const realIdxB = state.services.findIndex(s => s.id === activeServices[swapIdx].id);
+  [state.services[realIdxA], state.services[realIdxB]] = [state.services[realIdxB], state.services[realIdxA]];
+
+  renderServicesConfig();
+  if (state.currentView === 'admin-spreadsheet') renderSpreadsheet();
+  const data = await postAndVerify(`${API_BASE}/services/reorder`, { serviceIds: state.services.map(s => s.id) });
   if (!data) return;
 }
 

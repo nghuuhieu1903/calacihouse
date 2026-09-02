@@ -316,6 +316,13 @@ def reorder_rooms():
     RentalService.reorder_rooms(data.get('roomIds') or [])
     return jsonify({'success': True})
 
+@rental_bp.route('/api/services/reorder', methods=['POST'])
+@permission_required('services', 'edit')
+def reorder_services():
+    data = request.json or {}
+    RentalService.reorder_services(data.get('serviceIds') or [])
+    return jsonify({'success': True})
+
 @rental_bp.route('/api/users/approve', methods=['POST'])
 @permission_required('accounts', 'edit')
 def approve_user():
