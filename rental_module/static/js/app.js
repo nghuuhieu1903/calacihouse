@@ -319,6 +319,9 @@ const I18N = {
     confirm_delete_document: 'Xóa ảnh tài liệu này?',
     toast_document_deleted: 'Đã xóa ảnh tài liệu',
     room_documents_empty_state: 'Chưa có ảnh hợp đồng nào cho phòng này.',
+    lbl_document_visible_to: 'Ai xem được ảnh này',
+    document_visible_all_members: 'Tất cả thành viên phòng',
+    toast_document_visibility_updated: 'Đã cập nhật người xem được ảnh.',
     col_ticket_id: 'Mã Ticket',
     description_colon_label: 'Mô Tả:',
     no_attached_images: 'Không có ảnh đính kèm',
@@ -958,6 +961,9 @@ const I18N = {
     confirm_delete_document: 'Delete this document photo?',
     toast_document_deleted: 'Document photo deleted',
     room_documents_empty_state: 'No contract photos yet for this room.',
+    lbl_document_visible_to: 'Who can see this photo',
+    document_visible_all_members: 'Everyone in the room',
+    toast_document_visibility_updated: 'Updated who can see this photo.',
     col_ticket_id: 'Ticket ID',
     description_colon_label: 'Description:',
     no_attached_images: 'No attached images',
@@ -5435,6 +5441,13 @@ async function fetchRoomPhotosFull(roomId) {
   }
 }
 
+// Tenant accounts sharing one roomId — only meaningfully more than one
+// entry for a dorm/KTX room, where a document's visibility actually needs
+// choosing rather than defaulting to "the room's one tenant".
+function getRoomTenants(roomId) {
+  return state.users.filter(u => u.role === 'tenant' && u.roomId === roomId);
+}
+
 async function openRoomDocumentsModal(roomId) {
   _currentDocRoomId = roomId;
   _pendingDocDataUrl = null;
@@ -5446,6 +5459,22 @@ async function openRoomDocumentsModal(roomId) {
   if (labelInput) labelInput.value = '';
   const previewEl = document.getElementById('room-document-pending-preview');
   if (previewEl) previewEl.innerHTML = '';
+
+  // Only worth showing "who can see this" when there's an actual choice —
+  // a room with 0 or 1 tenant account has no roommate to hide anything
+  // from, so this stays hidden and every upload just defaults to 'all'.
+  const roomTenants = getRoomTenants(roomId);
+  const assignWrap = document.getElementById('room-document-assign-wrap');
+  const assignSelect = document.getElementById('room-document-assigned-to');
+  if (assignWrap && assignSelect) {
+    if (roomTenants.length > 1) {
+      assignSelect.innerHTML = `<option value="all">${t('document_visible_all_members')}</option>` +
+        roomTenants.map(u => `<option value="${u.id}">${u.fullName || u.username}</option>`).join('');
+      assignWrap.style.display = 'block';
+    } else {
+      assignWrap.style.display = 'none';
+    }
+  }
 
   const startInput = document.getElementById('room-contract-start');
   const endInput = document.getElementById('room-contract-end');
@@ -5529,12 +5558,15 @@ async function uploadRoomDocument() {
 
   const labelInput = document.getElementById('room-document-label');
   const label = (labelInput && labelInput.value.trim()) || t('default_document_label');
+  const assignWrap = document.getElementById('room-document-assign-wrap');
+  const assignSelect = document.getElementById('room-document-assigned-to');
+  const assignedTo = (assignWrap && assignWrap.style.display !== 'none' && assignSelect) ? assignSelect.value : 'all';
 
   try {
     const res = await fetch(`${API_BASE}/rooms/documents/upload`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId: _currentDocRoomId, label, dataUrl: _pendingDocDataUrl })
+      body: JSON.stringify({ roomId: _currentDocRoomId, label, dataUrl: _pendingDocDataUrl, assignedTo })
     });
     const data = await res.json();
     if (data.success) {
@@ -5587,19 +5619,46 @@ function renderRoomDocumentsList() {
     return;
   }
 
-  container.innerHTML = docs.map(d => `
-    <div class="cala-card" style="padding:0.75rem; display:flex; align-items:center; gap:0.75rem; margin-bottom:0.6rem;">
+  const roomTenants = getRoomTenants(_currentDocRoomId);
+  // Only worth a "who sees this" control at all when there's more than
+  // one tenant account on the room to choose between.
+  const showAssign = roomTenants.length > 1;
+
+  container.innerHTML = docs.map(d => {
+    const assignedTo = d.assignedTo || 'all';
+    const assignedUser = roomTenants.find(u => u.id === assignedTo);
+    return `
+    <div class="cala-card" style="padding:0.75rem; display:flex; align-items:center; gap:0.75rem; margin-bottom:0.6rem; flex-wrap:wrap;">
       <img src="${d.dataUrl}" onclick="viewDocumentFullSize('${d.dataUrl}')" style="width:56px; height:56px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">
-      <div style="flex:1; min-width:0;">
+      <div style="flex:1; min-width:120px;">
         <div style="font-weight:700; font-size:0.9rem;">${d.label}</div>
         <div style="font-size:0.75rem; color:var(--text-muted);">${d.uploadedAt}</div>
+        ${showAssign ? `
+          <div style="margin-top:0.4rem; display:flex; align-items:center; gap:0.4rem;">
+            <i data-lucide="eye" style="width:13px; height:13px; color:var(--text-muted); flex-shrink:0;"></i>
+            <select class="form-control" style="font-size:0.75rem; padding:0.25rem 0.5rem; height:auto;" onchange="reassignRoomDocument('${d.id}', this.value)">
+              <option value="all" ${assignedTo === 'all' ? 'selected' : ''}>${t('document_visible_all_members')}</option>
+              ${roomTenants.map(u => `<option value="${u.id}" ${assignedTo === u.id ? 'selected' : ''}>${u.fullName || u.username}</option>`).join('')}
+            </select>
+          </div>
+        ` : (assignedUser ? `<div style="font-size:0.72rem; color:var(--cala-blue); margin-top:0.2rem;">👁️ ${assignedUser.fullName || assignedUser.username}</div>` : '')}
       </div>
       ${canDelete() ? `<button type="button" class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoomDocument('${d.id}')">
         <i data-lucide="trash-2"></i>
       </button>` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
   renderIcons(container);
+}
+
+async function reassignRoomDocument(docId, assignedTo) {
+  if (!_currentDocRoomId) return;
+  const doc = (state.roomDocuments[_currentDocRoomId] || []).find(d => d.id === docId);
+  if (doc) doc.assignedTo = assignedTo;
+  const data = await postAndVerify(`${API_BASE}/rooms/documents/assign`, { roomId: _currentDocRoomId, id: docId, assignedTo });
+  if (!data) { await fetchRoomDocumentsFull(_currentDocRoomId); renderRoomDocumentsList(); return; }
+  showToast(t('toast_document_visibility_updated'), 'success');
 }
 
 // Used by every "click a photo thumbnail to see it bigger" spot that

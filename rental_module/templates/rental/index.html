@@ -1564,6 +1564,10 @@
         </div>
         <input type="file" id="room-document-input" accept="image/*" style="display:none;" onchange="handleRoomDocumentSelect(event)">
         <input type="text" id="room-document-label" class="form-control" placeholder="Nhãn (VD: Hợp đồng thuê nhà, CCCD khách...)" style="margin-top: 0.75rem;">
+        <div id="room-document-assign-wrap" style="display:none; margin-top: 0.75rem;">
+          <label style="font-size: 0.78rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;" data-i18n="lbl_document_visible_to">Ai xem được ảnh này</label>
+          <select id="room-document-assigned-to" class="form-control"></select>
+        </div>
         <button type="button" class="btn btn-orange btn-sm" style="margin-top: 0.75rem; width: 100%; justify-content: center;" onclick="uploadRoomDocument()">
           <i data-lucide="plus"></i> <span data-i18n="btn_add_to_list">Thêm Vào Danh Sách</span>
         </button>

@@ -751,9 +751,15 @@ def _user_can_view_room_photos(user, room_id):
 @rental_bp.route('/api/rooms/documents/<room_id>', methods=['GET'])
 @login_required
 def get_room_documents_full(room_id):
-    if not _user_can_view_room_documents(session.get('user'), room_id):
+    user = session.get('user')
+    if not _user_can_view_room_documents(user, room_id):
         return jsonify({'success': False, 'error': 'Bạn không có quyền xem tài liệu phòng này!'}), 403
     docs = Storage.get_room_documents().get(room_id, [])
+    # A dorm/KTX room's documents can be scoped to one occupant (see
+    # save_room_document's assignedTo) — a tenant only ever gets 'all' +
+    # their own; staff/investor roles manage/see the whole room's set.
+    if user.get('role') == 'tenant':
+        docs = [d for d in docs if d.get('assignedTo', 'all') in ('all', user.get('id'))]
     return jsonify({'success': True, 'documents': docs})
 
 @rental_bp.route('/api/rooms/photos/<room_id>', methods=['GET'])
@@ -795,18 +801,38 @@ def get_invoice_photo():
     return jsonify({'success': True, 'photo': photo})
 
 @rental_bp.route('/api/rooms/documents/upload', methods=['POST'])
-@login_required
+@permission_required('rooms', 'edit')
 def upload_room_document():
+    # Was @login_required only — any logged-in tenant could upload a
+    # "contract photo" to any room, theirs or not. Tightened to the same
+    # rooms:edit gate every other room-editing route already uses,
+    # matters even more now that a doc's assignedTo can restrict it to
+    # one specific tenant: uploading is a staff action, not a viewing one.
     data = request.json or {}
     doc = RentalService.save_room_document(
         data.get('roomId'),
         data.get('id'),
         data.get('label'),
-        data.get('dataUrl')
+        data.get('dataUrl'),
+        data.get('assignedTo')
     )
     if not doc:
         return jsonify({'success': False, 'error': 'Thiếu roomId hoặc dữ liệu ảnh'}), 400
     return jsonify({'success': True, 'document': doc})
+
+@rental_bp.route('/api/rooms/documents/assign', methods=['POST'])
+@permission_required('rooms', 'edit')
+def assign_room_document():
+    # Re-scopes who an already-uploaded doc is visible to, without
+    # deleting/re-uploading it. Deliberately NOT just
+    # _user_can_view_room_documents (which a tenant on a shared dorm room
+    # passes too) — being able to VIEW a room's documents must not also
+    # mean being able to re-target another tenant's private one onto
+    # yourself, which is exactly what this endpoint could otherwise do.
+    data = request.json or {}
+    room_id = data.get('roomId')
+    success = RentalService.assign_room_document(room_id, data.get('id'), data.get('assignedTo'))
+    return jsonify({'success': success})
 
 @rental_bp.route('/api/rooms/documents/delete', methods=['POST'])
 @superadmin_required

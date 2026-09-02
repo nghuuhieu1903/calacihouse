@@ -308,7 +308,15 @@ class RentalService:
                 m: {rid: rd for rid, rd in month_readings.items() if rid in room_ids}
                 for m, month_readings in readings.items()
             }
-            room_documents = {rid: docs for rid, docs in room_documents.items() if rid in room_ids}
+            # A dorm/KTX room's document list can hold docs assigned to
+            # just one occupant (see save_room_document) — a roommate on
+            # the same roomId must not see those, only ones marked 'all'
+            # or assigned to them specifically.
+            tenant_id = current_user.get('id')
+            room_documents = {
+                rid: [d for d in docs if d.get('assignedTo', 'all') in ('all', tenant_id)]
+                for rid, docs in room_documents.items() if rid in room_ids
+            }
             room_photos = {}
             users = []
 
@@ -1140,7 +1148,7 @@ class RentalService:
     # -- Room Documents (contract & related images) --------------------------
 
     @staticmethod
-    def save_room_document(room_id, doc_id, label, data_url):
+    def save_room_document(room_id, doc_id, label, data_url, assigned_to=None):
         if not room_id or not data_url:
             return None
         d_id = doc_id or f"doc_{uuid.uuid4().hex[:8]}"
@@ -1148,7 +1156,13 @@ class RentalService:
             'id': d_id,
             'label': label or 'Tài liệu',
             'dataUrl': data_url,
-            'uploadedAt': datetime.now().strftime('%Y-%m-%d %H:%M')
+            'uploadedAt': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            # 'all' (default — every tenant account on this room sees it,
+            # the only behavior that existed before this field) or one
+            # tenant's user id, for a dorm/KTX room where each occupant's
+            # own ID/contract scan should stay private from their roommates
+            # even though they all share the same roomId.
+            'assignedTo': assigned_to or 'all'
         }
 
         def mutate(documents):
@@ -1163,6 +1177,21 @@ class RentalService:
 
         Storage.update_room_documents(mutate)
         return d_obj
+
+    @staticmethod
+    def assign_room_document(room_id, doc_id, assigned_to):
+        """Changes who an already-uploaded document is visible to, without
+        having to delete and re-upload it."""
+        def mutate(documents):
+            room_docs = documents.get(room_id, [])
+            for d in room_docs:
+                if d['id'] == doc_id:
+                    d['assignedTo'] = assigned_to or 'all'
+            documents[room_id] = room_docs
+            return documents
+
+        Storage.update_room_documents(mutate)
+        return True
 
     @staticmethod
     def delete_room_document(room_id, doc_id):
