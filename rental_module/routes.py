@@ -479,7 +479,9 @@ def get_investor_expense_photo():
     else:
         return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
     photo = Storage.get_investor_expense_photo(expense_id)
-    return jsonify({'success': True, 'photo': photo})
+    resp = jsonify({'success': True, 'photo': photo})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @rental_bp.route('/api/investor-expenses/save', methods=['POST'])
 @permission_required('investor_expenses', lambda body: 'edit' if body.get('id') else 'create')
@@ -794,7 +796,9 @@ def get_room_documents_full(room_id):
     # their own; staff/investor roles manage/see the whole room's set.
     if user.get('role') == 'tenant':
         docs = [d for d in docs if d.get('assignedTo', 'all') in ('all', user.get('id'))]
-    return jsonify({'success': True, 'documents': docs})
+    resp = jsonify({'success': True, 'documents': docs})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @rental_bp.route('/api/rooms/photos/<room_id>', methods=['GET'])
 @login_required
@@ -802,7 +806,9 @@ def get_room_photos_full(room_id):
     if not _user_can_view_room_photos(session.get('user'), room_id):
         return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh phòng này!'}), 403
     photos = Storage.get_room_photos().get(room_id, [])
-    return jsonify({'success': True, 'photos': photos})
+    resp = jsonify({'success': True, 'photos': photos})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @rental_bp.route('/api/readings/photo', methods=['GET'])
 @login_required
@@ -817,7 +823,13 @@ def get_reading_photo():
     if not _user_can_view_room_documents(session.get('user'), room_id):
         return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
     photo = Storage.get_reading_photo(month, room_id, field)
-    return jsonify({'success': True, 'photo': photo})
+    # Same URL is reused every time this exact photo is viewed again — a
+    # replace-photo upload changes what's actually stored behind it
+    # without the URL itself ever changing, so a cached response here
+    # would keep serving the old photo back after a new one replaced it.
+    resp = jsonify({'success': True, 'photo': photo})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @rental_bp.route('/api/invoices/photo', methods=['GET'])
 @login_required
@@ -832,7 +844,9 @@ def get_invoice_photo():
     if not _user_can_view_room_documents(session.get('user'), invoice.get('roomId', '')):
         return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
     photo = Storage.get_invoice_photo(invoice_id, field)
-    return jsonify({'success': True, 'photo': photo})
+    resp = jsonify({'success': True, 'photo': photo})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 @rental_bp.route('/api/rooms/documents/upload', methods=['POST'])
 @permission_required('rooms', 'edit')

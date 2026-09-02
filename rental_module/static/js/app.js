@@ -190,6 +190,7 @@ const I18N = {
     all_houses_label: 'Tất Cả Tòa Nhà',
     all_rooms_label: 'Tất Cả Phòng',
     multiple_houses_label: 'Nhiều Tòa',
+    houses_unit_label: 'tòa nhà',
     rooms_unit_label: 'phòng',
     house_no_rooms_label: 'Chưa có phòng',
     services_empty_state: 'Chưa có dịch vụ nào. Nhấn "Thêm Dịch Vụ Mới" để tạo.',
@@ -834,6 +835,7 @@ const I18N = {
     all_houses_label: 'All Houses',
     all_rooms_label: 'All Rooms',
     multiple_houses_label: 'Multiple Houses',
+    houses_unit_label: 'houses',
     rooms_unit_label: 'rooms',
     house_no_rooms_label: 'No rooms yet',
     services_empty_state: 'No services yet. Click "Add New Service" to create one.',
@@ -2307,6 +2309,22 @@ function calculateRoomServiceTotal(room) {
   return { serviceTotal, parkingTotal, serviceCount, items };
 }
 
+// Renders a scope badge (which houses/rooms a service applies to) for the
+// Cấu Hình Dịch Vụ list — full names up to 3, otherwise a plain count with
+// the full list as a hover tooltip, so a service scoped to a dozen+ rooms
+// doesn't blow the row out into an unreadable wall of names. Full detail
+// is always one click away in the edit modal's scope tree regardless.
+function scopeSummaryBadge({ isAll, allLabel, allIcon, partIcon, names, unitLabel }) {
+  if (isAll) {
+    return `<span class="badge badge-paid" style="font-size:0.65rem;">${allIcon} ${allLabel}</span>`;
+  }
+  const label = names.length === 0 ? unitLabel
+    : names.length <= 3 ? names.join(', ')
+    : `${names.length} ${unitLabel}`;
+  const titleAttr = names.length > 3 ? ` title="${names.join(', ').replace(/"/g, '&quot;')}"` : '';
+  return `<span class="badge badge-resolved" style="font-size:0.65rem;"${titleAttr}>${partIcon} ${label}</span>`;
+}
+
 function renderServicesConfig() {
   const houseLabel = document.getElementById('current-house-name-label');
   const currentHouse = state.houses.find(h => h.id === state.currentHouseId);
@@ -2339,24 +2357,25 @@ function renderServicesConfig() {
     }
   } else {
     activeServices.forEach(s => {
-      let houseBadge = '';
-      if (!s.houseId || s.houseId === 'all' || (Array.isArray(s.houseIds) && s.houseIds.includes('all'))) {
-        houseBadge = `<span class="badge badge-paid" style="font-size:0.65rem;">🌐 ${t('all_houses_label')}</span>`;
-      } else if (Array.isArray(s.houseIds)) {
-        const names = state.houses.filter(h => s.houseIds.includes(h.id)).map(h => h.name).join(', ');
-        houseBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">📍 ${names || t('multiple_houses_label')}</span>`;
-      } else {
-        const house = state.houses.find(h => h.id === s.houseId);
-        houseBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">📍 ${house ? house.name : s.houseId}</span>`;
-      }
+      // Full names for 3 or fewer, otherwise just a count (with the full
+      // list still available as a hover tooltip) — spelling out every
+      // one of 10+ room names inline made this list unreadable, and the
+      // full detail is one click away anyway (editService() shows it in
+      // full in the scope tree). See scopeSummaryBadge() below.
+      const houseBadge = scopeSummaryBadge({
+        isAll: !s.houseId || s.houseId === 'all' || (Array.isArray(s.houseIds) && s.houseIds.includes('all')),
+        allLabel: t('all_houses_label'), allIcon: '🌐', partIcon: '📍',
+        names: Array.isArray(s.houseIds) ? state.houses.filter(h => s.houseIds.includes(h.id)).map(h => h.name)
+          : (state.houses.find(h => h.id === s.houseId) ? [state.houses.find(h => h.id === s.houseId).name] : [s.houseId]),
+        unitLabel: t('houses_unit_label')
+      });
 
-      let roomBadge = '';
-      if (!s.roomIds || (Array.isArray(s.roomIds) && s.roomIds.includes('all'))) {
-        roomBadge = `<span class="badge badge-paid" style="font-size:0.65rem;">🚪 ${t('all_rooms_label')}</span>`;
-      } else if (Array.isArray(s.roomIds)) {
-        const roomNames = state.rooms.filter(r => s.roomIds.includes(r.id)).map(r => r.name.replace('Phòng ', 'P.')).join(', ');
-        roomBadge = `<span class="badge badge-resolved" style="font-size:0.65rem;">🔑 ${roomNames || s.roomIds.length + ' ' + t('rooms_unit_label')}</span>`;
-      }
+      const roomBadge = scopeSummaryBadge({
+        isAll: !s.roomIds || (Array.isArray(s.roomIds) && s.roomIds.includes('all')),
+        allLabel: t('all_rooms_label'), allIcon: '🚪', partIcon: '🔑',
+        names: Array.isArray(s.roomIds) ? state.rooms.filter(r => s.roomIds.includes(r.id)).map(r => r.name.replace('Phòng ', 'P.')) : [],
+        unitLabel: t('rooms_unit_label')
+      });
 
       let calcTypeHtml = '';
       let ruleHtml = '';
@@ -3521,11 +3540,23 @@ async function viewMeterPhoto(roomId, field) {
   if (!dataUrl) return;
   content.innerHTML = `
     <img src="${dataUrl}" style="width:100%; border-radius:var(--radius-md);">
-    <button type="button" class="btn btn-sm" style="margin-top:0.75rem;" onclick="document.getElementById('${inputId}').click()">
-      <i data-lucide="upload"></i> ${t('btn_meter_photo_replace')}
-    </button>
+    <div style="display:flex; gap:0.5rem; margin-top:0.75rem;">
+      <button type="button" class="btn btn-sm" style="flex:1; justify-content:center;" onclick="document.getElementById('${inputId}').click()">
+        <i data-lucide="upload"></i> ${t('btn_meter_photo_replace')}
+      </button>
+      <button type="button" class="btn btn-sm" style="flex:1; justify-content:center; color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteMeterPhoto('${roomId}', '${field}')">
+        <i data-lucide="trash-2"></i> ${t('mp_btn_delete_photo')}
+      </button>
+    </div>
   `;
   renderIcons(content);
+}
+
+async function deleteMeterPhoto(roomId, field) {
+  const ok = await showConfirmModal(t('mp_confirm_delete_photo'), { danger: true, okLabel: t('btn_delete') });
+  if (!ok) return;
+  await updateReadingApi(roomId, field, '');
+  closeModal('modal-meter-photo');
 }
 
 async function fetchReadingPhoto(month, roomId, field) {
