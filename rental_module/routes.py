@@ -207,7 +207,7 @@ def reorder_houses():
 @permission_required('services', lambda body: 'edit' if body.get('id') else 'create')
 def save_service():
     data = request.json or {}
-    s_obj = RentalService.save_service(
+    s_obj, error = RentalService.save_service(
         data.get('id'),
         data.get('houseId'),
         data.get('name'),
@@ -221,6 +221,8 @@ def save_service():
         data.get('roomIds'),
         data.get('investorShare')
     )
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
     return jsonify({'success': True, 'service': s_obj})
 
 @rental_bp.route('/api/custom-icons/save', methods=['POST'])

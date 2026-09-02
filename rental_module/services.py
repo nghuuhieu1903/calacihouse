@@ -445,6 +445,67 @@ class RentalService:
         return True
 
     @staticmethod
+    def _service_is_elec(s):
+        return 'Điện' in (s.get('name') or '')
+
+    @staticmethod
+    def _service_is_parking_like(s):
+        # Mirrors calculate_room_services_total's own "is this a parking
+        # fee" test exactly (name contains 'xe', or the dedicated per-
+        # vehicle unit) — has to, since that's the code whose data this
+        # check is protecting: two fixed services that both match it,
+        # scoped to the same room, would both get multiplied into
+        # parking_total (see calculate_room_services_total), silently
+        # double- (or triple-, ...) counting a room's vehicle fee.
+        if s.get('calcType') == 'formula':
+            return False
+        name_lower = (s.get('name') or '').lower()
+        return 'xe' in name_lower or s.get('unit') == 'Theo xe / tháng'
+
+    @staticmethod
+    def _services_scope_overlaps(a, b, rooms):
+        # houseId/houseIds/roomIds scoping has enough "all" special cases
+        # (see service_matches_house/room) that comparing the two scopes'
+        # raw fields directly would be error-prone — checking against
+        # every real room for one where BOTH services would actually
+        # apply is the same test calculate_room_services_total() itself
+        # uses, so "overlaps" here means exactly what it means at
+        # invoice-calculation time.
+        for r in rooms:
+            house_id, room_id = r.get('houseId'), r.get('id')
+            if (RentalService.service_matches_house(a, house_id) and RentalService.service_matches_room(a, room_id)
+                    and RentalService.service_matches_house(b, house_id) and RentalService.service_matches_room(b, room_id)):
+                return True
+        return False
+
+    @staticmethod
+    def _find_service_collision(candidate, existing_services, rooms):
+        """Returns an error message if `candidate` (the service about to
+        be saved) would collide with another already-configured service
+        covering the same room(s) — exact duplicate name, a second
+        formula service computing the same utility (điện/nước), or a
+        second fixed fee that would also get read as a vehicle/parking
+        charge. All three would silently corrupt calculate_room_services_total()/
+        _rebuild_invoices()'s output (see their own name-matching logic)
+        rather than raise any error on their own, which is exactly why
+        this has to be caught here instead, before it's ever saved."""
+        candidate_name = (candidate.get('name') or '').strip().lower()
+        for s in existing_services:
+            if s.get('id') == candidate.get('id'):
+                continue
+            if not RentalService._services_scope_overlaps(candidate, s, rooms):
+                continue
+            if (s.get('name') or '').strip().lower() == candidate_name:
+                return f"Đã có dịch vụ tên \"{s.get('name')}\" áp dụng cho phòng/tòa nhà này rồi — hãy đổi tên khác để tránh trùng."
+            if candidate.get('calcType') == 'formula' and s.get('calcType') == 'formula':
+                if RentalService._service_is_elec(candidate) == RentalService._service_is_elec(s):
+                    label = 'điện' if RentalService._service_is_elec(candidate) else 'nước'
+                    return f"Đã có dịch vụ \"{s.get('name')}\" tính tiền {label} theo công thức cho phòng/tòa nhà này rồi — chỉ được 1 dịch vụ tính {label} cho mỗi phòng, nếu không số liệu điện/nước sẽ bị tính sai."
+            if RentalService._service_is_parking_like(candidate) and RentalService._service_is_parking_like(s):
+                return f"Đã có dịch vụ phí xe \"{s.get('name')}\" cho phòng/tòa nhà này rồi — thêm dịch vụ mới có tên chứa \"xe\" sẽ khiến phí gửi xe bị tính trùng."
+        return None
+
+    @staticmethod
     def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None, investor_share=None):
         srv_id = service_id or f"srv_{uuid.uuid4().hex[:6]}"
         # applyRooms is a leftover column from an older scoping mechanism
@@ -467,9 +528,15 @@ class RentalService:
             'applyRooms': existing.get('applyRooms', []),
             'investorShare': investor_share if investor_share is not None else existing.get('investorShare')
         }
+
+        rooms = Storage.get_rooms()
+        collision = RentalService._find_service_collision(srv_obj, Storage.get_services(), rooms)
+        if collision:
+            return None, collision
+
         Storage.save_service(srv_obj)
         RentalService.sync_readings_with_services()
-        return srv_obj
+        return srv_obj, None
 
     @staticmethod
     def delete_service(service_id):
