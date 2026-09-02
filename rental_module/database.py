@@ -332,6 +332,12 @@ def init_db():
             _ensure_column(cur, 'services', 'investor_share', "TEXT")
             _ensure_column(cur, 'users', 'house_ids', "TEXT")
             _ensure_column(cur, 'investor_expenses', 'photo', "LONGTEXT")
+            # photos_json supersedes the single `photo` column — an expense
+            # can now carry several proof photos instead of just one.
+            # `photo` (and whatever's already in it on existing rows) is
+            # left in place as a fallback for a row saved before this
+            # existed; see _investor_expense() in storage.py.
+            _ensure_column(cur, 'investor_expenses', 'photos_json', "LONGTEXT")
             _ensure_column(cur, 'houses', 'manager_fee_mode', "VARCHAR(16) DEFAULT 'percent'")
             _ensure_column(cur, 'houses', 'manager_fee_value', "DOUBLE DEFAULT 20")
             _ensure_column(cur, 'rooms', 'vehicle_count', "INT DEFAULT 0")

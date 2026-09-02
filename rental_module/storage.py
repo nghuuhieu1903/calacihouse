@@ -357,7 +357,10 @@ def _investor_expense(row):
         'name': row.get('name') or row['description'] or '',
         'description': row['description'] or '',
         'amount': row['amount'] or 0,
-        'photo': row.get('photo') or '',
+        # photos_json is the real, current list — a row saved before
+        # multi-photo support existed only has the old single `photo`
+        # column, wrapped into a one-item list instead of being dropped.
+        'photos': json.loads(row['photos_json']) if row.get('photos_json') else ([row['photo']] if row.get('photo') else []),
         'createdAt': row['created_at'] or ''
     }
 
@@ -900,37 +903,43 @@ class Storage:
     @staticmethod
     def get_investor_expenses_light():
         """Same rows as get_investor_expenses(), with each one's receipt
-        photo collapsed to a boolean — same reasoning as
-        get_tickets_light()/get_readings_light(): the bulk /api/data
-        payload only needs enough to draw the "has a receipt" icon
-        button, not the receipt image itself. get_investor_expense_photo()
-        fetches one on demand, when that button is actually clicked."""
+        photos collapsed to a same-length array of booleans — same
+        reasoning as get_tickets_light()/get_readings_light(): the bulk
+        /api/data payload only needs enough to draw the "N ảnh" badge
+        (photos.length), not the receipt images themselves.
+        get_investor_expense_photos() fetches the real ones on demand,
+        when that badge is actually clicked."""
         expenses = Storage.get_investor_expenses()
         light = []
         for e in expenses:
             e_light = dict(e)
-            if e_light.get('photo'):
-                e_light['photo'] = True
+            e_light['photos'] = [True for _ in e_light.get('photos') or []]
             light.append(e_light)
         return light
 
     @staticmethod
-    def get_investor_expense_photo(expense_id):
+    def get_investor_expense_photos(expense_id):
         expenses = Storage.get_investor_expenses()
         e = next((x for x in expenses if x.get('id') == expense_id), None)
-        return (e or {}).get('photo') or ''
+        return (e or {}).get('photos') or []
 
     @staticmethod
     def save_investor_expense(e):
         """Upserts this one row by primary key only — see save_house() for
-        why a single-row write matters here."""
+        why a single-row write matters here. `photo` (legacy, single) is
+        still written alongside photos_json — as just the first photo, if
+        any — purely so a build older than multi-photo support reading
+        this same row directly wouldn't see it go blank; nothing here
+        reads that column back once photos_json exists (see
+        _investor_expense)."""
+        photos = e.get('photos') or []
         conn = get_db()
         try:
             with conn.cursor() as cur:
                 cur.execute(
                     "REPLACE INTO investor_expenses "
-                    "(id, house_id, month, name, description, amount, photo, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "(id, house_id, month, name, description, amount, photo, photos_json, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         e['id'],
                         e.get('houseId', ''),
@@ -938,7 +947,8 @@ class Storage:
                         e.get('name', ''),
                         e.get('description', ''),
                         e.get('amount', 0),
-                        e.get('photo', ''),
+                        photos[0] if photos else '',
+                        json.dumps(photos),
                         e.get('createdAt', '')
                     )
                 )

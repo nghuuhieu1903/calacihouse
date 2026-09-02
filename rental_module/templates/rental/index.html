@@ -1102,9 +1102,9 @@
           <input type="number" id="ie-amount" class="form-control" min="0" step="1000" required>
         </div>
         <div style="margin-bottom: 1.5rem;">
-          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_photo">Ảnh Minh Chứng (hóa đơn / chuyển khoản)</label>
-          <input type="file" accept="image/*" id="ie-photo-input" style="display:none" onchange="handleExpensePhotoSelect(event)">
-          <div id="ie-photo-preview" style="display:flex; align-items:center; gap:0.75rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_expense_photo">Ảnh Minh Chứng (hóa đơn / chuyển khoản, tối đa 5 ảnh)</label>
+          <input type="file" accept="image/*" multiple id="ie-photo-input" style="display:none" onchange="handleExpensePhotoSelect(event)">
+          <div id="ie-photo-preview" style="display:flex; align-items:center; flex-wrap:wrap; gap:0.5rem;">
             <button type="button" class="btn btn-secondary" onclick="document.getElementById('ie-photo-input').click()">
               <i data-lucide="camera"></i> <span data-i18n="btn_upload_photo">Tải Ảnh Lên</span>
             </button>

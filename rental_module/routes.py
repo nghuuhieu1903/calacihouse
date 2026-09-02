@@ -470,11 +470,11 @@ def mark_paid():
     success = RentalService.mark_invoice_paid(data.get('invoiceId'))
     return jsonify({'success': success})
 
-@rental_bp.route('/api/investor-expenses/photo', methods=['GET'])
+@rental_bp.route('/api/investor-expenses/photos', methods=['GET'])
 @login_required
-def get_investor_expense_photo():
-    # On-demand fetch for one expense's receipt photo — the bulk
-    # /api/data payload only ships a boolean now (see
+def get_investor_expense_photos():
+    # On-demand fetch for one expense's receipt photos — the bulk
+    # /api/data payload only ships a same-length boolean array now (see
     # Storage.get_investor_expenses_light()). Staff always allowed;
     # investor only for an expense on one of their own houses.
     expense_id = request.args.get('expenseId', '')
@@ -491,8 +491,8 @@ def get_investor_expense_photo():
             return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
     else:
         return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
-    photo = Storage.get_investor_expense_photo(expense_id)
-    resp = jsonify({'success': True, 'photo': photo})
+    photos = Storage.get_investor_expense_photos(expense_id)
+    resp = jsonify({'success': True, 'photos': photos})
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 
@@ -506,7 +506,7 @@ def save_investor_expense():
         data.get('month'),
         data.get('description'),
         data.get('amount'),
-        data.get('photo'),
+        data.get('photos'),
         data.get('name')
     )
     return jsonify({'success': True, 'expense': e_obj})

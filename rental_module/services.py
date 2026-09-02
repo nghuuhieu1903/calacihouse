@@ -1015,14 +1015,14 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_investor_expense(expense_id, house_id, month, description, amount, photo=None, name=None):
+    def save_investor_expense(expense_id, house_id, month, description, amount, photos=None, name=None):
         e_id = expense_id or f"exp_{uuid.uuid4().hex[:8]}"
         existing = next((e for e in Storage.get_investor_expenses() if e['id'] == e_id), None)
         created_at = existing['createdAt'] if existing else datetime.now().strftime('%Y-%m-%d %H:%M')
-        # No new photo submitted on an edit keeps whatever was already
+        # No photos array submitted on an edit keeps whatever was already
         # attached, rather than clearing it just because this save didn't
         # re-send it.
-        photo_value = photo if photo is not None else (existing['photo'] if existing else '')
+        photos_value = photos if photos is not None else (existing['photos'] if existing else [])
 
         e_obj = {
             'id': e_id,
@@ -1035,7 +1035,7 @@ class RentalService:
             'name': name or '',
             'description': description or '',
             'amount': float(amount or 0),
-            'photo': photo_value,
+            'photos': photos_value,
             'createdAt': created_at
         }
         Storage.save_investor_expense(e_obj)

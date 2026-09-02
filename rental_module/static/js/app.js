@@ -337,6 +337,7 @@ const I18N = {
     status_colon_label: 'Trạng thái:',
     title_view_larger_image: 'Xem ảnh lớn',
     toast_max_completion_images: 'Tối đa 5 ảnh nghiệm thu',
+    toast_max_expense_images: 'Tối đa 5 ảnh minh chứng',
     toast_enter_reply_content: 'Vui lòng nhập nội dung phản hồi',
     toast_ticket_reply_sent_prefix: 'Đã gửi phản hồi ticket ',
     tickets_empty_state: 'Không có báo lỗi nào.',
@@ -987,6 +988,7 @@ const I18N = {
     status_colon_label: 'Status:',
     title_view_larger_image: 'View larger image',
     toast_max_completion_images: 'Maximum 5 completion photos',
+    toast_max_expense_images: 'Maximum 5 proof photos',
     toast_enter_reply_content: 'Please enter a reply message',
     toast_ticket_reply_sent_prefix: 'Reply sent for ticket ',
     tickets_empty_state: 'No issue reports yet.',
@@ -4323,61 +4325,73 @@ function renderInvestorExpensesTable() {
   renderIcons(tbody);
 }
 
-let _pendingExpensePhotoDataUrl = '';
+// Was a single _pendingExpensePhotoDataUrl — an admin adding a repair
+// expense often has more than one proof photo to show (the invoice, the
+// bank transfer, before/after shots, ...), so this is now a list, same
+// max-5-with-individual-remove pattern as ticket/admin-reply images
+// (_adminImages).
+let _pendingExpenseImages = [];
 
 function renderExpensePhotoPreview() {
   const container = document.getElementById('ie-photo-preview');
   if (!container) return;
-  if (_pendingExpensePhotoDataUrl) {
-    container.innerHTML = `
-      <img src="${_pendingExpensePhotoDataUrl}" onclick="viewDocumentFullSize('${_pendingExpensePhotoDataUrl}')" style="width:64px; height:64px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">
-      <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('ie-photo-input').click()"><i data-lucide="camera"></i> ${t('btn_change_photo')}</button>
-      <button type="button" class="btn btn-secondary btn-sm" onclick="removeExpensePhoto()" style="color:var(--cala-red);"><i data-lucide="trash-2"></i></button>
-    `;
-  } else {
-    container.innerHTML = `
-      <button type="button" class="btn btn-secondary" onclick="document.getElementById('ie-photo-input').click()">
-        <i data-lucide="camera"></i> <span data-i18n="btn_upload_photo">${t('btn_upload_photo')}</span>
-      </button>
-    `;
-  }
+  container.innerHTML = _pendingExpenseImages.map((src, i) => `
+    <div style="position:relative; display:inline-block;">
+      <img src="${src}" onclick="viewDocumentFullSize('${src}')" style="width:64px; height:64px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">
+      <button type="button" onclick="removeExpensePhoto(${i})" style="position:absolute; top:-6px; right:-6px; background:var(--color-danger); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>
+    </div>
+  `).join('') + (_pendingExpenseImages.length < 5 ? `
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('ie-photo-input').click()">
+      <i data-lucide="camera"></i> <span data-i18n="btn_upload_photo">${t('btn_upload_photo')}</span>
+    </button>
+  ` : '');
   renderIcons(container);
 }
 
-async function handleExpensePhotoSelect(event) {
-  const file = event.target.files[0];
-  event.target.value = '';
-  if (!file) return;
-  try {
-    _pendingExpensePhotoDataUrl = await compressImageFile(file);
-    renderExpensePhotoPreview();
-  } catch (err) {
-    showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+function handleExpensePhotoSelect(event) {
+  const files = Array.from(event.target.files);
+  const remaining = 5 - _pendingExpenseImages.length;
+  const toAdd = files.slice(0, remaining);
+
+  toAdd.forEach(async file => {
+    try {
+      const dataUrl = await compressImageFile(file);
+      _pendingExpenseImages.push(dataUrl);
+      renderExpensePhotoPreview();
+    } catch (err) {
+      showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+    }
+  });
+
+  if (files.length > remaining) {
+    showToast(t('toast_max_expense_images'), 'error');
   }
+  event.target.value = '';
 }
 
-function removeExpensePhoto() {
-  _pendingExpensePhotoDataUrl = '';
+function removeExpensePhoto(idx) {
+  _pendingExpenseImages.splice(idx, 1);
   renderExpensePhotoPreview();
 }
 
 // The "!" icon next to an expense's short name (both admin's own table and
 // the investor's own dashboard list) opens this to show the fuller note +
-// proof photo — kept out of the main line so the investor sees a clean
+// proof photos — kept out of the main line so the investor sees a clean
 // "name — amount" row by default and only digs in if they want to.
-// e.photo is a boolean placeholder once it came from the bulk /api/data
-// payload (see Storage.get_investor_expenses_light()) — only a real
-// data: URL still sitting in memory from this session's own just-picked
-// file skips the round trip; everything else fetches the real bytes here.
-async function fetchInvestorExpensePhoto(expenseId, cached) {
-  if (typeof cached === 'string' && cached.startsWith('data:')) return cached;
+// e.photos is a same-length array of boolean placeholders once it came
+// from the bulk /api/data payload (see Storage.get_investor_expenses_light())
+// — only real data: URLs still sitting in memory from this session's own
+// just-picked files skip the round trip; everything else fetches the
+// real bytes here.
+async function fetchInvestorExpensePhotos(expenseId, cached) {
+  if (Array.isArray(cached) && cached.every(p => typeof p === 'string' && p.startsWith('data:'))) return cached;
   try {
-    const res = await fetch(`${API_BASE}/investor-expenses/photo?expenseId=${encodeURIComponent(expenseId)}`);
+    const res = await fetch(`${API_BASE}/investor-expenses/photos?expenseId=${encodeURIComponent(expenseId)}`);
     const data = await res.json();
-    return data.success ? data.photo : '';
+    return data.success ? data.photos : [];
   } catch (err) {
-    console.warn('Could not load expense photo:', err);
-    return '';
+    console.warn('Could not load expense photos:', err);
+    return [];
   }
 }
 
@@ -4388,13 +4402,16 @@ async function viewExpenseDetail(expenseId) {
   document.getElementById('expense-detail-description').innerText = e.description || t('ir_no_description_hint');
   const photoEl = document.getElementById('expense-detail-photo');
   const expenseDetailModal = document.getElementById('modal-expense-detail');
-  photoEl.innerHTML = e.photo ? `<div style="text-align:center; padding:1rem 0; color:var(--text-secondary);">${t('loading_label')}</div>` : '';
+  const hasPhotos = (e.photos || []).length > 0;
+  photoEl.innerHTML = hasPhotos ? `<div style="text-align:center; padding:1rem 0; color:var(--text-secondary);">${t('loading_label')}</div>` : '';
   expenseDetailModal.classList.add('active');
-  if (e.photo) {
-    const photo = await fetchInvestorExpensePhoto(expenseId, e.photo);
-    photoEl.innerHTML = photo
-      ? `<img src="${photo}" onclick="viewDocumentFullSize('${photo}')" style="width:100%; max-height:280px; object-fit:contain; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">`
-      : '';
+  if (hasPhotos) {
+    const photos = await fetchInvestorExpensePhotos(expenseId, e.photos);
+    photoEl.innerHTML = photos.length ? `
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:0.5rem;">
+        ${photos.map(p => `<img src="${p}" onclick="viewDocumentFullSize('${p}')" style="width:100%; height:120px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">`).join('')}
+      </div>
+    ` : '';
   }
   renderIcons(expenseDetailModal);
 }
@@ -4407,7 +4424,7 @@ function openAddInvestorExpenseModal() {
   document.getElementById('ie-name').value = '';
   document.getElementById('ie-description').value = '';
   document.getElementById('ie-amount').value = '';
-  _pendingExpensePhotoDataUrl = '';
+  _pendingExpenseImages = [];
   renderExpensePhotoPreview();
   document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--cala-orange); vertical-align: middle;"></i> ${t('modal_add_expense_title')}`;
   const addExpenseModal = document.getElementById('modal-investor-expense');
@@ -4425,7 +4442,7 @@ async function openEditInvestorExpenseModal(expenseId) {
   document.getElementById('ie-name').value = e.name || '';
   document.getElementById('ie-description').value = e.description;
   document.getElementById('ie-amount').value = e.amount;
-  _pendingExpensePhotoDataUrl = e.photo ? await fetchInvestorExpensePhoto(expenseId, e.photo) : '';
+  _pendingExpenseImages = (e.photos || []).length ? await fetchInvestorExpensePhotos(expenseId, e.photos) : [];
   renderExpensePhotoPreview();
   document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--cala-orange); vertical-align: middle;"></i> ${t('modal_edit_expense_title')}`;
   const editExpenseModal = document.getElementById('modal-investor-expense');
@@ -4441,9 +4458,9 @@ async function submitInvestorExpense(event) {
   const name = document.getElementById('ie-name').value.trim();
   const description = document.getElementById('ie-description').value.trim();
   const amount = parseFloat(document.getElementById('ie-amount').value) || 0;
-  const photo = _pendingExpensePhotoDataUrl;
+  const photos = _pendingExpenseImages;
 
-  const eObj = { id: id || genId('exp_'), houseId, month, name, description, amount, photo };
+  const eObj = { id: id || genId('exp_'), houseId, month, name, description, amount, photos };
 
   const data = await postAndVerify(`${API_BASE}/investor-expenses/save`, eObj);
   if (!data) return;
