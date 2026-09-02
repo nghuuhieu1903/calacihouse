@@ -506,6 +506,9 @@ const I18N = {
     ir_summary_title: '📊 Tổng Hợp Theo Tòa Nhà',
     ir_select_house_hint: 'Chọn một tòa nhà cụ thể ở thanh trên để xem báo cáo chi tiết từng dòng.',
     ir_no_house_hint: 'Chưa có tòa nhà nào để lập báo cáo.',
+    ir_no_investor_hint: 'Tòa nhà này chưa có chủ đầu tư nào được gán — vào Quản Lý Tài Khoản để gán trước khi cấu hình dịch vụ chia sẻ.',
+    ir_select_investor_label: 'Chủ Đầu Tư:',
+    hint_investor_share_moved: 'Việc chia sẻ dịch vụ này cho Chủ Đầu Tư nào được cấu hình riêng ở trang "Báo Cáo Chủ Đầu Tư", không phải ở đây.',
     ir_no_invoices_hint: 'Chưa có hóa đơn nào trong tháng này để tính báo cáo.',
     total_label: 'TỔNG CỘNG',
     nav_my_contract: 'Hợp Đồng Của Tôi',
@@ -1157,6 +1160,9 @@ const I18N = {
     ir_summary_title: '📊 Summary By House',
     ir_select_house_hint: 'Pick a specific house in the top bar to see the line-by-line report.',
     ir_no_house_hint: 'No houses to report on yet.',
+    ir_no_investor_hint: 'No investor is assigned to this house yet — assign one in Quản Lý Tài Khoản before configuring shared services.',
+    ir_select_investor_label: 'Investor:',
+    hint_investor_share_moved: 'Which investor(s) this service is shared with is configured on the "Báo Cáo Chủ Đầu Tư" page, not here.',
     ir_no_invoices_hint: 'No invoices this month to calculate a report from.',
     total_label: 'TOTAL',
     nav_my_contract: 'My Contract',
@@ -3007,17 +3013,6 @@ function toggleServiceCalcFields() {
   }
 }
 
-function toggleServiceInvestorFields() {
-  const enabled = document.getElementById('service-investor-enabled').checked;
-  const box = document.getElementById('box-service-investor-fields');
-  const mode = document.getElementById('service-investor-mode').value;
-  const valueInput = document.getElementById('service-investor-value');
-
-  box.style.display = enabled ? 'block' : 'none';
-  valueInput.style.display = mode === 'full' ? 'none' : 'block';
-  valueInput.placeholder = mode === 'percent' ? 'VD: 50' : 'VD: 50000';
-}
-
 function openAddServiceModal() {
   document.getElementById('service-id').value = '';
   document.getElementById('service-name').value = '';
@@ -3027,13 +3022,9 @@ function openAddServiceModal() {
   document.getElementById('service-price').value = '50000';
   document.getElementById('service-unit').value = 'Cố định / phòng';
   document.getElementById('service-custom-formula').value = '';
-  document.getElementById('service-investor-enabled').checked = true;
-  document.getElementById('service-investor-mode').value = 'full';
-  document.getElementById('service-investor-value').value = '';
 
   renderIconPicker('package');
   toggleServiceCalcFields();
-  toggleServiceInvestorFields();
 
   const initialHouseSelected = state.currentHouseId === 'all' ? ['all'] : [state.currentHouseId];
   const initialRoomSelected = state.currentRoomId === 'all' ? ['all'] : [state.currentRoomId];
@@ -3070,12 +3061,6 @@ function editService(srvId) {
     document.getElementById('service-unit').value = srv.unit || 'Cố định / phòng';
   }
 
-  const investorShare = srv.investorShare || { enabled: true, mode: 'full', value: 0 };
-  document.getElementById('service-investor-enabled').checked = !!investorShare.enabled;
-  document.getElementById('service-investor-mode').value = investorShare.mode || 'full';
-  document.getElementById('service-investor-value').value = investorShare.value || '';
-  toggleServiceInvestorFields();
-
   document.getElementById('modal-service-config').classList.add('active');
 }
 
@@ -3089,11 +3074,12 @@ async function saveService(event) {
   const calcType = document.getElementById('service-calc-type').value;
 
   const houseId = selectedHouseIds.length === 1 ? selectedHouseIds[0] : 'all';
-  const investorEnabled = document.getElementById('service-investor-enabled').checked;
-  const investorMode = document.getElementById('service-investor-mode').value;
-  const investorValue = parseFloat(document.getElementById('service-investor-value').value) || 0;
-  const investorShare = { enabled: investorEnabled, mode: investorMode, value: investorMode === 'full' ? 0 : investorValue };
-  let sObj = { id: id || genId('srv_'), houseId, houseIds: selectedHouseIds, roomIds: selectedRoomIds, name, icon, symbol, calcType, investorShare };
+  // investorShare (per-investor now, not managed by this form at all —
+  // see Báo Cáo Chủ Đầu Tư) is deliberately left out of this payload;
+  // the server carries the existing value forward untouched when it's
+  // absent (see save_service in services.py), same as any other field
+  // this form doesn't ask about.
+  let sObj = { id: id || genId('srv_'), houseId, houseIds: selectedHouseIds, roomIds: selectedRoomIds, name, icon, symbol, calcType };
 
   if (calcType === 'formula') {
     const customFormula = document.getElementById('service-custom-formula').value.trim();
@@ -3112,9 +3098,16 @@ async function saveService(event) {
   const data = await postAndVerify(`${API_BASE}/services/save`, sObj);
   if (!data) return;
 
-  const idx = state.services.findIndex(s => s.id === sObj.id);
-  if (idx >= 0) state.services[idx] = sObj;
-  else state.services.push(sObj);
+  // Uses the server's own returned object, not the locally-built sObj —
+  // sObj deliberately never included investorShare (see above), and the
+  // server's response is the one place that still has it (carried
+  // forward from whatever was already saved). Using sObj here would
+  // otherwise wipe every investor's sharing config from memory for the
+  // rest of this session, even though the database itself is untouched.
+  const savedService = data.service || sObj;
+  const idx = state.services.findIndex(s => s.id === savedService.id);
+  if (idx >= 0) state.services[idx] = savedService;
+  else state.services.push(savedService);
 
   // Clear stored readings overrides to enforce real-time recalculation
   if (state.readings[state.currentMonth]) {
@@ -3279,6 +3272,7 @@ function renderAdminDashboard() {
 }
 
 function renderInvestorDashboard() {
+  const investorId = state.currentUser.id;
   const activeRooms = getFilteredRooms();
   const monthReadings = state.readings[state.currentMonth] || {};
 
@@ -3298,17 +3292,18 @@ function renderInvestorDashboard() {
     // investor's own dashboard shows — this is their own account, so
     // anything left unchecked must stay invisible here too, not just on
     // the admin-facing report.
-    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id) && s.investorShare && s.investorShare.enabled);
+    const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id) && getInvestorShareFor(s, investorId).enabled);
     houseServices.forEach(s => {
+      const share = getInvestorShareFor(s, investorId);
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
         const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
         const cost = utilityCostForRoom(s.customFormula, usage, isElec, r);
-        const shared = investorShareForAmount(s.investorShare, cost);
+        const shared = investorShareForAmount(share, cost);
         if (isElec) totalElec += shared; else totalWater += shared;
       } else {
         const cost = calculateServiceCostForRoom(s, r);
-        totalService += investorShareForAmount(s.investorShare, cost);
+        totalService += investorShareForAmount(share, cost);
       }
     });
   });
@@ -3322,8 +3317,8 @@ function renderInvestorDashboard() {
   const monthInvoices = state.invoices.filter(inv => inv.month === state.currentMonth && (state.currentHouseId === 'all' || inv.houseId === state.currentHouseId) && occupiedRoomIds.has(inv.roomId));
   const paidInvoices = monthInvoices.filter(i => i.status === 'Đã thanh toán');
   const pendingInvoices = monthInvoices.filter(i => i.status !== 'Đã thanh toán');
-  const collectedAmount = paidInvoices.reduce((sum, i) => sum + computeInvestorInvoiceBreakdown(i).total, 0);
-  const outstandingAmount = pendingInvoices.reduce((sum, i) => sum + computeInvestorInvoiceBreakdown(i).total, 0);
+  const collectedAmount = paidInvoices.reduce((sum, i) => sum + computeInvestorInvoiceBreakdown(i, investorId).total, 0);
+  const outstandingAmount = pendingInvoices.reduce((sum, i) => sum + computeInvestorInvoiceBreakdown(i, investorId).total, 0);
 
   const openTickets = state.tickets.filter(tk => tk.status !== 'Đã hoàn thành').length;
   const occupancyRate = activeRooms.length ? Math.round((occupiedCount / activeRooms.length) * 100) : 0;
@@ -3388,7 +3383,7 @@ function renderInvestorDashboard() {
     } else {
       tbody.innerHTML = occupiedRooms.map(r => {
         const inv = monthInvoices.find(i => i.roomId === r.id);
-        const total = inv ? computeInvestorInvoiceBreakdown(inv).total : roomRentTotal(r);
+        const total = inv ? computeInvestorInvoiceBreakdown(inv, investorId).total : roomRentTotal(r);
         const statusBadge = inv
           ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
           : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`;
@@ -3410,7 +3405,7 @@ function renderInvestorDashboard() {
       const roomsRentSum = occupiedRooms.reduce((s, r) => s + roomRentTotal(r), 0);
       const roomsTotalSum = occupiedRooms.reduce((s, r) => {
         const inv = monthInvoices.find(i => i.roomId === r.id);
-        return s + (inv ? computeInvestorInvoiceBreakdown(inv).total : roomRentTotal(r));
+        return s + (inv ? computeInvestorInvoiceBreakdown(inv, investorId).total : roomRentTotal(r));
       }, 0);
       tbody.innerHTML += `
         <tr style="background: var(--bg-base); font-weight: 800;">
@@ -3432,7 +3427,7 @@ function renderInvestorDashboard() {
       let houseBreakdownSum = 0;
       houseBreakdownBody.innerHTML = state.houses.map(h => {
         const houseInvoices = state.invoices.filter(i => i.month === state.currentMonth && i.houseId === h.id && occupiedRoomIds.has(i.roomId));
-        const houseTotal = houseInvoices.reduce((s, i) => s + computeInvestorInvoiceBreakdown(i).total, 0);
+        const houseTotal = houseInvoices.reduce((s, i) => s + computeInvestorInvoiceBreakdown(i, investorId).total, 0);
         houseBreakdownSum += houseTotal;
         const houseRooms = state.rooms.filter(r => r.houseId === h.id);
         const houseOccupied = houseRooms.filter(r => r.tenant).length;
@@ -3916,13 +3911,38 @@ function investorShareForAmount(investorShare, actualAmount) {
   return actualAmount;
 }
 
+// service.investorShare used to be one {enabled, mode, value} object
+// applying to every investor who could see that service's house — no way
+// to share it with one investor but not another on the same house. It's
+// now a map ({investorId: {enabled, mode, value}}); this reads one
+// investor's own entry, defaulting to "not shared" when they have none —
+// deliberately no automatic fallback to anyone else's config or an
+// old-style single default, so a service is only ever visible to an
+// investor once someone explicitly turns it on for them.
+function getInvestorShareFor(service, investorId) {
+  const map = service.investorShare || {};
+  return map[investorId] || { enabled: false, mode: 'full', value: 0 };
+}
+
+// Every investor account that could currently see `houseId` — used to
+// populate the Chủ Đầu Tư picker on Báo Cáo Chủ Đầu Tư (a house can have
+// more than one investor, e.g. co-owners, each with their own visibility
+// into what gets shared with them).
+function investorsForHouse(houseId) {
+  return state.users.filter(u => {
+    if (u.role !== 'investor') return false;
+    const ids = u.houseIds && u.houseIds.length ? u.houseIds : (u.houseId ? [u.houseId] : []);
+    return ids.includes('all') || ids.includes(houseId);
+  });
+}
+
 // Computes what a single invoice looks like once every service's
 // investor-share config is applied — room rent always in full, each
 // elec/water/fixed service either dropped (disabled), shown in full,
 // shown as a %, or shown as a flat configured figure. Shared by the
 // admin-facing investor report, the investor's own dashboard totals, and
 // the investor's own invoice-detail modal, so all three always agree.
-function computeInvestorInvoiceBreakdown(inv) {
+function computeInvestorInvoiceBreakdown(inv, investorId) {
   const rent = inv.baseRent || 0;
   const services = [];
 
@@ -3931,7 +3951,8 @@ function computeInvestorInvoiceBreakdown(inv) {
   // generateAndSendAllInvoices() does (name-contains-"Điện" convention).
   const formulaServices = state.services.filter(s => s.calcType === 'formula' && serviceMatchesHouse(s, inv.houseId) && serviceMatchesRoom(s, inv.roomId));
   formulaServices.forEach(s => {
-    if (!s.investorShare || !s.investorShare.enabled) return;
+    const investorShare = getInvestorShareFor(s, investorId);
+    if (!investorShare.enabled) return;
     const isElec = s.name.includes('Điện');
     const actual = isElec ? (inv.elecCost || 0) : (inv.waterCost || 0);
     services.push({
@@ -3939,16 +3960,20 @@ function computeInvestorInvoiceBreakdown(inv) {
       name: s.name,
       symbol: s.symbol || (isElec ? '⚡' : '💧'),
       unit: isElec ? `${inv.elecUsage || 0} kWh` : `${inv.waterUsage || 0} m³`,
-      mode: s.investorShare.mode || 'full',
-      value: s.investorShare.value || 0,
-      shared: investorShareForAmount(s.investorShare, actual)
+      mode: investorShare.mode || 'full',
+      value: investorShare.value || 0,
+      shared: investorShareForAmount(investorShare, actual)
     });
   });
 
   (inv.serviceItems || []).forEach(item => {
     const s = state.services.find(sv => sv.id === item.id);
-    const investorShare = s ? s.investorShare : { enabled: true, mode: 'full', value: 0 };
-    if (!investorShare || !investorShare.enabled) return;
+    // A service that's since been deleted but is still referenced by an
+    // old invoice's line items has no config left to look up at all —
+    // keep showing it shared in full rather than silently dropping a
+    // historical invoice's own numbers.
+    const investorShare = s ? getInvestorShareFor(s, investorId) : { enabled: true, mode: 'full', value: 0 };
+    if (!investorShare.enabled) return;
     services.push({
       id: item.id,
       name: item.name,
@@ -3971,7 +3996,7 @@ function computeInvestorInvoiceBreakdown(inv) {
 // on/off (or switch % vs fixed) without leaving this page — unlike
 // computeInvestorInvoiceBreakdown(), which only ever surfaces the
 // already-enabled ones for the revenue math itself.
-function computeHouseServiceSummary(houseId, month) {
+function computeHouseServiceSummary(houseId, month, investorId) {
   const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId);
   const houseServices = state.services.filter(s => serviceMatchesHouse(s, houseId));
 
@@ -3990,12 +4015,12 @@ function computeHouseServiceSummary(houseId, month) {
         if (item) actual += item.total || 0;
       });
     }
-    const investorShare = service.investorShare || { enabled: false, mode: 'full', value: 0 };
+    const investorShare = getInvestorShareFor(service, investorId);
     return { service, actual, investorShare, shared: investorShareForAmount(investorShare, actual) };
   });
 }
 
-function computeInvestorReportData(houseId, month) {
+function computeInvestorReportData(houseId, month, investorId) {
   const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId);
   // Room rent is always sent to the investor in full — it's not part of
   // the per-service opt-in/opt-out system at all.
@@ -4003,7 +4028,7 @@ function computeInvestorReportData(houseId, month) {
 
   const serviceTotals = {};
   invoices.forEach(inv => {
-    computeInvestorInvoiceBreakdown(inv).services.forEach(sv => {
+    computeInvestorInvoiceBreakdown(inv, investorId).services.forEach(sv => {
       if (!serviceTotals[sv.id]) {
         serviceTotals[sv.id] = { name: sv.name, symbol: sv.symbol, mode: sv.mode, value: sv.value, shared: 0 };
       }
@@ -4049,8 +4074,8 @@ function computeInvestorReportData(houseId, month) {
 // themselves and shares the money with the investor; others the investor
 // pays their own, so this needs to be a quick per-house, per-service
 // toggle rather than a one-time global setting.
-function renderHouseServiceToggleList(house, month) {
-  const summary = computeHouseServiceSummary(house.id, month);
+function renderHouseServiceToggleList(house, month, investorId) {
+  const summary = computeHouseServiceSummary(house.id, month, investorId);
   if (summary.length === 0) return '';
 
   const rows = summary.map(({ service, actual, investorShare, shared }) => {
@@ -4101,7 +4126,11 @@ async function saveServiceInvestorShareInline(serviceId) {
   const enabled = document.getElementById(`svc-enabled-${serviceId}`).checked;
   const mode = document.getElementById(`svc-mode-${serviceId}`).value;
   const value = parseFloat(document.getElementById(`svc-value-${serviceId}`).value) || 0;
-  service.investorShare = { enabled, mode, value: mode === 'full' ? 0 : value };
+  // Only ever touches THIS investor's own entry in the map — every other
+  // investor who can also see this service keeps whatever's already
+  // configured for them, untouched.
+  if (!service.investorShare) service.investorShare = {};
+  service.investorShare = { ...service.investorShare, [_selectedReportInvestorId]: { enabled, mode, value: mode === 'full' ? 0 : value } };
 
   const data = await postAndVerify(`${API_BASE}/services/save`, service);
   if (!data) { renderInvestorReport(); return; }
@@ -4109,7 +4138,7 @@ async function saveServiceInvestorShareInline(serviceId) {
   renderInvestorReport();
 }
 
-function renderInvestorReportCard(house, d) {
+function renderInvestorReportCard(house, d, investorId) {
   const line = (label, value, opts = {}) => `
     <div style="display:flex; justify-content:space-between; gap:1rem; ${opts.style || ''}">
       <span>${label}</span>
@@ -4139,7 +4168,7 @@ function renderInvestorReportCard(house, d) {
         ${line('🔧 ' + t('ir_line_expenses'), d.expenses, { prefix: '−', style: 'color:var(--cala-red);' })}
       </div>
 
-      ${renderHouseServiceToggleList(house, d.month)}
+      ${renderHouseServiceToggleList(house, d.month, investorId)}
 
       <!-- PER-HOUSE MANAGEMENT FEE FORMULA — % of gross or a flat VNĐ/month,
            since each investor's arrangement can differ. -->
@@ -4221,7 +4250,13 @@ async function clearInvestorReportOverride(houseId) {
 function renderInvestorReportSummaryTable(houses, month) {
   let totalShared = 0, totalExpenses = 0, totalInvestor = 0;
   const rows = houses.map(h => {
-    const d = computeInvestorReportData(h.id, month);
+    // A house can have more than one investor, each with their own
+    // shared-services config — this summary row can only show one set of
+    // numbers, so it uses whichever investor comes first for that house
+    // (matches renderInvestorReport()'s own default). Open that house on
+    // its own (not "Tất Cả Toà Nhà") to switch between investors.
+    const houseInvestorId = investorsForHouse(h.id)[0] ? investorsForHouse(h.id)[0].id : null;
+    const d = computeInvestorReportData(h.id, month, houseInvestorId);
     totalShared += d.sharedRevenue;
     totalExpenses += d.expenses;
     totalInvestor += d.investorShare;
@@ -4264,6 +4299,13 @@ function renderInvestorReportSummaryTable(houses, month) {
   `;
 }
 
+// Which investor's own config Báo Cáo Chủ Đầu Tư is currently showing —
+// a house can have more than one investor (co-owners), each with their
+// OWN independent set of shared services, so this page always has to
+// operate on behalf of one specific investor at a time, never "the
+// house's investor" as if there could only be one.
+let _selectedReportInvestorId = null;
+
 function renderInvestorReport() {
   renderInvestorExpensesTable();
 
@@ -4287,9 +4329,40 @@ function renderInvestorReport() {
     container.innerHTML = '';
     return;
   }
-  const d = computeInvestorReportData(house.id, month);
-  container.innerHTML = renderInvestorReportCard(house, d);
+
+  const houseInvestors = investorsForHouse(house.id);
+  if (!houseInvestors.some(u => u.id === _selectedReportInvestorId)) {
+    _selectedReportInvestorId = houseInvestors[0] ? houseInvestors[0].id : null;
+  }
+
+  if (!_selectedReportInvestorId) {
+    container.innerHTML = `<div class="cala-card" style="text-align:center; color:var(--text-secondary);">${t('ir_no_investor_hint')}</div>`;
+    return;
+  }
+
+  const d = computeInvestorReportData(house.id, month, _selectedReportInvestorId);
+  container.innerHTML = investorSelectorHtml(houseInvestors) + renderInvestorReportCard(house, d, _selectedReportInvestorId);
   renderIcons(container);
+}
+
+function investorSelectorHtml(investors) {
+  // Nothing to actually pick with 0 or 1 investor — showing a disabled
+  // one-option dropdown would just be visual noise; the report card's
+  // own house name already makes clear whose numbers these are then.
+  if (investors.length <= 1) return '';
+  return `
+    <div class="cala-card" style="margin-bottom:1rem; display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+      <label style="font-weight:700; font-size:0.85rem; display:flex; align-items:center; gap:0.4rem;"><i data-lucide="user"></i> ${t('ir_select_investor_label')}</label>
+      <select class="form-control" style="width:auto; min-width:200px;" onchange="changeReportInvestor(this.value)">
+        ${investors.map(u => `<option value="${u.id}" ${u.id === _selectedReportInvestorId ? 'selected' : ''}>${u.fullName || u.username}</option>`).join('')}
+      </select>
+    </div>
+  `;
+}
+
+function changeReportInvestor(investorId) {
+  _selectedReportInvestorId = investorId;
+  renderInvestorReport();
 }
 
 function renderInvestorExpensesTable() {
@@ -5242,7 +5315,7 @@ function viewInvestorInvoiceDetail(invoiceId) {
   const inv = state.invoices.find(i => i.id === invoiceId);
   if (!inv) return;
   const content = document.getElementById('modal-invoice-content');
-  const breakdown = computeInvestorInvoiceBreakdown(inv);
+  const breakdown = computeInvestorInvoiceBreakdown(inv, state.currentUser.id);
 
   let lineNo = 1;
   let rowsHtml = `<tr><td>${lineNo++}. 🏠 ${t('line_room_rent_short')}</td><td style="text-align:right;">${formatMoney(breakdown.rent)} đ</td></tr>`;

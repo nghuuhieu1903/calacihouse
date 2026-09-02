@@ -311,9 +311,17 @@ def _default_investor_share(name, calc_type):
 
 
 def _service(row):
-    investor_share = json.loads(row['investor_share']) if row.get('investor_share') else None
-    if investor_share is None:
-        investor_share = _default_investor_share(row['name'], row['calc_type'] or 'fixed')
+    # investor_share used to be a single {enabled, mode, value} object
+    # applying to every investor who could see this service's house — now
+    # {investorId: {enabled, mode, value}}, so a given investor's own
+    # sharing can differ from another's on the same house (see
+    # database.py's _migrate_investor_share_to_map, which one-time-
+    # converted every pre-existing row using _default_investor_share's
+    # old reasoning as the seed). A missing value here only ever means a
+    # service created after that migration — starts shared with nobody,
+    # deliberately no automatic default, until explicitly configured per
+    # investor on Báo Cáo Chủ Đầu Tư.
+    investor_share = json.loads(row['investor_share']) if row.get('investor_share') else {}
     return {
         'id': row['id'],
         'houseId': row['house_id'] or '',
@@ -783,7 +791,18 @@ class Storage:
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                investor_share = s.get('investorShare') or _default_investor_share(s.get('name', ''), s.get('calcType', 'fixed'))
+                # {} (nothing shared with anyone yet) is a legitimate,
+                # intentional value here — must NOT fall through to the
+                # old single-object default just because an empty dict is
+                # falsy in Python. Only a truly absent key (a save that
+                # never mentions investorShare at all — see saveService()
+                # in app.js, which no longer manages this field) means
+                # "leave whatever's already there," handled by
+                # RentalService.save_service() carrying the existing
+                # value forward before this is ever called.
+                investor_share = s.get('investorShare')
+                if investor_share is None:
+                    investor_share = {}
                 cur.execute("SELECT COALESCE(MAX(sort_order), -1) AS m FROM services")
                 next_order = cur.fetchone()['m'] + 1
                 cur.execute(

@@ -253,6 +253,65 @@ def _backfill_service_sort_order(cur):
         cur.execute("UPDATE services SET sort_order=%s WHERE id=%s", (idx, row['id']))
 
 
+def _migrate_investor_share_to_map(cur):
+    """services.investor_share used to be one {enabled, mode, value}
+    object applying uniformly to every investor who could see that
+    service's house — no way to share a service with one investor but
+    not another on the same house (e.g. co-owners). Converts every
+    existing row's stored value into {investorId: {enabled, mode,
+    value}}, seeded with that same effective config for every investor
+    who currently has access to any of the service's houses — so nothing
+    already being shared silently disappears the moment this ships.
+    Everything about a NEW investor's (or a service created after this
+    runs) visibility is fully independent from here on — no more
+    automatic default for whoever isn't explicitly in the map."""
+    cur.execute("SELECT value FROM kv_store WHERE `key`='investor_share_migrated_to_map'")
+    if cur.fetchone():
+        return
+
+    def default_investor_share(name, calc_type):
+        # Same reasoning _default_investor_share() in storage.py
+        # documents (kept in sync manually — this file can't import from
+        # storage.py, which itself imports get_db from here): a service
+        # saved before investor-share existed at all falls back to
+        # whatever the old hardcoded report formula did for that kind of
+        # service.
+        is_electricity = calc_type == 'formula' and 'điện' in (name or '').lower()
+        if is_electricity:
+            return {'enabled': False, 'mode': 'full', 'value': 0}
+        if calc_type == 'formula':
+            return {'enabled': True, 'mode': 'percent', 'value': 50}
+        return {'enabled': True, 'mode': 'full', 'value': 0}
+
+    cur.execute("SELECT id, house_id, house_ids FROM users WHERE role='investor'")
+    investors = []
+    for r in cur.fetchall():
+        house_ids = json.loads(r['house_ids']) if r.get('house_ids') else ([r['house_id']] if r.get('house_id') else [])
+        investors.append({'id': r['id'], 'houseIds': house_ids})
+
+    cur.execute("SELECT id, name, calc_type, house_id, house_ids, investor_share FROM services")
+    for s in cur.fetchall():
+        raw = json.loads(s['investor_share']) if s['investor_share'] else None
+        if raw is not None and 'enabled' not in raw:
+            # Already map-shaped — a re-run, or a service created after
+            # this migration already went through once. Nothing to do.
+            continue
+        effective = raw if raw is not None else default_investor_share(s['name'], s['calc_type'] or 'fixed')
+        s_house_ids = json.loads(s['house_ids']) if s['house_ids'] else (['all'] if not s['house_id'] else [s['house_id']])
+        share_map = {}
+        if effective.get('enabled'):
+            for inv in investors:
+                sees_house = 'all' in s_house_ids or 'all' in inv['houseIds'] or any(hid in inv['houseIds'] for hid in s_house_ids)
+                if sees_house:
+                    share_map[inv['id']] = effective
+        cur.execute("UPDATE services SET investor_share=%s WHERE id=%s", (json.dumps(share_map), s['id']))
+
+    cur.execute(
+        "REPLACE INTO kv_store (`key`, `value`) VALUES (%s, %s)",
+        ('investor_share_migrated_to_map', json.dumps(True))
+    )
+
+
 def _backfill_reading_carryover(cur):
     """One-time fix for readings created before sync_readings_with_services()
     (services.py) started carrying the previous month's "New" reading and
@@ -361,6 +420,7 @@ def init_db():
             _backfill_room_sort_order(cur)
             _backfill_service_sort_order(cur)
             _backfill_reading_carryover(cur)
+            _migrate_investor_share_to_map(cur)
         conn.commit()
     finally:
         conn.close()
