@@ -80,6 +80,7 @@ const I18N = {
     inv_rooms_title: 'Chi Tiết Doanh Thu Theo Phòng',
     inv_expenses_title: 'Chi Phí Lắp Đặt / Sửa Chữa Tháng Này',
     inv_expenses_desc: 'Các khoản chi này đã được trừ vào doanh thu chia sẻ trước khi tính phần bạn nhận được.',
+    lbl_total_row: 'Tổng',
     col_house: 'Tòa Nhà',
     col_headcount: 'Số Người',
     nav_my_invoices: 'Hóa Đơn Của Tôi',
@@ -718,6 +719,7 @@ const I18N = {
     inv_rooms_title: 'Revenue Detail By Room',
     inv_expenses_title: 'Installation / Repair Costs This Month',
     inv_expenses_desc: 'These costs were already deducted from the shared revenue before your share was calculated.',
+    lbl_total_row: 'Total',
     col_house: 'Building',
     col_headcount: 'Occupants',
     nav_my_invoices: 'My Invoices',
@@ -3176,6 +3178,21 @@ function renderInvestorDashboard() {
           </tr>
         `;
       }).join('');
+      // Tổng row — so the investor never has to add the "Tổng Cộng"
+      // column up by hand to know what the house/rooms owe in total.
+      const roomsRentSum = occupiedRooms.reduce((s, r) => s + roomRentTotal(r), 0);
+      const roomsTotalSum = occupiedRooms.reduce((s, r) => {
+        const inv = monthInvoices.find(i => i.roomId === r.id);
+        return s + (inv ? computeInvestorInvoiceBreakdown(inv).total : roomRentTotal(r));
+      }, 0);
+      tbody.innerHTML += `
+        <tr style="background: var(--bg-base); font-weight: 800;">
+          <td colspan="3">${t('lbl_total_row')}</td>
+          <td>${formatMoney(roomsRentSum)} đ</td>
+          <td style="color:var(--cala-orange);">${formatMoney(roomsTotalSum)} đ</td>
+          <td colspan="2"></td>
+        </tr>
+      `;
       renderIcons(tbody);
     }
   }
@@ -3185,9 +3202,11 @@ function renderInvestorDashboard() {
   if (houseBreakdownCard && houseBreakdownBody) {
     if (state.houses.length > 1) {
       houseBreakdownCard.style.display = 'block';
+      let houseBreakdownSum = 0;
       houseBreakdownBody.innerHTML = state.houses.map(h => {
         const houseInvoices = state.invoices.filter(i => i.month === state.currentMonth && i.houseId === h.id && occupiedRoomIds.has(i.roomId));
         const houseTotal = houseInvoices.reduce((s, i) => s + computeInvestorInvoiceBreakdown(i).total, 0);
+        houseBreakdownSum += houseTotal;
         const houseRooms = state.rooms.filter(r => r.houseId === h.id);
         const houseOccupied = houseRooms.filter(r => r.tenant).length;
         return `
@@ -3198,6 +3217,12 @@ function renderInvestorDashboard() {
           </tr>
         `;
       }).join('');
+      houseBreakdownBody.innerHTML += `
+        <tr style="background: var(--bg-base); font-weight: 800;">
+          <td colspan="2">${t('lbl_total_row')}</td>
+          <td style="color:var(--cala-orange);">${formatMoney(houseBreakdownSum)} đ</td>
+        </tr>
+      `;
     } else {
       houseBreakdownCard.style.display = 'none';
     }
@@ -3219,6 +3244,13 @@ function renderInvestorDashboard() {
           </tr>
         `;
       }).join('');
+      const expensesSum = monthExpenses.reduce((s, e) => s + (e.amount || 0), 0);
+      expensesBody.innerHTML += `
+        <tr style="background: var(--bg-base); font-weight: 800;">
+          <td colspan="2">${t('lbl_total_row')}</td>
+          <td style="text-align:right; color:var(--cala-red);">−${formatMoney(expensesSum)} đ</td>
+        </tr>
+      `;
       renderIcons(expensesBody);
     } else {
       expensesCard.style.display = 'none';
