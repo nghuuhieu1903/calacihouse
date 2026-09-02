@@ -356,6 +356,19 @@ class RentalService:
         room_documents = _light_photo_map(room_documents)
         room_photos = _light_photo_map(room_photos)
 
+        # shareImage (the OG social-preview photo) can be a full-size photo,
+        # yet the only client-side uses of it are a truthiness check
+        # (applySiteSettings) and prefilling the Thiết Lập Trang form when a
+        # superadmin actually opens it (which fetches the real value
+        # on demand — see /api/settings/full) — every other page load for
+        # every role was shipping it in full for no reason. favicon is left
+        # alone: unlike shareImage it's rendered directly client-side
+        # (<link rel="icon">) on every load, and is inherently small (a
+        # square icon, not a photo).
+        site_settings = dict(site_settings)
+        if site_settings.get('shareImage'):
+            site_settings['shareImage'] = True
+
         return {
             'houses': houses,
             'users': safe_users,

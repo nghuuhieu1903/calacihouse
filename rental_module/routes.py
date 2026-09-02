@@ -584,6 +584,14 @@ def save_permissions():
     success = RentalService.save_permissions(matrix)
     return jsonify({'success': success})
 
+@rental_bp.route('/api/settings/full', methods=['GET'])
+@superadmin_required
+def get_site_settings_full():
+    # The bulk /api/data payload collapses shareImage to a boolean (see
+    # get_full_state) — this is what Thiết Lập Trang fetches when actually
+    # opened, to prefill the form with the real stored value.
+    return jsonify({'success': True, 'settings': Storage.get_site_settings()})
+
 @rental_bp.route('/api/settings/save', methods=['POST'])
 @superadmin_required
 def save_site_settings():

@@ -145,6 +145,18 @@
     </div>
   </header>
 
+  <!-- Shown right after login/session-restore, while the real data is
+       still being fetched — replaces what used to be an unavoidable flash
+       of the hardcoded demo houses/rooms/services (state's initial
+       values, before fetchState() overwrites them) or a nav with every
+       tab wrongly hidden (state.permissions is still empty at that
+       point). Hidden as soon as setupUserRoleUI() actually renders the
+       real first view. -->
+  <div id="app-loading-overlay" style="display:none; position:fixed; inset:0; z-index:180; background:var(--bg-base); align-items:center; justify-content:center; flex-direction:column; gap:1rem;">
+    <div class="app-loading-spinner"></div>
+    <div style="color:var(--text-secondary); font-size:0.9rem;" data-i18n="loading_label">Đang tải...</div>
+  </div>
+
   <!-- MAIN APP CONTAINER -->
   <div class="app-container" id="app-container" style="display: none;">
     <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>

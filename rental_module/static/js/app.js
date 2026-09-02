@@ -1337,12 +1337,6 @@ const ICON_LIBRARY = [
   { icon: 'package', symbol: '📦', label: 'Khác' }
 ];
 
-const DEFAULT_CLIENT_USERS = [
-  { username: 'admin', password: '123', fullName: 'Quản Lý Hệ Thống (Admin)', role: 'superadmin', roomId: '', status: 'approved' },
-  { username: 'nguyenvanan', password: '123', fullName: 'Nguyễn Văn An', role: 'tenant', roomId: 'R101', status: 'approved' },
-  { username: 'tranthibich', password: '123', fullName: 'Trần Thị Bích', role: 'tenant', roomId: 'R102', status: 'approved' }
-];
-
 // Was hardcoded '2026-08' — correct for however long "today" actually
 // fell in August 2026, but would have silently gone stale as soon as the
 // real calendar rolled into September and nobody had touched the Kỳ Hóa
@@ -1362,24 +1356,20 @@ let state = {
   currentRoomId: 'all',
   theme: 'light',
   permissions: [],
-  houses: [
-    { id: 'house_a', name: 'Tòa Nhà A - Cầu Giấy', address: '12 Nguyễn Phong Sắc, Cầu Giấy' },
-    { id: 'house_b', name: 'Tòa Nhà B - Bình Thạnh', address: '45 Điện Biên Phủ, Bình Thạnh' }
-  ],
-  users: DEFAULT_CLIENT_USERS,
-  rooms: [
-    { id: 'R101', houseId: 'house_a', name: 'Phòng 101 (Tòa A)', tenant: 'Nguyễn Văn An', phone: '0901234567', baseRent: 3500000, headcount: 2 },
-    { id: 'R102', houseId: 'house_a', name: 'Phòng 102 (Tòa A)', tenant: 'Trần Thị Bích', phone: '0912345678', baseRent: 4000000, headcount: 3 },
-    { id: 'R201', houseId: 'house_b', name: 'Phòng 201 (Tòa B)', tenant: 'Lê Hoàng Nam', phone: '0987654321', baseRent: 3800000, headcount: 1 },
-    { id: 'R202', houseId: 'house_b', name: 'Phòng 202 (Tòa B)', tenant: 'Phạm Minh Tuấn', phone: '0934567890', baseRent: 4200000, headcount: 2 }
-  ],
-  services: [
-    { id: 'srv_elec', houseId: 'all', houseIds: ['all'], name: 'Tiền Điện', icon: 'zap', symbol: '⚡', calcType: 'formula', customFormula: 'x*3500', price: 0, unit: 'Theo chỉ số (kWh)' },
-    { id: 'srv_water', houseId: 'all', houseIds: ['all'], name: 'Tiền Nước', icon: 'droplet', symbol: '💧', calcType: 'formula', customFormula: 'x*18000', price: 0, unit: 'Theo chỉ số (m³)' },
-    { id: 'srv_trash', houseId: 'all', houseIds: ['all'], name: 'gom rác', icon: 'trash-2', symbol: '🧹', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' },
-    { id: 'srv_internet', houseId: 'all', houseIds: ['all'], name: 'Internet', icon: 'wifi', symbol: '🌐', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' },
-    { id: 'srv_parking', houseId: 'all', houseIds: ['all'], name: 'Phí Gửi Xe Máy', icon: 'bike', symbol: '🛵', calcType: 'fixed', price: 50000, unit: 'Cố định / phòng' }
-  ],
+  // houses/users/rooms/services used to ship pre-loaded with hardcoded
+  // demo data (fake houses, fake rooms, fake services) as the initial
+  // value here — meant for briefly rendering *something* before the real
+  // backend existed. Every render before fetchState() completed used to
+  // show that fake data as if it were real, and login had an "offline"
+  // fallback that let anyone in with hardcoded demo credentials against
+  // it if the (same-origin, always-actually-there) server request ever
+  // failed. Empty now — the loading overlay (see showAppLoadingOverlay)
+  // covers the real gap while fetchState() runs, so there's nothing left
+  // that ever needs this placeholder data to render.
+  houses: [],
+  users: [],
+  rooms: [],
+  services: [],
   formulas: [],
   readings: {},
   invoices: [],
@@ -1484,14 +1474,16 @@ async function handleLogin(event) {
       document.getElementById('auth-screen').style.display = 'none';
       document.getElementById('cala-navbar').style.display = 'flex';
       document.getElementById('app-container').style.display = 'flex';
-      setupUserRoleUI();
+      // setupUserRoleUI() (which ends by calling switchView()) used to run
+      // here, BEFORE fetchState() — rendering whichever view with
+      // state.houses/rooms/services still at their hardcoded placeholder
+      // values (and every permission-gated nav tab wrongly hidden, since
+      // state.permissions was still empty too) for however long the fetch
+      // took. A loading overlay instead of that flash of wrong data, until
+      // the real thing is actually ready to show.
+      showAppLoadingOverlay();
       await fetchState();
-      // setupUserRoleUI()'s permission-gated nav items (rooms/houses/
-      // invoices/tickets/accounts/...) read state.permissions, which is
-      // still the empty [] default at the call above — every one of those
-      // tabs evaluates to hidden. Re-run now that fetchState() has loaded
-      // the real matrix, or a manager account never sees anything beyond
-      // Tổng Quan for the rest of the session.
+      hideAppLoadingOverlay();
       setupUserRoleUI();
       // No-op for anyone but superadmin — see checkDataRetention(). This
       // is the actual trigger for "automatic" old-data cleanup in a
@@ -1611,6 +1603,16 @@ async function fetchPublicSiteSettings() {
   }
 }
 
+function showAppLoadingOverlay() {
+  const el = document.getElementById('app-loading-overlay');
+  if (el) el.style.display = 'flex';
+}
+
+function hideAppLoadingOverlay() {
+  const el = document.getElementById('app-loading-overlay');
+  if (el) el.style.display = 'none';
+}
+
 async function restoreSession() {
   try {
     const res = await fetch(`${API_BASE}/auth/me`);
@@ -1621,10 +1623,11 @@ async function restoreSession() {
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('cala-navbar').style.display = 'flex';
         document.getElementById('app-container').style.display = 'flex';
-        setupUserRoleUI();
+        // Same reasoning as handleLogin() — show a loading overlay instead
+        // of rendering a view against the still-placeholder state.
+        showAppLoadingOverlay();
         await fetchState();
-        // Same reasoning as handleLogin() — re-run once state.permissions
-        // is actually populated.
+        hideAppLoadingOverlay();
         setupUserRoleUI();
         checkDataRetention();
       }
@@ -7039,8 +7042,19 @@ async function savePermissionsMatrix() {
   }
 }
 
-function openSiteSettingsModal() {
-  const s = state.siteSettings || {};
+async function openSiteSettingsModal() {
+  // state.siteSettings only ever carries a boolean placeholder for
+  // shareImage now (see get_full_state) — fetch the real stored value
+  // here, only when this form is actually opened, instead of every page
+  // load shipping a full social-preview photo nobody but this form needs.
+  let s = state.siteSettings || {};
+  try {
+    const res = await fetch(`${API_BASE}/settings/full`);
+    const data = await res.json();
+    if (data.success) s = data.settings;
+  } catch (err) {
+    console.warn('Could not load full site settings:', err);
+  }
   document.getElementById('site-settings-name').value = s.siteName || '';
   document.getElementById('site-settings-title').value = s.title || '';
   document.getElementById('site-settings-description').value = s.description || '';
