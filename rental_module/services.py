@@ -217,7 +217,7 @@ class RentalService:
         room_photos = Storage.get_room_photos()
         # Investor payout math is internal to admin/manager — never shipped to
         # an investor or tenant session (see role filtering below).
-        investor_expenses = Storage.get_investor_expenses()
+        investor_expenses = Storage.get_investor_expenses_light()
         investor_report_overrides = Storage.get_investor_report_overrides()
 
         RentalService.sync_readings_with_services(month)

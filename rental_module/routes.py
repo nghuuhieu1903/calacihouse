@@ -455,6 +455,30 @@ def mark_paid():
     success = RentalService.mark_invoice_paid(data.get('invoiceId'))
     return jsonify({'success': success})
 
+@rental_bp.route('/api/investor-expenses/photo', methods=['GET'])
+@login_required
+def get_investor_expense_photo():
+    # On-demand fetch for one expense's receipt photo — the bulk
+    # /api/data payload only ships a boolean now (see
+    # Storage.get_investor_expenses_light()). Staff always allowed;
+    # investor only for an expense on one of their own houses.
+    expense_id = request.args.get('expenseId', '')
+    user = session.get('user')
+    role = user.get('role') if user else None
+    if role in ('superadmin', 'admin', 'manager'):
+        pass
+    elif role == 'investor':
+        expense = next((e for e in Storage.get_investor_expenses() if e.get('id') == expense_id), None)
+        if not expense:
+            return jsonify({'success': False, 'error': 'Không tìm thấy khoản chi'}), 404
+        investor_house_ids = user.get('houseIds') or ([user.get('houseId')] if user.get('houseId') else [])
+        if 'all' not in investor_house_ids and expense.get('houseId') not in investor_house_ids:
+            return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
+    else:
+        return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
+    photo = Storage.get_investor_expense_photo(expense_id)
+    return jsonify({'success': True, 'photo': photo})
+
 @rental_bp.route('/api/investor-expenses/save', methods=['POST'])
 @permission_required('investor_expenses', lambda body: 'edit' if body.get('id') else 'create')
 def save_investor_expense():

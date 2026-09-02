@@ -4150,17 +4150,37 @@ function removeExpensePhoto() {
 // the investor's own dashboard list) opens this to show the fuller note +
 // proof photo — kept out of the main line so the investor sees a clean
 // "name — amount" row by default and only digs in if they want to.
-function viewExpenseDetail(expenseId) {
+// e.photo is a boolean placeholder once it came from the bulk /api/data
+// payload (see Storage.get_investor_expenses_light()) — only a real
+// data: URL still sitting in memory from this session's own just-picked
+// file skips the round trip; everything else fetches the real bytes here.
+async function fetchInvestorExpensePhoto(expenseId, cached) {
+  if (typeof cached === 'string' && cached.startsWith('data:')) return cached;
+  try {
+    const res = await fetch(`${API_BASE}/investor-expenses/photo?expenseId=${encodeURIComponent(expenseId)}`);
+    const data = await res.json();
+    return data.success ? data.photo : '';
+  } catch (err) {
+    console.warn('Could not load expense photo:', err);
+    return '';
+  }
+}
+
+async function viewExpenseDetail(expenseId) {
   const e = state.investorExpenses.find(x => x.id === expenseId);
   if (!e) return;
   document.getElementById('expense-detail-name').innerText = e.name || e.description;
   document.getElementById('expense-detail-description').innerText = e.description || t('ir_no_description_hint');
   const photoEl = document.getElementById('expense-detail-photo');
-  photoEl.innerHTML = e.photo
-    ? `<img src="${e.photo}" onclick="viewDocumentFullSize('${e.photo}')" style="width:100%; max-height:280px; object-fit:contain; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">`
-    : '';
   const expenseDetailModal = document.getElementById('modal-expense-detail');
+  photoEl.innerHTML = e.photo ? `<div style="text-align:center; padding:1rem 0; color:var(--text-secondary);">${t('loading_label')}</div>` : '';
   expenseDetailModal.classList.add('active');
+  if (e.photo) {
+    const photo = await fetchInvestorExpensePhoto(expenseId, e.photo);
+    photoEl.innerHTML = photo
+      ? `<img src="${photo}" onclick="viewDocumentFullSize('${photo}')" style="width:100%; max-height:280px; object-fit:contain; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">`
+      : '';
+  }
   renderIcons(expenseDetailModal);
 }
 
@@ -4180,7 +4200,7 @@ function openAddInvestorExpenseModal() {
   renderIcons(addExpenseModal);
 }
 
-function openEditInvestorExpenseModal(expenseId) {
+async function openEditInvestorExpenseModal(expenseId) {
   const e = state.investorExpenses.find(x => x.id === expenseId);
   if (!e) return;
   document.getElementById('ie-id').value = e.id;
@@ -4190,7 +4210,7 @@ function openEditInvestorExpenseModal(expenseId) {
   document.getElementById('ie-name').value = e.name || '';
   document.getElementById('ie-description').value = e.description;
   document.getElementById('ie-amount').value = e.amount;
-  _pendingExpensePhotoDataUrl = e.photo || '';
+  _pendingExpensePhotoDataUrl = e.photo ? await fetchInvestorExpensePhoto(expenseId, e.photo) : '';
   renderExpensePhotoPreview();
   document.getElementById('modal-investor-expense-title').innerHTML = `<i data-lucide="wrench" style="color: var(--cala-orange); vertical-align: middle;"></i> ${t('modal_edit_expense_title')}`;
   const editExpenseModal = document.getElementById('modal-investor-expense');

@@ -856,6 +856,29 @@ class Storage:
         return [_investor_expense(r) for r in rows]
 
     @staticmethod
+    def get_investor_expenses_light():
+        """Same rows as get_investor_expenses(), with each one's receipt
+        photo collapsed to a boolean — same reasoning as
+        get_tickets_light()/get_readings_light(): the bulk /api/data
+        payload only needs enough to draw the "has a receipt" icon
+        button, not the receipt image itself. get_investor_expense_photo()
+        fetches one on demand, when that button is actually clicked."""
+        expenses = Storage.get_investor_expenses()
+        light = []
+        for e in expenses:
+            e_light = dict(e)
+            if e_light.get('photo'):
+                e_light['photo'] = True
+            light.append(e_light)
+        return light
+
+    @staticmethod
+    def get_investor_expense_photo(expense_id):
+        expenses = Storage.get_investor_expenses()
+        e = next((x for x in expenses if x.get('id') == expense_id), None)
+        return (e or {}).get('photo') or ''
+
+    @staticmethod
     def save_investor_expense(e):
         """Upserts this one row by primary key only — see save_house() for
         why a single-row write matters here."""
