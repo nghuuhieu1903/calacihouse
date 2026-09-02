@@ -2954,6 +2954,16 @@ async function saveService(event) {
 
 async function deleteServiceApi(srvId) {
   if (!confirm(t('confirm_delete_service'))) return;
+
+  // Used to remove it from state.services optimistically BEFORE
+  // confirming the delete actually succeeded server-side (a plain fetch
+  // with no response check at all) — a rejected/failed request still
+  // showed "đã xoá thành công" and left the service gone from view, with
+  // nothing to tell the admin it hadn't really been deleted. postAndVerify
+  // resyncs from the server on any failure instead.
+  const data = await postAndVerify(`${API_BASE}/services/delete`, { id: srvId });
+  if (!data) return;
+
   state.services = state.services.filter(s => s.id !== srvId);
 
   if (state.readings[state.currentMonth]) {
@@ -2963,16 +2973,6 @@ async function deleteServiceApi(srvId) {
         delete state.readings[state.currentMonth][r.id].parkingFee;
       }
     });
-  }
-
-  try {
-    await fetch(`${API_BASE}/services/delete`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: srvId })
-    });
-  } catch (err) {
-    console.warn('Deleted service locally:', err);
   }
 
   showToast(t('toast_service_deleted'), 'success');

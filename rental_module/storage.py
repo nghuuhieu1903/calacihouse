@@ -452,13 +452,17 @@ class Storage:
         finally:
             conn.close()
         result = [_house(r) for r in rows]
-        # Show sample data for a genuinely empty table WITHOUT writing it —
-        # persisting here means a single transient empty read (a connection
-        # hiccup, a query racing table creation, ...) silently overwrites
-        # real data with demo houses. It already happened once for services;
-        # only an explicit save from the UI should ever create real rows.
-        if not result:
-            return DEFAULT_HOUSES
+        # Used to fall back to DEFAULT_HOUSES here on an empty result,
+        # reasoning that not WRITING it kept it safe — but a transient
+        # empty read (a connection hiccup, a query racing table creation,
+        # ...) still meant this one request silently handed back demo
+        # houses in place of the real ones, which the frontend then
+        # displays as if it were real, no error anywhere. This is
+        # confirmed to have actually happened for services (silently
+        # replacing the admin's real configured services with the 5 demo
+        # ones for however long the transient condition lasted) — an
+        # honestly-empty result at least renders as an obvious "chưa có
+        # dữ liệu" empty state instead of convincingly wrong data.
         return result
 
     @staticmethod
@@ -533,10 +537,10 @@ class Storage:
                 rows = cur.fetchall()
         finally:
             conn.close()
-        result = [_user(r) for r in rows]
-        if not result:
-            return DEFAULT_USERS
-        return result
+        # See get_houses() for why this no longer falls back to
+        # DEFAULT_USERS on an empty result — doubly so here, since that
+        # fallback included hardcoded demo login credentials.
+        return [_user(r) for r in rows]
 
     @staticmethod
     def save_user(u):
@@ -629,10 +633,9 @@ class Storage:
                 rows = cur.fetchall()
         finally:
             conn.close()
-        result = [_room(r) for r in rows]
-        if not result:
-            return DEFAULT_ROOMS
-        return result
+        # See get_houses() for why this no longer falls back to
+        # DEFAULT_ROOMS on an empty result.
+        return [_room(r) for r in rows]
 
     @staticmethod
     def save_room(r):
@@ -731,18 +734,15 @@ class Storage:
                 rows = cur.fetchall()
         finally:
             conn.close()
-        result = [_service(r) for r in rows]
-        if not result:
-            # Same shape _service() would produce, without a DB round-trip.
-            return [{
-                'id': s['id'], 'houseId': s.get('houseId', 'all'),
-                'houseIds': [s['houseId']] if s.get('houseId') else ['all'],
-                'roomIds': ['all'], 'name': s.get('name', ''), 'price': s.get('price', 0),
-                'unit': s.get('unit', ''), 'icon': s.get('icon', ''), 'symbol': s.get('symbol', '📦'),
-                'calcType': s.get('calcType', 'fixed'), 'customFormula': s.get('customFormula', ''),
-                'applyRooms': []
-            } for s in DEFAULT_SERVICES]
-        return result
+        # See get_houses() for why this no longer falls back to
+        # DEFAULT_SERVICES on an empty result — this exact fallback is
+        # the confirmed cause of configured services (Điện/Nước/Xe máy/
+        # any custom one) silently vanishing from Cấu Hình Dịch Vụ &
+        # Bảng Tính Điện Nước with no error shown: a transient empty read
+        # here handed the frontend 5 generic demo services in place of
+        # whatever was actually configured, which it then displayed and
+        # even saved back into local state as if it were real.
+        return [_service(r) for r in rows]
 
     @staticmethod
     def save_service(s):
@@ -803,10 +803,9 @@ class Storage:
                 rows = cur.fetchall()
         finally:
             conn.close()
-        result = [_formula(r) for r in rows]
-        if not result:
-            return DEFAULT_FORMULAS
-        return result
+        # See get_houses() for why this no longer falls back to
+        # DEFAULT_FORMULAS on an empty result.
+        return [_formula(r) for r in rows]
 
     @staticmethod
     def save_formula(f):
@@ -1057,10 +1056,9 @@ class Storage:
                 rows = cur.fetchall()
         finally:
             conn.close()
-        result = [_ticket(r) for r in rows]
-        if not result:
-            return DEFAULT_TICKETS
-        return result
+        # See get_houses() for why this no longer falls back to
+        # DEFAULT_TICKETS on an empty result.
+        return [_ticket(r) for r in rows]
 
     @staticmethod
     def get_tickets_light():
@@ -1082,14 +1080,10 @@ class Storage:
                 rows = cur.fetchall()
         finally:
             conn.close()
-        if not rows:
-            return [{
-                'id': t['id'], 'roomId': t.get('roomId', ''), 'roomName': t.get('roomName', ''),
-                'tenant': t.get('tenant', ''), 'category': t.get('category', ''), 'priority': t.get('priority', ''),
-                'description': t.get('description', ''), 'timestamp': t.get('timestamp', ''),
-                'status': t.get('status', ''), 'response': t.get('response', ''), 'comments': [], 'images': [],
-                'imagesCount': len(t.get('images', [])), 'commentsCount': len(t.get('comments', []))
-            } for t in DEFAULT_TICKETS]
+        # See get_houses() for why this no longer falls back to
+        # DEFAULT_TICKETS on an empty result — this is the variant
+        # actually used by the bulk /api/data payload, so it mattered
+        # most here.
         return [
             {
                 'id': r['id'],
