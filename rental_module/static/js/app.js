@@ -1482,7 +1482,7 @@ async function handleLogin(event) {
       // took. A loading overlay instead of that flash of wrong data, until
       // the real thing is actually ready to show.
       showAppLoadingOverlay();
-      await fetchState();
+      await fetchState(true);
       hideAppLoadingOverlay();
       setupUserRoleUI();
       // No-op for anyone but superadmin — see checkDataRetention(). This
@@ -1626,7 +1626,7 @@ async function restoreSession() {
         // Same reasoning as handleLogin() — show a loading overlay instead
         // of rendering a view against the still-placeholder state.
         showAppLoadingOverlay();
-        await fetchState();
+        await fetchState(true);
         hideAppLoadingOverlay();
         setupUserRoleUI();
         checkDataRetention();
@@ -1837,7 +1837,22 @@ function setupUserRoleUI() {
     const lowerGrid = document.getElementById('dashboard-lower-grid');
     if (lowerGrid) lowerGrid.style.gridTemplateColumns = canSeeMoney ? '2fr 1fr' : '1fr';
 
-    if (firstView) {
+    // history.state.calaciView (see switchView()'s own pushState/
+    // replaceState calls) already faithfully records whatever tab was
+    // open — but until now nothing ever read it back on a fresh page
+    // load, only on an in-app back/forward gesture. That meant a manager
+    // going room-by-room through Bảng Tính Điện Nước / Cập Nhật Ảnh Số
+    // Điện got dumped back to the default landing tab on EVERY reload —
+    // and a mobile browser reloading a backgrounded tab after the
+    // camera/file picker closes is exactly that, once per photo. Safe to
+    // trust here specifically: switchView() re-validates the restored id
+    // against this role's own permissions before actually showing it, so
+    // a stale/foreign view id just falls back to firstView/admin-dashboard
+    // on its own.
+    const lastView = history.state && history.state.calaciView;
+    if (lastView && document.getElementById(`view-${lastView}`)) {
+      switchView(lastView);
+    } else if (firstView) {
       switchView(firstView);
     } else {
       switchView('admin-dashboard');
@@ -2002,7 +2017,17 @@ function setLanguage(lang) {
   }
 }
 
-async function fetchState() {
+async function fetchState(skipRender) {
+  // skipRender: used only by the very first fetch after login/session-
+  // restore (see handleLogin/restoreSession) — at that point
+  // state.currentView is still its just-booted initial value, not
+  // whatever tab the user actually had open. Rendering it here would (a)
+  // flash the wrong view for an instant and, worse, (b) push that wrong
+  // view onto history.state, clobbering the real last-open view
+  // (history.state.calaciView, restored separately by setupUserRoleUI())
+  // before it ever got a chance to be read back. Every other caller of
+  // fetchState() (a save's resync, a manual refresh) still wants this —
+  // it's specifically the pre-first-render call that doesn't.
   try {
     const res = await fetch(`${API_BASE}/data?month=${state.currentMonth}`);
     if (res.ok) {
@@ -2024,7 +2049,7 @@ async function fetchState() {
       state.customIcons = data.customIcons || state.customIcons;
       if (data.siteSettings) applySiteSettings(data.siteSettings);
       renderHouseSelector();
-      renderCurrentView();
+      if (!skipRender) renderCurrentView();
     }
   } catch (err) {
     console.warn('API fetch warning:', err);
