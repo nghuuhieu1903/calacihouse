@@ -106,6 +106,10 @@ def _refresh_session_user():
         return current
     fresh = {k: v for k, v in fresh.items() if k != 'password'}
     session['user'] = fresh
+    # Upgrades an already-logged-in session from before this existed to a
+    # persistent one too, on its very next request — nobody has to log
+    # out and back in just to stop being logged out and back in.
+    session.permanent = True
     return fresh
 
 @rental_bp.route('/api/data', methods=['GET'])
@@ -161,6 +165,11 @@ def login():
         return jsonify({'success': False, 'error': error}), 400
 
     session['user'] = user
+    # See app.py's PERMANENT_SESSION_LIFETIME comment — without this the
+    # cookie has no real expiry at all, and a lot of mobile browsers/PWA
+    # contexts treat that as "gone" far sooner than an actual 30-day
+    # session would ever need to end.
+    session.permanent = True
     return jsonify({'success': True, 'user': user})
 
 @rental_bp.route('/api/auth/me', methods=['GET'])
