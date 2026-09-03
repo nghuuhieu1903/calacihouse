@@ -1569,7 +1569,7 @@
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-room-documents')"><i data-lucide="x"></i></button>
       </div>
 
-      <div class="cala-card" style="background: var(--bg-base); margin-bottom: 1.25rem;">
+      <div class="cala-card" id="room-contract-duration-box" style="background: var(--bg-base); margin-bottom: 1.25rem;">
         <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_contract_duration">Thời Hạn Hợp Đồng</label>
         <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
           <div style="flex: 1; min-width: 130px;">
@@ -1584,6 +1584,14 @@
         <button type="button" class="btn btn-blue btn-sm" style="margin-top: 0.75rem; width: 100%; justify-content: center;" onclick="saveRoomContractDates()">
           <i data-lucide="calendar-check"></i> <span data-i18n="btn_save_contract_duration">Lưu Thời Hạn Hợp Đồng</span>
         </button>
+      </div>
+
+      <!-- KTX/dorm rooms only — per-occupant vehicle service + contract
+           dates, right here instead of having to go edit each account
+           separately in Quản Lý Tài Khoản. -->
+      <div class="cala-card" id="room-occupants-config-box" style="background: var(--bg-base); margin-bottom: 1.25rem; display:none;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.5rem;" data-i18n="lbl_occupants_config">Cấu Hình Từng Người Ở</label>
+        <div id="room-occupants-config-list"></div>
       </div>
 
       <div class="cala-card" style="background: var(--bg-base); margin-bottom: 1.25rem;">

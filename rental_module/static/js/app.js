@@ -326,6 +326,9 @@ const I18N = {
     toast_document_deleted: 'Đã xóa ảnh tài liệu',
     room_documents_empty_state: 'Chưa có ảnh hợp đồng nào cho phòng này.',
     lbl_document_visible_to: 'Ai xem được ảnh này',
+    lbl_occupants_config: 'Cấu Hình Từng Người Ở',
+    room_occupants_empty_state: 'Chưa có tài khoản khách thuê nào gán vào phòng này.',
+    toast_occupant_settings_saved: 'Đã lưu cấu hình người ở.',
     document_visible_all_members: 'Tất cả thành viên phòng',
     toast_document_visibility_updated: 'Đã cập nhật người xem được ảnh.',
     col_ticket_id: 'Mã Ticket',
@@ -980,6 +983,9 @@ const I18N = {
     toast_document_deleted: 'Document photo deleted',
     room_documents_empty_state: 'No contract photos yet for this room.',
     lbl_document_visible_to: 'Who can see this photo',
+    lbl_occupants_config: 'Per-Occupant Settings',
+    room_occupants_empty_state: 'No tenant accounts assigned to this room yet.',
+    toast_occupant_settings_saved: 'Occupant settings saved.',
     document_visible_all_members: 'Everyone in the room',
     toast_document_visibility_updated: 'Updated who can see this photo.',
     col_ticket_id: 'Ticket ID',
@@ -5891,10 +5897,22 @@ async function openRoomDocumentsModal(roomId) {
     }
   }
 
-  const startInput = document.getElementById('room-contract-start');
-  const endInput = document.getElementById('room-contract-end');
-  if (startInput) startInput.value = (room && room.contractStart) || '';
-  if (endInput) endInput.value = (room && room.contractEnd) || '';
+  // Room-level contract dates only mean anything for a single room's one
+  // tenant — a KTX room's occupants each get their own instead (see
+  // renderRoomOccupantsConfig), shown in place of this box.
+  const isDorm = !!(room && room.roomType === 'dorm');
+  const durationBox = document.getElementById('room-contract-duration-box');
+  const occupantsBox = document.getElementById('room-occupants-config-box');
+  if (durationBox) durationBox.style.display = isDorm ? 'none' : 'block';
+  if (occupantsBox) occupantsBox.style.display = isDorm ? 'block' : 'none';
+  if (isDorm) {
+    renderRoomOccupantsConfig(roomId);
+  } else {
+    const startInput = document.getElementById('room-contract-start');
+    const endInput = document.getElementById('room-contract-end');
+    if (startInput) startInput.value = (room && room.contractStart) || '';
+    if (endInput) endInput.value = (room && room.contractEnd) || '';
+  }
 
   // The bulk /api/data payload only ever carries id/label/uploadedAt for
   // these (see get_full_state's _light_photo_map) — the actual image
@@ -5907,6 +5925,77 @@ async function openRoomDocumentsModal(roomId) {
   const roomDocsModal = document.getElementById('modal-room-documents');
   roomDocsModal.classList.add('active');
   renderIcons(roomDocsModal);
+}
+
+// KTX room's own per-occupant settings — vehicle service + contract dates
+// — right inside the room's own modal instead of having to go edit each
+// tenant account separately in Quản Lý Tài Khoản. Each row saves on its
+// own via /api/users/save (same route the account-edit form already
+// uses), carrying that tenant's other existing fields forward untouched.
+function renderRoomOccupantsConfig(roomId) {
+  const container = document.getElementById('room-occupants-config-list');
+  if (!container) return;
+  const room = state.rooms.find(r => r.id === roomId);
+  const occupants = getRoomTenants(roomId);
+
+  if (occupants.length === 0) {
+    container.innerHTML = `<div style="text-align:center; padding:1rem; color:var(--text-secondary); font-size:0.85rem;">${t('room_occupants_empty_state')}</div>`;
+    return;
+  }
+
+  // Saving here goes through /api/users/save (update_user_by_admin),
+  // gated server-side by accounts:edit — a role with rooms:edit but not
+  // accounts:edit (a Manager scoped narrowly, say) could otherwise see a
+  // working-looking Lưu button that just 403s every time.
+  const canEditAccounts = hasPermission(state.currentUser.role, 'accounts', 'edit');
+  container.innerHTML = occupants.map(u => `
+    <div class="cala-card" style="padding:0.75rem; margin-bottom:0.6rem;">
+      <div style="font-weight:700; font-size:0.9rem; margin-bottom:0.5rem;">${u.fullName || u.username}</div>
+      <label style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:0.25rem;">${t('lbl_vehicle_service')}</label>
+      <select id="occ-vehicle-${u.id}" class="form-control" style="margin-bottom:0.5rem;" ${canEditAccounts ? '' : 'disabled'}></select>
+      <div style="display:flex; gap:0.5rem;">
+        <div style="flex:1;">
+          <label style="font-size:0.72rem; color:var(--text-secondary); display:block; margin-bottom:0.25rem;">${t('lbl_contract_start')}</label>
+          <input type="date" id="occ-start-${u.id}" class="form-control" value="${u.contractStart || ''}" ${canEditAccounts ? '' : 'disabled'}>
+        </div>
+        <div style="flex:1;">
+          <label style="font-size:0.72rem; color:var(--text-secondary); display:block; margin-bottom:0.25rem;">${t('lbl_contract_end')}</label>
+          <input type="date" id="occ-end-${u.id}" class="form-control" value="${u.contractEnd || ''}" ${canEditAccounts ? '' : 'disabled'}>
+        </div>
+      </div>
+      ${canEditAccounts ? `
+      <button type="button" class="btn btn-blue btn-sm" style="margin-top:0.5rem; width:100%; justify-content:center;" onclick="saveOccupantSettings('${u.id}')">
+        <i data-lucide="save"></i> ${t('btn_save_icon')}
+      </button>
+      ` : ''}
+    </div>
+  `).join('');
+
+  occupants.forEach(u => populateVehicleServiceOptions(`occ-vehicle-${u.id}`, room, u.vehicleServiceId));
+  renderIcons(container);
+}
+
+async function saveOccupantSettings(userId) {
+  const u = state.users.find(x => x.id === userId);
+  if (!u) return;
+  const vehicleServiceId = document.getElementById(`occ-vehicle-${userId}`).value;
+  const contractStart = document.getElementById(`occ-start-${userId}`).value;
+  const contractEnd = document.getElementById(`occ-end-${userId}`).value;
+
+  // Sends this tenant's other existing fields along unchanged — /api/users/save
+  // (update_user_by_admin) expects a full profile update, not a partial patch.
+  const payload = {
+    id: u.id, fullName: u.fullName, role: u.role, roomId: u.roomId, status: u.status,
+    houseIds: u.houseIds, vehicleServiceId, contractStart, contractEnd
+  };
+  const data = await postAndVerify(`${API_BASE}/users/save`, payload);
+  if (!data) return;
+
+  u.vehicleServiceId = vehicleServiceId;
+  u.contractStart = contractStart;
+  u.contractEnd = contractEnd;
+  showToast(t('toast_occupant_settings_saved'), 'success');
+  renderRoomsManagement();
 }
 
 async function saveRoomContractDates() {
