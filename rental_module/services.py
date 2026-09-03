@@ -1015,6 +1015,27 @@ class RentalService:
         return True
 
     @staticmethod
+    def save_payment_proof(invoice_id, photos):
+        """Tenant-uploaded proof of payment (bank transfer screenshot,
+        receipt, ...) — a plain list on the invoice itself, same shape as
+        investor_expenses.photos. Locked read-modify-write since this can
+        race a concurrent admin action on the same invoice (marking it
+        paid, regenerating it) the same way mark_invoice_paid() already
+        has to account for."""
+        found = False
+
+        def mutate(invoices):
+            nonlocal found
+            for inv in invoices:
+                if inv['id'] == invoice_id:
+                    inv['paymentProofPhotos'] = photos or []
+                    found = True
+            return invoices
+
+        Storage.update_invoices(mutate)
+        return found
+
+    @staticmethod
     def save_investor_expense(expense_id, house_id, month, description, amount, photos=None, name=None):
         e_id = expense_id or f"exp_{uuid.uuid4().hex[:8]}"
         existing = next((e for e in Storage.get_investor_expenses() if e['id'] == e_id), None)

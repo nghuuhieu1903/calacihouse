@@ -479,6 +479,57 @@ def mark_paid():
     success = RentalService.mark_invoice_paid(data.get('invoiceId'))
     return jsonify({'success': success})
 
+def _user_can_access_invoice(user, invoice):
+    """Staff (superadmin/admin/manager) can always reach any invoice;
+    a tenant only their own room's; investor only one on a house they
+    cover — same three-way split _user_can_view_room_documents() already
+    uses for room photos/documents, applied to an invoice via its
+    roomId/houseId instead."""
+    if not user or not invoice:
+        return False
+    role = user.get('role')
+    if role in ('superadmin', 'admin', 'manager'):
+        return True
+    if role == 'tenant':
+        return invoice.get('roomId') == user.get('roomId')
+    if role == 'investor':
+        investor_house_ids = user.get('houseIds') or ([user.get('houseId')] if user.get('houseId') else [])
+        return 'all' in investor_house_ids or invoice.get('houseId') in investor_house_ids
+    return False
+
+@rental_bp.route('/api/invoices/payment-proof/save', methods=['POST'])
+@login_required
+def save_payment_proof():
+    # A tenant uploading proof of payment for their OWN invoice is the
+    # only realistic caller — staff wouldn't be uploading proof on a
+    # tenant's behalf — but the ownership check still allows staff
+    # through too, for the rare case of an admin adding one on a
+    # tenant's behalf (e.g. a receipt handed over in person).
+    data = request.json or {}
+    invoice_id = data.get('invoiceId')
+    invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
+    if not invoice:
+        return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
+    user = session.get('user')
+    if not (user and (user.get('role') in ('superadmin', 'admin', 'manager') or invoice.get('roomId') == user.get('roomId'))):
+        return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
+    success = RentalService.save_payment_proof(invoice_id, data.get('photos'))
+    return jsonify({'success': success})
+
+@rental_bp.route('/api/invoices/payment-proof/photos', methods=['GET'])
+@login_required
+def get_payment_proof_photos():
+    invoice_id = request.args.get('invoiceId', '')
+    invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
+    if not invoice:
+        return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
+    if not _user_can_access_invoice(session.get('user'), invoice):
+        return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
+    photos = Storage.get_invoice_payment_proofs(invoice_id)
+    resp = jsonify({'success': True, 'photos': photos})
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
+
 @rental_bp.route('/api/investor-expenses/photos', methods=['GET'])
 @login_required
 def get_investor_expense_photos():

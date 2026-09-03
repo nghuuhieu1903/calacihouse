@@ -1084,8 +1084,10 @@ class Storage:
         """Same list as get_invoices(), with each invoice's own copy of the
         4 meter-photo fields (copied in at generation time — see
         _rebuild_invoices) collapsed to booleans, for the same reason as
-        get_readings_light() above. get_invoice_photo() fetches one on
-        demand."""
+        get_readings_light() above, and paymentProofPhotos (a tenant's
+        own uploaded proof-of-payment photos) collapsed to a same-length
+        boolean array. get_invoice_photo()/get_invoice_payment_proofs()
+        fetch the real ones on demand."""
         invoices = Storage.get_invoices()
         light = []
         for inv in invoices:
@@ -1093,6 +1095,7 @@ class Storage:
             for f in READING_PHOTO_FIELDS:
                 if inv_light.get(f):
                     inv_light[f] = True
+            inv_light['paymentProofPhotos'] = [True for _ in inv_light.get('paymentProofPhotos') or []]
             light.append(inv_light)
         return light
 
@@ -1103,6 +1106,12 @@ class Storage:
         invoices = Storage.get_invoices()
         inv = next((i for i in invoices if i.get('id') == invoice_id), None)
         return (inv or {}).get(field) or ''
+
+    @staticmethod
+    def get_invoice_payment_proofs(invoice_id):
+        invoices = Storage.get_invoices()
+        inv = next((i for i in invoices if i.get('id') == invoice_id), None)
+        return (inv or {}).get('paymentProofPhotos') or []
 
     @staticmethod
     def save_invoices(invoices):

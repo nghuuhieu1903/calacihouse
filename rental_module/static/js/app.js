@@ -456,6 +456,9 @@ const I18N = {
     lbl_expense_desc: 'Mô Tả Chi Tiết (chỉ xem khi bấm vào dấu !)',
     lbl_expense_amount: 'Số Tiền (VNĐ)',
     lbl_expense_photo: 'Ảnh minh chứng',
+    lbl_payment_proof: 'Ảnh Minh Chứng Đã Đóng Tiền',
+    hint_payment_proof: 'Chụp lại màn hình chuyển khoản hoặc biên lai — tối đa 5 ảnh. Chủ nhà sẽ xem để xác nhận.',
+    toast_payment_proof_saved: 'Đã lưu ảnh minh chứng thanh toán.',
     btn_upload_photo: 'Tải Ảnh Lên',
     btn_change_photo: 'Đổi Ảnh',
     btn_save_expense: 'Lưu Chi Phí',
@@ -1113,6 +1116,9 @@ const I18N = {
     lbl_expense_desc: 'Detailed Note (only visible via the ! icon)',
     lbl_expense_amount: 'Amount (VND)',
     lbl_expense_photo: 'Proof photo',
+    lbl_payment_proof: 'Payment Proof Photos',
+    hint_payment_proof: 'Attach a screenshot of the bank transfer or a receipt — up to 5 photos. The landlord will check these to confirm payment.',
+    toast_payment_proof_saved: 'Payment proof saved.',
     btn_upload_photo: 'Upload Photo',
     btn_change_photo: 'Change Photo',
     btn_save_expense: 'Save Cost',
@@ -3872,7 +3878,10 @@ function renderAdminInvoices() {
       <td data-label="${t('col_period')}">${formatMonthLabel(inv.month)}</td>
       <td data-label="${t('col_total')}" style="font-weight: 800; color: var(--cala-orange);">${formatMoney(inv.totalAmount)} đ</td>
       <td data-label="${t('col_send_status')}"><span class="badge badge-resolved">${statusLabel(inv.sendStatus)}</span></td>
-      <td data-label="${t('col_pay_status')}"><span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span></td>
+      <td data-label="${t('col_pay_status')}">
+        <span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>
+        ${(inv.paymentProofPhotos || []).length ? `<i data-lucide="camera" title="${t('lbl_payment_proof')}" style="width:14px; height:14px; margin-left:0.3rem; vertical-align:middle; color:var(--cala-blue);"></i>` : ''}
+      </td>
       <td data-label="${t('col_sent_time')}"><small style="color: var(--text-muted);">${inv.sentAt ? statusLabel(inv.sentAt) : t('just_now_label')}</small></td>
       <td data-label="${t('col_actions')}">
         <div style="display:flex; gap:0.5rem;">
@@ -5241,9 +5250,93 @@ function renderTenantInvoiceView() {
         <div style="font-size: 0.85rem; color: #687176;">${t('grand_total_label')}</div>
         <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f;">${formatMoney(personalTotal)} VNĐ</div>
       </div>
+
+      <div class="cala-card" style="margin-top:1.5rem;">
+        <h4 style="margin-bottom:0.5rem; color:var(--cala-blue);"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.75rem;">${t('hint_payment_proof')}</p>
+        <input type="file" accept="image/*" multiple id="payment-proof-input" style="display:none" onchange="handlePaymentProofSelect(event)">
+        <div id="payment-proof-preview" style="display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
+      </div>
     </div>
   `;
   renderIcons(container);
+  loadPaymentProofPreview(invoice);
+}
+
+let _pendingPaymentProofImages = [];
+let _paymentProofInvoiceId = null;
+
+async function loadPaymentProofPreview(invoice) {
+  _paymentProofInvoiceId = invoice.id;
+  _pendingPaymentProofImages = (invoice.paymentProofPhotos || []).length
+    ? await fetchInvoicePaymentProofs(invoice.id, invoice.paymentProofPhotos)
+    : [];
+  renderPaymentProofPreview();
+}
+
+async function fetchInvoicePaymentProofs(invoiceId, cached) {
+  if (Array.isArray(cached) && cached.every(p => typeof p === 'string' && p.startsWith('data:'))) return cached;
+  try {
+    const res = await fetch(`${API_BASE}/invoices/payment-proof/photos?invoiceId=${encodeURIComponent(invoiceId)}`);
+    const data = await res.json();
+    return data.success ? data.photos : [];
+  } catch (err) {
+    console.warn('Could not load payment proof photos:', err);
+    return [];
+  }
+}
+
+function renderPaymentProofPreview() {
+  const container = document.getElementById('payment-proof-preview');
+  if (!container) return;
+  container.innerHTML = _pendingPaymentProofImages.map((src, i) => `
+    <div style="position:relative; display:inline-block;">
+      <img src="${src}" onclick="viewDocumentFullSize('${src}')" style="width:80px; height:80px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">
+      <button type="button" onclick="removePaymentProof(${i})" style="position:absolute; top:-6px; right:-6px; background:var(--color-danger); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>
+    </div>
+  `).join('') + (_pendingPaymentProofImages.length < 5 ? `
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('payment-proof-input').click()">
+      <i data-lucide="camera"></i> <span>${t('btn_upload_photo')}</span>
+    </button>
+  ` : '');
+  renderIcons(container);
+}
+
+function handlePaymentProofSelect(event) {
+  const files = Array.from(event.target.files);
+  const remaining = 5 - _pendingPaymentProofImages.length;
+  const toAdd = files.slice(0, remaining);
+
+  toAdd.forEach(async file => {
+    try {
+      const dataUrl = await compressImageFile(file);
+      _pendingPaymentProofImages.push(dataUrl);
+      renderPaymentProofPreview();
+      await savePaymentProofs();
+    } catch (err) {
+      showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+    }
+  });
+
+  if (files.length > remaining) {
+    showToast(t('toast_max_expense_images'), 'error');
+  }
+  event.target.value = '';
+}
+
+async function removePaymentProof(idx) {
+  _pendingPaymentProofImages.splice(idx, 1);
+  renderPaymentProofPreview();
+  await savePaymentProofs();
+}
+
+async function savePaymentProofs() {
+  if (!_paymentProofInvoiceId) return;
+  const data = await postAndVerify(`${API_BASE}/invoices/payment-proof/save`, { invoiceId: _paymentProofInvoiceId, photos: _pendingPaymentProofImages });
+  if (!data) return;
+  const inv = state.invoices.find(i => i.id === _paymentProofInvoiceId);
+  if (inv) inv.paymentProofPhotos = _pendingPaymentProofImages;
+  showToast(t('toast_payment_proof_saved'), 'success');
 }
 
 // On phones the invoice table defaults to just service name + price (see
@@ -5307,10 +5400,27 @@ function viewInvoiceDetail(invoiceId) {
         ${serviceRowsHtml}
         <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
       </table>
+      ${(inv.paymentProofPhotos || []).length ? `
+        <div style="margin-top:1.25rem;">
+          <h4 style="color:var(--cala-blue); margin-bottom:0.6rem;"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
+          <div id="invoice-detail-payment-proof" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+            <div style="color:var(--text-secondary); font-size:0.85rem;">${t('loading_label')}</div>
+          </div>
+        </div>
+      ` : ''}
     </div>
   `;
   document.getElementById('modal-invoice-detail').classList.add('active');
   renderIcons(content);
+  if ((inv.paymentProofPhotos || []).length) loadInvoiceDetailPaymentProofs(inv);
+}
+
+async function loadInvoiceDetailPaymentProofs(inv) {
+  const container = document.getElementById('invoice-detail-payment-proof');
+  if (!container) return;
+  const photos = await fetchInvoicePaymentProofs(inv.id, inv.paymentProofPhotos);
+  container.innerHTML = photos.map(p => `<img src="${p}" onclick="viewDocumentFullSize('${p}')" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">`).join('') || `<span style="color:var(--text-secondary); font-size:0.85rem;">${t('meter_photo_empty')}</span>`;
+  renderIcons(container);
 }
 
 // Investor-facing counterpart to viewInvoiceDetail() — the investor's own
