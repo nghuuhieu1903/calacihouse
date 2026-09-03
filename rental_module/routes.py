@@ -497,23 +497,52 @@ def _user_can_access_invoice(user, invoice):
         return 'all' in investor_house_ids or invoice.get('houseId') in investor_house_ids
     return False
 
-@rental_bp.route('/api/invoices/payment-proof/save', methods=['POST'])
+@rental_bp.route('/api/invoices/payment-proof/add', methods=['POST'])
 @login_required
-def save_payment_proof():
-    # A tenant uploading proof of payment for their OWN invoice is the
-    # only realistic caller — staff wouldn't be uploading proof on a
-    # tenant's behalf — but the ownership check still allows staff
-    # through too, for the rare case of an admin adding one on a
-    # tenant's behalf (e.g. a receipt handed over in person).
+def add_payment_proof():
+    # A dorm/KTX room's invoice is shared by every occupant, so each
+    # photo is tagged with who it belongs to (assignedTo) — same idea as
+    # room_documents' assignedTo. A tenant can only ever tag their OWN
+    # photos with their own id (whatever assignedTo the client sends is
+    # ignored for a tenant caller); staff picks which occupant a photo
+    # belongs to (or 'all' for a single-tenant room), for the case where
+    # a tenant hands over cash/a receipt in person and hasn't touched
+    # the system themselves yet.
     data = request.json or {}
     invoice_id = data.get('invoiceId')
     invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
     if not invoice:
         return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
     user = session.get('user')
-    if not (user and (user.get('role') in ('superadmin', 'admin', 'manager') or invoice.get('roomId') == user.get('roomId'))):
+    is_staff = bool(user) and user.get('role') in ('superadmin', 'admin', 'manager')
+    if not (is_staff or (user and invoice.get('roomId') == user.get('roomId'))):
         return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
-    success = RentalService.save_payment_proof(invoice_id, data.get('photos'))
+    assigned_to = (data.get('assignedTo') or 'all') if is_staff else user.get('id')
+    photo = RentalService.add_payment_proof_photo(invoice_id, data.get('dataUrl'), assigned_to)
+    return jsonify({'success': bool(photo), 'photo': {k: v for k, v in (photo or {}).items() if k != 'dataUrl'}})
+
+@rental_bp.route('/api/invoices/payment-proof/delete', methods=['POST'])
+@login_required
+def delete_payment_proof():
+    data = request.json or {}
+    invoice_id = data.get('invoiceId')
+    photo_id = data.get('photoId')
+    invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
+    if not invoice:
+        return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
+    user = session.get('user')
+    is_staff = bool(user) and user.get('role') in ('superadmin', 'admin', 'manager')
+    if is_staff:
+        pass  # staff can delete any photo on any invoice they can reach
+    elif user and invoice.get('roomId') == user.get('roomId'):
+        # A tenant can only delete a photo tagged as their own — not a
+        # roommate's, and not one staff added for someone else.
+        existing = next((p for p in Storage.get_invoice_payment_proofs(invoice_id) if p.get('id') == photo_id), None)
+        if not existing or existing.get('assignedTo') != user.get('id'):
+            return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
+    else:
+        return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
+    success = RentalService.delete_payment_proof_photo(invoice_id, photo_id)
     return jsonify({'success': success})
 
 @rental_bp.route('/api/invoices/payment-proof/photos', methods=['GET'])
@@ -523,9 +552,15 @@ def get_payment_proof_photos():
     invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
     if not invoice:
         return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
-    if not _user_can_access_invoice(session.get('user'), invoice):
+    user = session.get('user')
+    if not _user_can_access_invoice(user, invoice):
         return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh này!'}), 403
     photos = Storage.get_invoice_payment_proofs(invoice_id)
+    # A tenant only ever gets 'all' + their own — never a roommate's,
+    # even though they share the same room/invoice (same filter
+    # get_room_documents_full() applies for room_documents).
+    if user.get('role') == 'tenant':
+        photos = [p for p in photos if p.get('assignedTo', 'all') in ('all', user.get('id'))]
     resp = jsonify({'success': True, 'photos': photos})
     resp.headers['Cache-Control'] = 'no-store'
     return resp

@@ -1015,21 +1015,54 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_payment_proof(invoice_id, photos):
-        """Tenant-uploaded proof of payment (bank transfer screenshot,
-        receipt, ...) — a plain list on the invoice itself, same shape as
-        investor_expenses.photos. Locked read-modify-write since this can
-        race a concurrent admin action on the same invoice (marking it
-        paid, regenerating it) the same way mark_invoice_paid() already
-        has to account for."""
+    def add_payment_proof_photo(invoice_id, data_url, assigned_to=None):
+        """Adds ONE proof-of-payment photo to an invoice, tagged with who
+        it belongs to — same {id, dataUrl, assignedTo, uploadedAt} shape
+        and add-one-at-a-time approach as save_room_document(), and for
+        the same reason: a KTX room's invoice is shared by every
+        occupant, so resending "the whole array" from one occupant's
+        browser would silently wipe out photos their roommates already
+        added. assigned_to is a specific tenant's user id (a KTX
+        occupant should only ever see their own), or 'all' for a room
+        with a single tenant/no attribution needed. Locked read-modify-
+        write since this can race a concurrent admin action on the same
+        invoice (marking it paid, regenerating it) the same way
+        mark_invoice_paid() already has to account for."""
+        if not invoice_id or not data_url:
+            return None
+        photo = {
+            'id': f"pp_{uuid.uuid4().hex[:8]}",
+            'dataUrl': data_url,
+            'assignedTo': assigned_to or 'all',
+            'uploadedAt': datetime.now().strftime('%Y-%m-%d %H:%M')
+        }
         found = False
 
         def mutate(invoices):
             nonlocal found
             for inv in invoices:
                 if inv['id'] == invoice_id:
-                    inv['paymentProofPhotos'] = photos or []
+                    proofs = Storage._normalize_payment_proofs(inv.get('paymentProofPhotos'))
+                    proofs.append(photo)
+                    inv['paymentProofPhotos'] = proofs
                     found = True
+            return invoices
+
+        Storage.update_invoices(mutate)
+        return photo if found else None
+
+    @staticmethod
+    def delete_payment_proof_photo(invoice_id, photo_id):
+        found = False
+
+        def mutate(invoices):
+            nonlocal found
+            for inv in invoices:
+                if inv['id'] == invoice_id:
+                    proofs = Storage._normalize_payment_proofs(inv.get('paymentProofPhotos'))
+                    new_proofs = [p for p in proofs if p.get('id') != photo_id]
+                    found = len(new_proofs) != len(proofs)
+                    inv['paymentProofPhotos'] = new_proofs
             return invoices
 
         Storage.update_invoices(mutate)

@@ -1,5 +1,6 @@
 import copy
 import json
+import uuid
 from .database import get_db
 
 # ---------------------------------------------------------------------------
@@ -1080,13 +1081,37 @@ class Storage:
         return Storage._kv_get('invoices', [])
 
     @staticmethod
+    def _normalize_payment_proofs(raw):
+        """paymentProofPhotos started as a plain list of data-url strings
+        (one shared pile per room), then got reshaped to a list of
+        {id, dataUrl, assignedTo, uploadedAt} objects — same shape as
+        room_documents — so a KTX room's photos can be assigned to one
+        occupant and hidden from their roommates, exactly like
+        save_room_document()/assignedTo already does for contract scans.
+        A handful of invoices saved in the brief window before this
+        reshape can still hold the old flat-string form; normalize those
+        on read (assignedTo 'all' — nobody to attribute them to) instead
+        of losing them."""
+        if not raw:
+            return []
+        out = []
+        for item in raw:
+            if isinstance(item, str):
+                out.append({'id': str(uuid.uuid4()), 'dataUrl': item, 'assignedTo': 'all', 'uploadedAt': ''})
+            elif isinstance(item, dict):
+                out.append(item)
+        return out
+
+    @staticmethod
     def get_invoices_light():
         """Same list as get_invoices(), with each invoice's own copy of the
         4 meter-photo fields (copied in at generation time — see
         _rebuild_invoices) collapsed to booleans, for the same reason as
-        get_readings_light() above, and paymentProofPhotos (a tenant's
-        own uploaded proof-of-payment photos) collapsed to a same-length
-        boolean array. get_invoice_photo()/get_invoice_payment_proofs()
+        get_readings_light() above, and each paymentProofPhotos entry's
+        dataUrl stripped out (id/assignedTo/uploadedAt kept, same as
+        roomDocuments' _light_photo_map in services.py) so the bulk
+        payload only carries a count + who each photo belongs to, never
+        the image bytes. get_invoice_photo()/get_invoice_payment_proofs()
         fetch the real ones on demand."""
         invoices = Storage.get_invoices()
         light = []
@@ -1095,7 +1120,8 @@ class Storage:
             for f in READING_PHOTO_FIELDS:
                 if inv_light.get(f):
                     inv_light[f] = True
-            inv_light['paymentProofPhotos'] = [True for _ in inv_light.get('paymentProofPhotos') or []]
+            proofs = Storage._normalize_payment_proofs(inv_light.get('paymentProofPhotos'))
+            inv_light['paymentProofPhotos'] = [{k: v for k, v in p.items() if k != 'dataUrl'} for p in proofs]
             light.append(inv_light)
         return light
 
@@ -1109,9 +1135,12 @@ class Storage:
 
     @staticmethod
     def get_invoice_payment_proofs(invoice_id):
+        """Full (dataUrl included) list — caller (routes.py) filters by
+        assignedTo for a tenant caller, same as get_room_documents_full()
+        does for room_documents."""
         invoices = Storage.get_invoices()
         inv = next((i for i in invoices if i.get('id') == invoice_id), None)
-        return (inv or {}).get('paymentProofPhotos') or []
+        return Storage._normalize_payment_proofs((inv or {}).get('paymentProofPhotos'))
 
     @staticmethod
     def save_invoices(invoices):

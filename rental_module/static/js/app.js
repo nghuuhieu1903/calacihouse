@@ -459,6 +459,8 @@ const I18N = {
     lbl_payment_proof: 'Ảnh Minh Chứng Đã Đóng Tiền',
     hint_payment_proof: 'Chụp lại màn hình chuyển khoản hoặc biên lai — tối đa 5 ảnh. Chủ nhà sẽ xem để xác nhận.',
     hint_payment_proof_admin: 'Nếu khách đưa tiền/chuyển khoản trực tiếp mà chưa dùng hệ thống, bạn có thể tự thêm ảnh minh chứng ở đây — tối đa 5 ảnh.',
+    hint_payment_proof_per_occupant: 'Phòng KTX có nhiều người — mỗi người có mục ảnh riêng, chỉ người đó thấy được ảnh của mình.',
+    lbl_payment_proof_shared: 'Chung (chưa gán người)',
     toast_payment_proof_saved: 'Đã lưu ảnh minh chứng thanh toán.',
     btn_upload_photo: 'Tải Ảnh Lên',
     btn_change_photo: 'Đổi Ảnh',
@@ -1120,6 +1122,8 @@ const I18N = {
     lbl_payment_proof: 'Payment Proof Photos',
     hint_payment_proof: 'Attach a screenshot of the bank transfer or a receipt — up to 5 photos. The landlord will check these to confirm payment.',
     hint_payment_proof_admin: 'If a tenant paid in person or by transfer before using the system, you can add proof photos yourself here — up to 5 photos.',
+    hint_payment_proof_per_occupant: 'This is a dorm room with multiple people — each occupant has their own photo gallery, only visible to them.',
+    lbl_payment_proof_shared: 'Shared (unassigned)',
     toast_payment_proof_saved: 'Payment proof saved.',
     btn_upload_photo: 'Upload Photo',
     btn_change_photo: 'Change Photo',
@@ -5256,28 +5260,45 @@ function renderTenantInvoiceView() {
       <div class="cala-card" style="margin-top:1.5rem;">
         <h4 style="margin-bottom:0.5rem; color:var(--cala-blue);"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
         <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.75rem;">${t('hint_payment_proof')}</p>
-        <input type="file" accept="image/*" multiple id="payment-proof-input" style="display:none" onchange="handlePaymentProofSelect(event)">
         <div id="payment-proof-preview" style="display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
       </div>
     </div>
   `;
   renderIcons(container);
-  loadPaymentProofPreview(invoice);
+  // assignedTo is left null — the server always forces a tenant's own
+  // uploads to their own user id (see /api/invoices/payment-proof/add),
+  // and the GET route already filters the fetch down to 'all' + their
+  // own id, so a KTX occupant only ever sees/uploads their own photos
+  // here even though the invoice itself is shared by the whole room.
+  loadPaymentProofSections([{ containerId: 'payment-proof-preview', assignedTo: null }], invoice.id, true);
 }
 
-let _pendingPaymentProofImages = [];
-let _paymentProofInvoiceId = null;
+// Multi-photo proof-of-payment gallery + upload, shared between the
+// tenant's own invoice view (one section, server-filtered to their own
+// photos) and admin's invoice detail (one section per KTX occupant, so
+// each occupant's photos stay visually separated from their roommates'
+// even though they share the same room/invoice — see assignedTo on the
+// backend). Each add/remove hits the server immediately (no separate
+// Save button), same UX as every other single-field auto-save in this
+// app.
+let _paymentProofSections = {}; // containerId -> { invoiceId, assignedTo, canEdit, photos }
 
-async function loadPaymentProofPreview(invoice) {
-  _paymentProofInvoiceId = invoice.id;
-  _pendingPaymentProofImages = (invoice.paymentProofPhotos || []).length
-    ? await fetchInvoicePaymentProofs(invoice.id, invoice.paymentProofPhotos)
-    : [];
-  renderPaymentProofPreview();
+// One GET per invoice (not per section) — a dorm room with several
+// occupants renders several sections but they all draw from the same
+// server response, split client-side by assignedTo. A null assignedTo
+// means "don't filter, show everything the server returned" — used for
+// the tenant's own view, where the server itself already filtered the
+// response down to 'all' + their own id.
+async function loadPaymentProofSections(sections, invoiceId, canEdit) {
+  const all = await fetchInvoicePaymentProofs(invoiceId);
+  sections.forEach(s => {
+    const photos = s.assignedTo ? all.filter(p => (p.assignedTo || 'all') === s.assignedTo) : all;
+    _paymentProofSections[s.containerId] = { invoiceId, assignedTo: s.assignedTo, canEdit, photos };
+    renderPaymentProofSection(s.containerId);
+  });
 }
 
-async function fetchInvoicePaymentProofs(invoiceId, cached) {
-  if (Array.isArray(cached) && cached.every(p => typeof p === 'string' && p.startsWith('data:'))) return cached;
+async function fetchInvoicePaymentProofs(invoiceId) {
   try {
     const res = await fetch(`${API_BASE}/invoices/payment-proof/photos?invoiceId=${encodeURIComponent(invoiceId)}`);
     const data = await res.json();
@@ -5288,33 +5309,37 @@ async function fetchInvoicePaymentProofs(invoiceId, cached) {
   }
 }
 
-function renderPaymentProofPreview() {
-  const container = document.getElementById('payment-proof-preview');
-  if (!container) return;
-  container.innerHTML = _pendingPaymentProofImages.map((src, i) => `
+function renderPaymentProofSection(containerId) {
+  const sec = _paymentProofSections[containerId];
+  const container = document.getElementById(containerId);
+  if (!sec || !container) return;
+  const photosHtml = sec.photos.map(p => `
     <div style="position:relative; display:inline-block;">
-      <img src="${src}" onclick="viewDocumentFullSize('${src}')" style="width:80px; height:80px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">
-      <button type="button" onclick="removePaymentProof(${i})" style="position:absolute; top:-6px; right:-6px; background:var(--color-danger); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>
+      <img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:80px; height:80px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">
+      ${sec.canEdit ? `<button type="button" onclick="removePaymentProofPhoto('${containerId}','${p.id}')" style="position:absolute; top:-6px; right:-6px; background:var(--color-danger); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>` : ''}
     </div>
-  `).join('') + (_pendingPaymentProofImages.length < 5 ? `
-    <button type="button" class="btn btn-secondary" onclick="document.getElementById('payment-proof-input').click()">
+  `).join('');
+  const uploadHtml = (sec.canEdit && sec.photos.length < 5) ? `
+    <input type="file" accept="image/*" multiple id="${containerId}-input" style="display:none" onchange="handlePaymentProofSelect(event,'${containerId}')">
+    <button type="button" class="btn btn-secondary" onclick="document.getElementById('${containerId}-input').click()">
       <i data-lucide="camera"></i> <span>${t('btn_upload_photo')}</span>
     </button>
-  ` : '');
+  ` : '';
+  container.innerHTML = (photosHtml + uploadHtml) || `<span style="color:var(--text-secondary); font-size:0.85rem;">${t('meter_photo_empty')}</span>`;
   renderIcons(container);
 }
 
-function handlePaymentProofSelect(event) {
+function handlePaymentProofSelect(event, containerId) {
+  const sec = _paymentProofSections[containerId];
+  if (!sec) return;
   const files = Array.from(event.target.files);
-  const remaining = 5 - _pendingPaymentProofImages.length;
+  const remaining = 5 - sec.photos.length;
   const toAdd = files.slice(0, remaining);
 
   toAdd.forEach(async file => {
     try {
       const dataUrl = await compressImageFile(file);
-      _pendingPaymentProofImages.push(dataUrl);
-      renderPaymentProofPreview();
-      await savePaymentProofs();
+      await addPaymentProofPhoto(containerId, dataUrl);
     } catch (err) {
       showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
     }
@@ -5326,19 +5351,46 @@ function handlePaymentProofSelect(event) {
   event.target.value = '';
 }
 
-async function removePaymentProof(idx) {
-  _pendingPaymentProofImages.splice(idx, 1);
-  renderPaymentProofPreview();
-  await savePaymentProofs();
+async function addPaymentProofPhoto(containerId, dataUrl) {
+  const sec = _paymentProofSections[containerId];
+  if (!sec) return;
+  const body = { invoiceId: sec.invoiceId, dataUrl };
+  if (sec.assignedTo) body.assignedTo = sec.assignedTo;
+  const data = await postAndVerify(`${API_BASE}/invoices/payment-proof/add`, body);
+  if (!data || !data.photo) return;
+  sec.photos.push({ ...data.photo, dataUrl });
+  renderPaymentProofSection(containerId);
+  syncInvoicePaymentProofCount(sec.invoiceId);
+  showToast(t('toast_payment_proof_saved'), 'success');
 }
 
-async function savePaymentProofs() {
-  if (!_paymentProofInvoiceId) return;
-  const data = await postAndVerify(`${API_BASE}/invoices/payment-proof/save`, { invoiceId: _paymentProofInvoiceId, photos: _pendingPaymentProofImages });
+async function removePaymentProofPhoto(containerId, photoId) {
+  const sec = _paymentProofSections[containerId];
+  if (!sec) return;
+  const data = await postAndVerify(`${API_BASE}/invoices/payment-proof/delete`, { invoiceId: sec.invoiceId, photoId });
   if (!data) return;
-  const inv = state.invoices.find(i => i.id === _paymentProofInvoiceId);
-  if (inv) inv.paymentProofPhotos = _pendingPaymentProofImages;
+  sec.photos = sec.photos.filter(p => p.id !== photoId);
+  renderPaymentProofSection(containerId);
+  syncInvoicePaymentProofCount(sec.invoiceId);
   showToast(t('toast_payment_proof_saved'), 'success');
+}
+
+// Keeps the light state.invoices[].paymentProofPhotos entries (used for
+// the camera badge/count in renderAdminInvoices, and for deciding which
+// read-only occupant sections to show before their own fetch resolves)
+// roughly in sync after an add/remove, without a full fetchState()
+// round trip. Only covers whichever sections for this invoice are
+// currently loaded (e.g. only the tenant's own section, or only the
+// admin occupant sections actually open) — harmless undercount that
+// self-corrects on the next data refresh.
+function syncInvoicePaymentProofCount(invoiceId) {
+  const inv = state.invoices.find(i => i.id === invoiceId);
+  if (!inv) return;
+  const entries = [];
+  Object.values(_paymentProofSections)
+    .filter(s => s.invoiceId === invoiceId)
+    .forEach(s => s.photos.forEach(p => entries.push({ id: p.id, assignedTo: p.assignedTo || s.assignedTo || 'all', uploadedAt: p.uploadedAt })));
+  inv.paymentProofPhotos = entries;
 }
 
 // On phones the invoice table defaults to just service name + price (see
@@ -5386,6 +5438,15 @@ function viewInvoiceDetail(invoiceId) {
     serviceRowsHtml += `<tr><td>${lineNo++}. ${item.symbol || '📦'} ${item.name} (${item.unit})</td><td style="text-align:right;">${formatMoney(item.total)} đ</td></tr>`;
   });
 
+  const ppSections = paymentProofSections(inv, room);
+  const ppVisible = ppSections.filter(s => canEditInvoiceProof || s.count > 0);
+  const paymentProofBlockHtml = ppVisible.length ? `
+    <div style="margin-top:1.25rem;">
+      ${canEditInvoiceProof ? `<p style="font-size:0.8rem; color:var(--text-secondary); margin:0 0 0.25rem;">${t(ppSections.length > 1 ? 'hint_payment_proof_per_occupant' : 'hint_payment_proof_admin')}</p>` : ''}
+      ${ppVisible.map(s => paymentProofCardHtml(s, canEditInvoiceProof)).join('')}
+    </div>
+  ` : '';
+
   content.innerHTML = `
     <div class="invoice-paper" style="box-shadow:none; border:1px solid var(--border-color);">
       <h3 style="color:#03121a;">${t('invoice_detail_title_prefix')}${inv.roomName}</h3>
@@ -5407,38 +5468,52 @@ function viewInvoiceDetail(invoiceId) {
         ${serviceRowsHtml}
         <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
       </table>
-      ${canEditInvoiceProof ? `
-        <div class="cala-card" style="margin-top:1.25rem;">
-          <h4 style="margin-bottom:0.5rem; color:var(--cala-blue);"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
-          <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.75rem;">${t('hint_payment_proof_admin')}</p>
-          <input type="file" accept="image/*" multiple id="payment-proof-input" style="display:none" onchange="handlePaymentProofSelect(event)">
-          <div id="payment-proof-preview" style="display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
-        </div>
-      ` : (inv.paymentProofPhotos || []).length ? `
-        <div style="margin-top:1.25rem;">
-          <h4 style="color:var(--cala-blue); margin-bottom:0.6rem;"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
-          <div id="invoice-detail-payment-proof" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
-            <div style="color:var(--text-secondary); font-size:0.85rem;">${t('loading_label')}</div>
-          </div>
-        </div>
-      ` : ''}
+      ${paymentProofBlockHtml}
     </div>
   `;
   document.getElementById('modal-invoice-detail').classList.add('active');
   renderIcons(content);
-  if (canEditInvoiceProof) {
-    loadPaymentProofPreview(inv);
-  } else if ((inv.paymentProofPhotos || []).length) {
-    loadInvoiceDetailPaymentProofs(inv);
-  }
+  if (ppVisible.length) loadPaymentProofSections(ppVisible, inv.id, canEditInvoiceProof);
 }
 
-async function loadInvoiceDetailPaymentProofs(inv) {
-  const container = document.getElementById('invoice-detail-payment-proof');
-  if (!container) return;
-  const photos = await fetchInvoicePaymentProofs(inv.id, inv.paymentProofPhotos);
-  container.innerHTML = photos.map(p => `<img src="${p}" onclick="viewDocumentFullSize('${p}')" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">`).join('') || `<span style="color:var(--text-secondary); font-size:0.85rem;">${t('meter_photo_empty')}</span>`;
-  renderIcons(container);
+// A KTX/dorm room's one invoice is shared by every occupant, so their
+// proof photos are kept visually separate — one gallery per occupant —
+// instead of one pile everybody's photos get dumped into. A normal
+// (single-tenant) room just gets the one gallery, tagged to that
+// tenant (or 'all' if the room currently has no resolvable tenant
+// account, e.g. vacant).
+function paymentProofSections(inv, room) {
+  const isDorm = !!(room && room.roomType === 'dorm');
+  const occupants = isDorm ? getRoomTenants(room.id) : [];
+  const countFor = (assignedTo) => (inv.paymentProofPhotos || []).filter(p => (p.assignedTo || 'all') === assignedTo).length;
+  if (isDorm && occupants.length > 1) {
+    const sections = occupants.map(u => ({
+      containerId: `pp-${inv.id}-${u.id}`,
+      assignedTo: u.id,
+      label: u.fullName || u.username,
+      count: countFor(u.id)
+    }));
+    const sharedCount = countFor('all');
+    if (sharedCount > 0) {
+      sections.push({ containerId: `pp-${inv.id}-all`, assignedTo: 'all', label: t('lbl_payment_proof_shared'), count: sharedCount });
+    }
+    return sections;
+  }
+  const assignedTo = occupants[0] ? occupants[0].id : 'all';
+  return [{ containerId: `pp-${inv.id}-${assignedTo}`, assignedTo, label: null, count: countFor(assignedTo) }];
+}
+
+function paymentProofCardHtml(section, canEdit) {
+  if (!canEdit && section.count === 0) return '';
+  const title = section.label ? `${t('lbl_payment_proof')} — ${section.label}` : t('lbl_payment_proof');
+  return `
+    <div class="cala-card" style="margin-top:0.75rem;">
+      <h4 style="margin-bottom:0.4rem; color:var(--cala-blue); font-size:0.95rem;"><i data-lucide="camera" style="vertical-align:middle;"></i> ${title}</h4>
+      <div id="${section.containerId}" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+        <div style="color:var(--text-secondary); font-size:0.85rem;">${t('loading_label')}</div>
+      </div>
+    </div>
+  `;
 }
 
 // Investor-facing counterpart to viewInvoiceDetail() — the investor's own
