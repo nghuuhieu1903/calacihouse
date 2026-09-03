@@ -458,6 +458,7 @@ const I18N = {
     lbl_expense_photo: 'Ảnh minh chứng',
     lbl_payment_proof: 'Ảnh Minh Chứng Đã Đóng Tiền',
     hint_payment_proof: 'Chụp lại màn hình chuyển khoản hoặc biên lai — tối đa 5 ảnh. Chủ nhà sẽ xem để xác nhận.',
+    hint_payment_proof_admin: 'Nếu khách đưa tiền/chuyển khoản trực tiếp mà chưa dùng hệ thống, bạn có thể tự thêm ảnh minh chứng ở đây — tối đa 5 ảnh.',
     toast_payment_proof_saved: 'Đã lưu ảnh minh chứng thanh toán.',
     btn_upload_photo: 'Tải Ảnh Lên',
     btn_change_photo: 'Đổi Ảnh',
@@ -1118,6 +1119,7 @@ const I18N = {
     lbl_expense_photo: 'Proof photo',
     lbl_payment_proof: 'Payment Proof Photos',
     hint_payment_proof: 'Attach a screenshot of the bank transfer or a receipt — up to 5 photos. The landlord will check these to confirm payment.',
+    hint_payment_proof_admin: 'If a tenant paid in person or by transfer before using the system, you can add proof photos yourself here — up to 5 photos.',
     toast_payment_proof_saved: 'Payment proof saved.',
     btn_upload_photo: 'Upload Photo',
     btn_change_photo: 'Change Photo',
@@ -5359,6 +5361,11 @@ function viewInvoiceDetail(invoiceId) {
   const inv = state.invoices.find(i => i.id === invoiceId);
   if (!inv) return;
   const content = document.getElementById('modal-invoice-content');
+  // First month a tenant pays, they usually hand cash/transfer straight to
+  // the admin and haven't touched the system yet — so whoever can edit
+  // invoices should be able to add proof photos here too, not only the
+  // tenant from their own invoice view.
+  const canEditInvoiceProof = hasPermission(state.currentUser.role, 'invoices', 'edit');
 
   const room = state.rooms.find(r => r.id === inv.roomId);
   const autoCalc = room ? calculateRoomServiceTotal(room) : { items: [] };
@@ -5400,7 +5407,14 @@ function viewInvoiceDetail(invoiceId) {
         ${serviceRowsHtml}
         <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
       </table>
-      ${(inv.paymentProofPhotos || []).length ? `
+      ${canEditInvoiceProof ? `
+        <div class="cala-card" style="margin-top:1.25rem;">
+          <h4 style="margin-bottom:0.5rem; color:var(--cala-blue);"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
+          <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.75rem;">${t('hint_payment_proof_admin')}</p>
+          <input type="file" accept="image/*" multiple id="payment-proof-input" style="display:none" onchange="handlePaymentProofSelect(event)">
+          <div id="payment-proof-preview" style="display:flex; flex-wrap:wrap; gap:0.5rem;"></div>
+        </div>
+      ` : (inv.paymentProofPhotos || []).length ? `
         <div style="margin-top:1.25rem;">
           <h4 style="color:var(--cala-blue); margin-bottom:0.6rem;"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
           <div id="invoice-detail-payment-proof" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
@@ -5412,7 +5426,11 @@ function viewInvoiceDetail(invoiceId) {
   `;
   document.getElementById('modal-invoice-detail').classList.add('active');
   renderIcons(content);
-  if ((inv.paymentProofPhotos || []).length) loadInvoiceDetailPaymentProofs(inv);
+  if (canEditInvoiceProof) {
+    loadPaymentProofPreview(inv);
+  } else if ((inv.paymentProofPhotos || []).length) {
+    loadInvoiceDetailPaymentProofs(inv);
+  }
 }
 
 async function loadInvoiceDetailPaymentProofs(inv) {
