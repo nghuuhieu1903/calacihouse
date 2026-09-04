@@ -257,6 +257,8 @@ def _user(row):
         'vehicleServiceId': row.get('vehicle_service_id') or '',
         'contractStart': row.get('contract_start') or '',
         'contractEnd': row.get('contract_end') or '',
+        # Off by default — see room_rent_for_month() in services.py.
+        'useContractProration': bool(row.get('use_contract_proration')),
         'status': row['status'],
         'createdAt': row['created_at'] or ''
     }
@@ -275,6 +277,10 @@ def _room(row):
         'waterFormula': row['water_formula'] or '',
         'contractStart': row.get('contract_start') or '',
         'contractEnd': row.get('contract_end') or '',
+        # Off by default — a room with dates filled in still bills a full
+        # month unless this is explicitly turned on. See
+        # room_rent_for_month() in services.py for the actual rule.
+        'useContractProration': bool(row.get('use_contract_proration')),
         'area': row.get('area') or 0,
         'description': row.get('description') or '',
         # Total bed capacity for a dorm room — purely informational (e.g.
@@ -578,8 +584,8 @@ class Storage:
                 cur.execute(
                     "REPLACE INTO users "
                     "(id, username, password, full_name, role, room_id, house_id, house_ids, has_vehicle, "
-                    "vehicle_service_id, contract_start, contract_end, status, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "vehicle_service_id, contract_start, contract_end, use_contract_proration, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         u['id'],
                         u['username'],
@@ -593,6 +599,7 @@ class Storage:
                         u.get('vehicleServiceId', ''),
                         u.get('contractStart', ''),
                         u.get('contractEnd', ''),
+                        1 if u.get('useContractProration') else 0,
                         u.get('status', 'pending'),
                         u.get('createdAt', '')
                     )
@@ -621,8 +628,8 @@ class Storage:
                 cur.execute(
                     "INSERT INTO users "
                     "(id, username, password, full_name, role, room_id, house_id, house_ids, has_vehicle, "
-                    "vehicle_service_id, contract_start, contract_end, status, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    "vehicle_service_id, contract_start, contract_end, use_contract_proration, status, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                     (
                         u['id'],
                         u['username'],
@@ -636,6 +643,7 @@ class Storage:
                         u.get('vehicleServiceId', ''),
                         u.get('contractStart', ''),
                         u.get('contractEnd', ''),
+                        1 if u.get('useContractProration') else 0,
                         u.get('status', 'pending'),
                         u.get('createdAt', '')
                     )
@@ -683,13 +691,13 @@ class Storage:
                 next_order = cur.fetchone()['m'] + 1
                 cur.execute(
                     "INSERT INTO rooms "
-                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description, capacity, deposit, vehicle_count, sort_order) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    "(id, house_id, name, tenant, phone, base_rent, headcount, room_type, elec_formula, water_formula, contract_start, contract_end, area, description, capacity, deposit, vehicle_count, use_contract_proration, sort_order) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                     "ON DUPLICATE KEY UPDATE house_id=VALUES(house_id), name=VALUES(name), tenant=VALUES(tenant), "
                     "phone=VALUES(phone), base_rent=VALUES(base_rent), headcount=VALUES(headcount), room_type=VALUES(room_type), "
                     "elec_formula=VALUES(elec_formula), water_formula=VALUES(water_formula), contract_start=VALUES(contract_start), "
                     "contract_end=VALUES(contract_end), area=VALUES(area), description=VALUES(description), capacity=VALUES(capacity), "
-                    "deposit=VALUES(deposit), vehicle_count=VALUES(vehicle_count)",
+                    "deposit=VALUES(deposit), vehicle_count=VALUES(vehicle_count), use_contract_proration=VALUES(use_contract_proration)",
                     (
                         r['id'],
                         r.get('houseId', ''),
@@ -708,6 +716,7 @@ class Storage:
                         r.get('capacity', 0),
                         r.get('deposit', 0),
                         r.get('vehicleCount', 0),
+                        1 if r.get('useContractProration') else 0,
                         next_order
                     )
                 )
@@ -743,13 +752,13 @@ class Storage:
             conn.close()
 
     @staticmethod
-    def update_room_contract(room_id, contract_start, contract_end):
+    def update_room_contract(room_id, contract_start, contract_end, use_contract_proration=False):
         conn = get_db()
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "UPDATE rooms SET contract_start=%s, contract_end=%s WHERE id=%s",
-                    (contract_start or '', contract_end or '', room_id)
+                    "UPDATE rooms SET contract_start=%s, contract_end=%s, use_contract_proration=%s WHERE id=%s",
+                    (contract_start or '', contract_end or '', 1 if use_contract_proration else 0, room_id)
                 )
             conn.commit()
         finally:

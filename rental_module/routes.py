@@ -309,7 +309,7 @@ def save_room_contract():
     room_id = data.get('roomId')
     if not room_id:
         return jsonify({'success': False, 'error': 'Thiếu roomId'}), 400
-    r_obj = RentalService.update_room_contract(room_id, data.get('contractStart'), data.get('contractEnd'))
+    r_obj = RentalService.update_room_contract(room_id, data.get('contractStart'), data.get('contractEnd'), data.get('useContractProration'))
     if not r_obj:
         return jsonify({'success': False, 'error': 'Không tìm thấy phòng'}), 404
     return jsonify({'success': True, 'room': r_obj})
@@ -367,7 +367,8 @@ def create_user():
         data.get('hasVehicle', False),
         data.get('vehicleServiceId', ''),
         data.get('contractStart', ''),
-        data.get('contractEnd', '')
+        data.get('contractEnd', ''),
+        data.get('useContractProration', False)
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
@@ -399,7 +400,8 @@ def save_user():
         data.get('hasVehicle'),
         data.get('vehicleServiceId'),
         data.get('contractStart'),
-        data.get('contractEnd')
+        data.get('contractEnd'),
+        data.get('useContractProration')
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400

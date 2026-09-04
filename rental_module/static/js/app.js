@@ -663,6 +663,8 @@ const I18N = {
     lbl_contract_duration: 'Thời Hạn Hợp Đồng',
     lbl_contract_start: 'Ngày Bắt Đầu',
     lbl_contract_end: 'Ngày Kết Thúc',
+    lbl_use_contract_proration: 'Tính tiền phòng theo ngày vào/trả phòng',
+    hint_use_contract_proration: 'Vào ở ngày 1-10 đầu tháng vẫn tính nguyên tháng đó; vào sau ngày 10 chỉ tính theo số ngày thực ở. Lúc trả phòng luôn tính theo số ngày thực ở. Để trống thì luôn tính nguyên tháng như trước.',
     btn_save_contract_duration: 'Lưu Thời Hạn Hợp Đồng',
     toast_contract_duration_saved: 'Đã lưu thời hạn hợp đồng!',
     contract_duration_label: 'Thời hạn hợp đồng',
@@ -1331,6 +1333,8 @@ const I18N = {
     lbl_contract_duration: 'Contract Duration',
     lbl_contract_start: 'Start Date',
     lbl_contract_end: 'End Date',
+    lbl_use_contract_proration: 'Bill rent by move-in/move-out day',
+    hint_use_contract_proration: 'Moving in on day 1-10 still bills that whole month; moving in after day 10 bills only the days actually lived. Moving out always bills only the days actually lived. Leave off to always bill a full month as before.',
     btn_save_contract_duration: 'Save Contract Duration',
     toast_contract_duration_saved: 'Contract duration saved!',
     contract_duration_label: 'Contract duration',
@@ -5120,10 +5124,12 @@ function toggleEditDormFields(prefill) {
     populateVehicleServiceOptions('edit-vehicle-service', room, prefill ? prefill.vehicleServiceId : '');
     document.getElementById('edit-contract-start').value = prefill ? (prefill.contractStart || '') : '';
     document.getElementById('edit-contract-end').value = prefill ? (prefill.contractEnd || '') : '';
+    document.getElementById('edit-use-contract-proration').checked = !!(prefill && prefill.useContractProration);
   } else {
     document.getElementById('edit-vehicle-service').value = '';
     document.getElementById('edit-contract-start').value = '';
     document.getElementById('edit-contract-end').value = '';
+    document.getElementById('edit-use-contract-proration').checked = false;
   }
 }
 
@@ -5157,11 +5163,12 @@ async function handleAdminSaveUser(event) {
   const vehicleServiceId = isDormTenant ? document.getElementById('edit-vehicle-service').value : '';
   const contractStart = isDormTenant ? document.getElementById('edit-contract-start').value : '';
   const contractEnd = isDormTenant ? document.getElementById('edit-contract-end').value : '';
+  const useContractProration = isDormTenant ? document.getElementById('edit-use-contract-proration').checked : false;
   const status = document.getElementById('edit-status').value;
   const newPasswordField = document.getElementById('edit-new-password');
   const newPassword = newPasswordField ? newPasswordField.value.trim() : '';
 
-  const payload = { id, fullName, role, roomId, houseIds, vehicleServiceId, contractStart, contractEnd, status };
+  const payload = { id, fullName, role, roomId, houseIds, vehicleServiceId, contractStart, contractEnd, useContractProration, status };
   if (newPassword) payload.newPassword = newPassword;
 
   const data = await postAndVerify(`${API_BASE}/users/save`, payload);
@@ -5177,6 +5184,7 @@ async function handleAdminSaveUser(event) {
     state.users[uIdx].vehicleServiceId = vehicleServiceId;
     state.users[uIdx].contractStart = contractStart;
     state.users[uIdx].contractEnd = contractEnd;
+    state.users[uIdx].useContractProration = useContractProration;
     state.users[uIdx].status = status;
   }
   applyDeactivatedUsernames(data.deactivatedUsernames);
@@ -5201,8 +5209,9 @@ async function handleAdminCreateUser(event) {
   const vehicleServiceId = isDormTenant ? document.getElementById('create-vehicle-service').value : '';
   const contractStart = isDormTenant ? document.getElementById('create-contract-start').value : '';
   const contractEnd = isDormTenant ? document.getElementById('create-contract-end').value : '';
+  const useContractProration = isDormTenant ? document.getElementById('create-use-contract-proration').checked : false;
 
-  const data = await postAndVerify(`${API_BASE}/users/create`, { username, password, fullName, role, roomId, houseIds, vehicleServiceId, contractStart, contractEnd });
+  const data = await postAndVerify(`${API_BASE}/users/create`, { username, password, fullName, role, roomId, houseIds, vehicleServiceId, contractStart, contractEnd, useContractProration });
   if (!data) return;
 
   // Pushes the server's own returned user object rather than a locally-
@@ -6279,8 +6288,10 @@ async function openRoomDocumentsModal(roomId) {
   } else {
     const startInput = document.getElementById('room-contract-start');
     const endInput = document.getElementById('room-contract-end');
+    const prorationBox = document.getElementById('room-use-contract-proration');
     if (startInput) startInput.value = (room && room.contractStart) || '';
     if (endInput) endInput.value = (room && room.contractEnd) || '';
+    if (prorationBox) prorationBox.checked = !!(room && room.useContractProration);
   }
 
   // The bulk /api/data payload only ever carries id/label/uploadedAt for
@@ -6332,6 +6343,10 @@ function renderRoomOccupantsConfig(roomId) {
           <input type="date" id="occ-end-${u.id}" class="form-control" value="${u.contractEnd || ''}" ${canEditAccounts ? '' : 'disabled'}>
         </div>
       </div>
+      <label style="display:flex; align-items:flex-start; gap:0.4rem; cursor:pointer; font-size:0.75rem; margin-top:0.5rem; color:var(--text-secondary);">
+        <input type="checkbox" id="occ-proration-${u.id}" style="margin-top:0.15rem;" ${u.useContractProration ? 'checked' : ''} ${canEditAccounts ? '' : 'disabled'}>
+        <span>${t('lbl_use_contract_proration')}</span>
+      </label>
       ${canEditAccounts ? `
       <button type="button" class="btn btn-blue btn-sm" style="margin-top:0.5rem; width:100%; justify-content:center;" onclick="saveOccupantSettings('${u.id}')">
         <i data-lucide="save"></i> ${t('btn_save_icon')}
@@ -6350,12 +6365,13 @@ async function saveOccupantSettings(userId) {
   const vehicleServiceId = document.getElementById(`occ-vehicle-${userId}`).value;
   const contractStart = document.getElementById(`occ-start-${userId}`).value;
   const contractEnd = document.getElementById(`occ-end-${userId}`).value;
+  const useContractProration = document.getElementById(`occ-proration-${userId}`).checked;
 
   // Sends this tenant's other existing fields along unchanged — /api/users/save
   // (update_user_by_admin) expects a full profile update, not a partial patch.
   const payload = {
     id: u.id, fullName: u.fullName, role: u.role, roomId: u.roomId, status: u.status,
-    houseIds: u.houseIds, vehicleServiceId, contractStart, contractEnd
+    houseIds: u.houseIds, vehicleServiceId, contractStart, contractEnd, useContractProration
   };
   const data = await postAndVerify(`${API_BASE}/users/save`, payload);
   if (!data) return;
@@ -6363,6 +6379,7 @@ async function saveOccupantSettings(userId) {
   u.vehicleServiceId = vehicleServiceId;
   u.contractStart = contractStart;
   u.contractEnd = contractEnd;
+  u.useContractProration = useContractProration;
   showToast(t('toast_occupant_settings_saved'), 'success');
   renderRoomsManagement();
 }
@@ -6371,19 +6388,21 @@ async function saveRoomContractDates() {
   if (!_currentDocRoomId) return;
   const startInput = document.getElementById('room-contract-start');
   const endInput = document.getElementById('room-contract-end');
+  const prorationBox = document.getElementById('room-use-contract-proration');
   const contractStart = startInput ? startInput.value : '';
   const contractEnd = endInput ? endInput.value : '';
+  const useContractProration = prorationBox ? prorationBox.checked : false;
 
   try {
     const res = await fetch(`${API_BASE}/rooms/contract/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId: _currentDocRoomId, contractStart, contractEnd })
+      body: JSON.stringify({ roomId: _currentDocRoomId, contractStart, contractEnd, useContractProration })
     });
     const data = await res.json();
     if (data.success) {
       const room = state.rooms.find(r => r.id === _currentDocRoomId);
-      if (room) { room.contractStart = contractStart; room.contractEnd = contractEnd; }
+      if (room) { room.contractStart = contractStart; room.contractEnd = contractEnd; room.useContractProration = useContractProration; }
       renderRoomsManagement();
       showToast(t('toast_contract_duration_saved'), 'success');
     } else {

@@ -94,7 +94,8 @@ SCHEMA_STATEMENTS = [
         description    TEXT,
         capacity       INT DEFAULT 0,
         deposit        DOUBLE DEFAULT 0,
-        vehicle_count  INT DEFAULT 0
+        vehicle_count  INT DEFAULT 0,
+        use_contract_proration TINYINT(1) DEFAULT 0
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
     """
@@ -426,6 +427,13 @@ def init_db():
             _ensure_column(cur, 'users', 'vehicle_service_id', "VARCHAR(191) DEFAULT ''")
             _ensure_column(cur, 'users', 'contract_start', "VARCHAR(10) DEFAULT ''")
             _ensure_column(cur, 'users', 'contract_end', "VARCHAR(10) DEFAULT ''")
+            # Room rent proration (see room_rent_for_month in services.py)
+            # is now opt-in per room/occupant instead of firing automatically
+            # for anyone with contract dates filled in — default 0 (off) so
+            # every room/account that already had dates saved keeps billing
+            # a full month until an admin explicitly turns this on for it.
+            _ensure_column(cur, 'rooms', 'use_contract_proration', "TINYINT(1) DEFAULT 0")
+            _ensure_column(cur, 'users', 'use_contract_proration', "TINYINT(1) DEFAULT 0")
             _promote_admins_to_superadmin(cur)
             _backfill_house_sort_order(cur)
             _backfill_room_sort_order(cur)

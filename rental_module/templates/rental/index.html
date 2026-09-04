@@ -1316,6 +1316,10 @@
               <input type="date" id="create-contract-end" class="form-control">
             </div>
           </div>
+          <label style="display:flex; align-items:flex-start; gap:0.4rem; cursor:pointer; font-size:0.78rem; margin-top:0.5rem; color:var(--text-secondary);">
+            <input type="checkbox" id="create-use-contract-proration" style="margin-top:0.15rem;">
+            <span data-i18n="lbl_use_contract_proration">Tính tiền phòng theo ngày vào/trả phòng</span>
+          </label>
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modal-create-user')" data-i18n="btn_cancel">Hủy</button>
@@ -1380,6 +1384,10 @@
               <input type="date" id="edit-contract-end" class="form-control">
             </div>
           </div>
+          <label style="display:flex; align-items:flex-start; gap:0.4rem; cursor:pointer; font-size:0.78rem; margin-top:0.5rem; color:var(--text-secondary);">
+            <input type="checkbox" id="edit-use-contract-proration" style="margin-top:0.15rem;">
+            <span data-i18n="lbl_use_contract_proration">Tính tiền phòng theo ngày vào/trả phòng</span>
+          </label>
         </div>
         <div style="margin-bottom: 1.5rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_account_status">Trạng thái tài khoản</label>
@@ -1590,6 +1598,13 @@
             <input type="date" id="room-contract-end" class="form-control">
           </div>
         </div>
+        <label style="display:flex; align-items:flex-start; gap:0.5rem; cursor:pointer; font-size: 0.82rem; margin-top: 0.75rem;">
+          <input type="checkbox" id="room-use-contract-proration" style="margin-top:0.2rem;">
+          <span>
+            <strong data-i18n="lbl_use_contract_proration">Tính tiền phòng theo ngày vào/trả phòng</strong><br>
+            <span style="font-size: 0.75rem; color: var(--text-secondary);" data-i18n="hint_use_contract_proration">Vào ở ngày 1-10 đầu tháng vẫn tính nguyên tháng đó; vào sau ngày 10 chỉ tính theo số ngày thực ở. Lúc trả phòng luôn tính theo số ngày thực ở. Để trống thì luôn tính nguyên tháng như trước.</span>
+          </span>
+        </label>
         <button type="button" class="btn btn-blue btn-sm" style="margin-top: 0.75rem; width: 100%; justify-content: center;" onclick="saveRoomContractDates()">
           <i data-lucide="calendar-check"></i> <span data-i18n="btn_save_contract_duration">Lưu Thời Hạn Hợp Đồng</span>
         </button>

@@ -63,13 +63,21 @@ class RentalService:
         return calendar.monthrange(int(year), int(mm))[1]
 
     @staticmethod
-    def _contract_overlap_days(contract_start, contract_end, month):
-        """How many days of `month` (YYYY-MM) fall within
-        [contract_start, contract_end] (YYYY-MM-DD strings, either side
-        blank for an open-ended contract — e.g. no end date yet means
-        "still living there through the end of this month"). Returns
-        (occupied_days, days_in_month); an invalid/unparseable date
-        string is treated the same as blank rather than erroring out."""
+    def _prorated_ratio_for_month(contract_start, contract_end, month):
+        """The "vào ở ngày 1-10 vẫn tính nguyên tháng" rule: moving in on
+        day 1-10 of a month still bills that whole month; moving in
+        after day 10 bills only the days actually lived that month.
+        Moving OUT always bills only the days actually lived — no grace
+        period on that side (a tenant leaving early in the month
+        shouldn't pay for days they were never there). A month that
+        neither the move-in nor the move-out date falls inside is either
+        fully covered by an ongoing contract (ratio 1) or fully outside
+        it entirely (ratio 0), same as a plain date-range overlap.
+
+        contract_start/contract_end are YYYY-MM-DD strings, either
+        blank for an open-ended contract; an unparseable string is
+        treated the same as blank. Returns (ratio, occupied_days,
+        days_in_month)."""
         year, mm = month.split('-')
         year, mm = int(year), int(mm)
         days_in_month = calendar.monthrange(year, mm)[1]
@@ -85,36 +93,57 @@ class RentalService:
             except (ValueError, TypeError):
                 return None
 
-        start = parse(contract_start) or month_start
-        end = parse(contract_end) or month_end
-        overlap_start = max(start, month_start)
-        overlap_end = min(end, month_end)
-        occupied_days = max(0, (overlap_end - overlap_start).days + 1)
-        return occupied_days, days_in_month
+        start = parse(contract_start)
+        end = parse(contract_end)
+        start_in_month = bool(start and start.year == year and start.month == mm)
+        end_in_month = bool(end and end.year == year and end.month == mm)
+
+        if start_in_month and not end_in_month:
+            if start.day <= 10:
+                return 1.0, days_in_month, days_in_month
+            occupied = (month_end - start).days + 1
+            return (occupied / days_in_month if days_in_month else 0), occupied, days_in_month
+
+        if end_in_month and not start_in_month:
+            occupied = max(0, (end - month_start).days + 1)
+            return (occupied / days_in_month if days_in_month else 0), occupied, days_in_month
+
+        if start_in_month and end_in_month:
+            occupied = max(0, (end - start).days + 1)
+            return (occupied / days_in_month if days_in_month else 0), occupied, days_in_month
+
+        # Neither boundary falls in this month — fully covered by an
+        # ongoing contract, or fully outside it (nothing to bill).
+        effective_start = start or month_start
+        effective_end = end or month_end
+        overlap_start = max(effective_start, month_start)
+        overlap_end = min(effective_end, month_end)
+        occupied = max(0, (overlap_end - overlap_start).days + 1)
+        ratio = 1.0 if occupied == days_in_month else 0.0
+        return ratio, occupied, days_in_month
 
     @staticmethod
     def room_rent_for_month(room, month, users):
-        """room_rent_total(), prorated by actual contract-day overlap for
-        THIS invoice month — a room renting at 5.000.000đ/tháng where the
-        tenant only moved in on the 15th only owes for the days actually
-        lived there, not a full month. A room/tenant with no contract
-        dates set at all falls back to the old full-month amount
-        unchanged, so every room that predates this field keeps billing
-        exactly as before.
+        """room_rent_total(), prorated by _prorated_ratio_for_month() for
+        THIS invoice month — opt-in per room/occupant via
+        useContractProration (off by default, so a room/account with
+        dates filled in but this NOT turned on still bills a full month
+        exactly as before this feature existed).
 
         Dorm rooms have no room-level contract — each occupant ACCOUNT
-        carries its own start/end (see renderRoomOccupantsConfig in
-        app.js) — so this sums each occupant's own prorated share
-        instead of using headcount as a flat multiplier. A dorm room
-        with no occupant accounts at all (everyone still paying
-        off-system, nobody's logged in yet) falls back to the old
-        headcount × rate, unprorated, since there's nothing to prorate
-        against.
+        carries its own start/end/useContractProration (see
+        renderRoomOccupantsConfig in app.js) — so this sums each
+        occupant's own prorated share instead of using headcount as a
+        flat multiplier. A dorm room with no occupant accounts at all
+        (everyone still paying off-system, nobody's logged in yet)
+        falls back to the old headcount × rate, unprorated, since
+        there's nothing to prorate against.
 
         Returns (amount, proration) — proration is a
         {occupiedDays, daysInMonth} dict when a single room's own dates
-        actually narrowed the amount, else None (full month, or a dorm
-        room where per-occupant proration doesn't reduce to one note)."""
+        actually narrowed the amount, else None (full month, proration
+        off, or a dorm room where per-occupant proration doesn't reduce
+        to one note)."""
         base_rent = room.get('baseRent', 0) or 0
         if room.get('roomType') == 'dorm':
             occupants = [u for u in users
@@ -124,19 +153,20 @@ class RentalService:
             total = 0
             for u in occupants:
                 cs, ce = u.get('contractStart') or '', u.get('contractEnd') or ''
-                if not cs and not ce:
+                if not u.get('useContractProration') or (not cs and not ce):
                     total += base_rent
                     continue
-                occupied_days, days_in_month = RentalService._contract_overlap_days(cs, ce, month)
-                total += base_rent * (occupied_days / days_in_month) if days_in_month else 0
+                ratio, _, _ = RentalService._prorated_ratio_for_month(cs, ce, month)
+                total += base_rent * ratio
             return total, None
 
         cs, ce = room.get('contractStart') or '', room.get('contractEnd') or ''
-        if not cs and not ce:
+        if not room.get('useContractProration') or (not cs and not ce):
             return base_rent, None
-        occupied_days, days_in_month = RentalService._contract_overlap_days(cs, ce, month)
-        prorated = base_rent * (occupied_days / days_in_month) if days_in_month else 0
-        return prorated, {'occupiedDays': occupied_days, 'daysInMonth': days_in_month}
+        ratio, occupied_days, days_in_month = RentalService._prorated_ratio_for_month(cs, ce, month)
+        prorated = base_rent * ratio
+        proration = None if ratio == 1.0 else {'occupiedDays': occupied_days, 'daysInMonth': days_in_month}
+        return prorated, proration
 
     @staticmethod
     def service_matches_house(s, target_house_id):
@@ -777,10 +807,10 @@ class RentalService:
         return True
 
     @staticmethod
-    def update_room_contract(room_id, contract_start, contract_end):
+    def update_room_contract(room_id, contract_start, contract_end, use_contract_proration=False):
         if not room_id:
             return None
-        Storage.update_room_contract(room_id, contract_start, contract_end)
+        Storage.update_room_contract(room_id, contract_start, contract_end, use_contract_proration)
         rooms = Storage.get_rooms()
         return next((r for r in rooms if r['id'] == room_id), None)
 
@@ -840,7 +870,7 @@ class RentalService:
         return False, []
 
     @staticmethod
-    def create_user_by_admin(username, password, full_name, role, room_id, house_id='', house_ids=None, has_vehicle=False, vehicle_service_id='', contract_start='', contract_end=''):
+    def create_user_by_admin(username, password, full_name, role, room_id, house_id='', house_ids=None, has_vehicle=False, vehicle_service_id='', contract_start='', contract_end='', use_contract_proration=False):
         users = Storage.get_users()
         if any(u['username'].lower() == username.lower() for u in users):
             return None, 'Tên tài khoản đã tồn tại!'
@@ -868,6 +898,7 @@ class RentalService:
             'vehicleServiceId': vehicle_service_id or '',
             'contractStart': contract_start or '',
             'contractEnd': contract_end or '',
+            'useContractProration': bool(use_contract_proration),
             'status': 'approved',
             'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
@@ -881,7 +912,7 @@ class RentalService:
         return new_user, None
 
     @staticmethod
-    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id='', house_ids=None, has_vehicle=None, vehicle_service_id=None, contract_start=None, contract_end=None):
+    def update_user_by_admin(user_id, full_name, role, room_id, status, new_password=None, house_id='', house_ids=None, has_vehicle=None, vehicle_service_id=None, contract_start=None, contract_end=None, use_contract_proration=None):
         user = next((u for u in Storage.get_users() if u['id'] == user_id), None)
         if user:
             investor_house_ids = house_ids if house_ids else ([house_id] if house_id else [])
@@ -912,6 +943,8 @@ class RentalService:
                     user['contractStart'] = contract_start
                 if contract_end is not None:
                     user['contractEnd'] = contract_end
+                if use_contract_proration is not None:
+                    user['useContractProration'] = bool(use_contract_proration)
 
             # Only update password if a new one was explicitly provided
             if new_password:
