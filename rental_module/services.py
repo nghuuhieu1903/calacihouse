@@ -160,7 +160,15 @@ class RentalService:
 
     @staticmethod
     def calculate_room_services_total(room, services):
-        headcount = room.get('headcount', 1)
+        # headcount only multiplies a "Theo đầu người" service for a KTX/
+        # dorm room, where it's the number of paying occupants that
+        # room's rent is itself split across (see room_rent_for_month).
+        # A single room's headcount is just informational — how many
+        # people happen to live there — not a per-person billing count,
+        # so a service like a flat monthly fee marked "Theo đầu người"
+        # must never get silently ×N just because someone filled in
+        # "4 người" on a single room's own info field.
+        headcount = room.get('headcount', 1) if room.get('roomType') == 'dorm' else 1
         house_id = room.get('houseId', 'house_a')
         room_id = room.get('id', '')
         

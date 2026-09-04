@@ -2299,7 +2299,11 @@ function getFilteredServices() {
 }
 
 function calculateServiceCostForRoom(service, room) {
-  const headcount = room.headcount || 1;
+  // headcount only multiplies a "Theo đầu người" service for a KTX/dorm
+  // room — a single room's headcount is just informational (how many
+  // people happen to live there), not a per-person billing count.
+  // Mirrors calculate_room_services_total() in services.py.
+  const headcount = room.roomType === 'dorm' ? (room.headcount || 1) : 1;
   const price = service.price || 0;
   const unit = service.unit || '';
 
@@ -2348,7 +2352,8 @@ function calculateRoomServiceTotal(room) {
     } else {
       serviceTotal += cost;
       serviceCount++;
-      items.push({ id: s.id, name, symbol, price: s.price, unit: unit === 'Theo đầu người' ? `${room.headcount} ${t('formula_per_person_label')} x ${formatMoney(s.price)}đ` : unit, total: cost, isParking: false });
+      const perPersonCount = room.roomType === 'dorm' ? (room.headcount || 1) : 1;
+      items.push({ id: s.id, name, symbol, price: s.price, unit: unit === 'Theo đầu người' ? `${perPersonCount} ${t('formula_per_person_label')} x ${formatMoney(s.price)}đ` : unit, total: cost, isParking: false });
     }
   });
 
@@ -3822,12 +3827,13 @@ async function generateAndSendAllInvoices() {
       } else {
         const cost = calculateServiceCostForRoom(s, r);
         totalAmount += cost;
+        const perPersonCount = r.roomType === 'dorm' ? (r.headcount || 1) : 1;
         serviceItems.push({
           id: s.id,
           name: s.name,
           symbol,
           price: s.price,
-          unit: s.unit === 'Theo đầu người' ? `${r.headcount} ${t('formula_per_person_label')} x ${formatMoney(s.price)}đ` : s.unit,
+          unit: s.unit === 'Theo đầu người' ? `${perPersonCount} ${t('formula_per_person_label')} x ${formatMoney(s.price)}đ` : s.unit,
           total: cost,
           isParking: s.name.toLowerCase().includes('xe')
         });
