@@ -2318,12 +2318,18 @@ function getFilteredRooms() {
   return rooms;
 }
 
+// houseIds (what the scope picker actually writes) is the source of truth
+// and is checked FIRST — houseId is only a legacy single-value mirror that
+// saveService() collapses to 'all' whenever more than one building is
+// picked, so testing it first made a service scoped to 2 of 4 buildings
+// show up (and get billed) under all 4. Mirrors service_matches_house()
+// in services.py exactly.
 function serviceMatchesHouse(service, targetHouseId) {
-  if (targetHouseId === 'all') return true;
-  if (!service.houseId || service.houseId === 'all') return true;
-  if (Array.isArray(service.houseIds)) {
+  if (!targetHouseId || targetHouseId === 'all') return true;
+  if (Array.isArray(service.houseIds) && service.houseIds.length) {
     return service.houseIds.includes('all') || service.houseIds.includes(targetHouseId);
   }
+  if (!service.houseId || service.houseId === 'all') return true;
   return service.houseId === targetHouseId;
 }
 
@@ -3062,8 +3068,30 @@ function getSelectedScopeFromTree() {
     .filter(c => c.checked)
     .map(c => c.value);
 
-  const houseIds = (checkedHouses.length === state.houses.length || checkedHouses.length === 0) ? ['all'] : checkedHouses;
   const roomIds = (checkedRooms.length === state.rooms.length || checkedRooms.length === 0) ? ['all'] : checkedRooms;
+
+  // A house node only ticks itself once EVERY one of its rooms is ticked
+  // (see updateRoomNodeCheckbox), so picking a handful of rooms inside one
+  // building left checkedHouses empty — which the "|| length === 0" rule
+  // below then recorded as houseIds: ['all'], i.e. "every building". The
+  // rooms themselves still narrowed the billing correctly, but the service
+  // showed up under every building in Cấu Hình Dịch Vụ. When specific
+  // rooms are picked, derive the buildings from those rooms instead of
+  // falling through to 'all'.
+  let houseIds;
+  if (roomIds.includes('all')) {
+    houseIds = (checkedHouses.length === state.houses.length || checkedHouses.length === 0) ? ['all'] : checkedHouses;
+  } else {
+    const derived = Array.from(new Set(
+      checkedRooms
+        .map(roomId => (state.rooms.find(r => r.id === roomId) || {}).houseId)
+        .filter(Boolean)
+    ));
+    // Rooms spanning every building is the same thing as "all buildings" —
+    // recording it that way keeps a building added LATER covered, matching
+    // what the master checkbox means everywhere else.
+    houseIds = (derived.length === 0 || derived.length === state.houses.length) ? ['all'] : derived;
+  }
 
   return { houseIds, roomIds };
 }

@@ -140,13 +140,22 @@ class RentalService:
 
     @staticmethod
     def service_matches_house(s, target_house_id):
+        # houseIds (the list the scope picker actually writes) is the
+        # source of truth and has to be consulted FIRST. houseId is only a
+        # legacy single-value mirror of it, and saveService() in app.js
+        # collapses it to 'all' any time more than one building is picked
+        # — so testing houseId first short-circuited to True and made a
+        # service scoped to 2 of 4 buildings apply to all 4, both in Cấu
+        # Hình Dịch Vụ's list and in the invoice it produced. houseId is
+        # still the fallback for a row saved before houseIds existed.
+        # Mirrors serviceMatchesHouse() in app.js exactly.
         if not target_house_id or target_house_id == 'all':
             return True
+        house_ids = s.get('houseIds')
+        if isinstance(house_ids, list) and house_ids:
+            return 'all' in house_ids or target_house_id in house_ids
         if not s.get('houseId') or s.get('houseId') == 'all':
             return True
-        house_ids = s.get('houseIds')
-        if isinstance(house_ids, list):
-            return 'all' in house_ids or target_house_id in house_ids
         return s.get('houseId') == target_house_id
 
     @staticmethod
