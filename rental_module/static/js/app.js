@@ -4666,6 +4666,27 @@ function renderAdminUsers() {
 
   const filteredUsers = state.users.filter(u => userMatchesHouse(u, state.currentHouseId));
 
+  // Grouped by "Vai Trò" first (staff roles highest → tenant last, the
+  // most numerous and the one "Phòng Được Gán" actually means something
+  // for), then by "Phòng Được Gán" within the same role — a tenant's
+  // room sorted by that room's own position in Quản Lý Phòng (so this
+  // list reads top-to-bottom the same order the rooms themselves are
+  // arranged in), unassigned accounts sorted last, username as the
+  // final tie-break.
+  const roleSortOrder = ['superadmin', 'admin', 'manager', 'saler', 'investor', 'tenant'];
+  const roomOrderIndex = new Map(state.rooms.map((r, i) => [r.id, i]));
+  filteredUsers.sort((a, b) => {
+    const roleA = roleSortOrder.indexOf(a.role);
+    const roleB = roleSortOrder.indexOf(b.role);
+    const rankA = roleA === -1 ? roleSortOrder.length : roleA;
+    const rankB = roleB === -1 ? roleSortOrder.length : roleB;
+    if (rankA !== rankB) return rankA - rankB;
+    const posA = roomOrderIndex.has(a.roomId) ? roomOrderIndex.get(a.roomId) : Infinity;
+    const posB = roomOrderIndex.has(b.roomId) ? roomOrderIndex.get(b.roomId) : Infinity;
+    if (posA !== posB) return posA - posB;
+    return (a.username || '').localeCompare(b.username || '');
+  });
+
   if (filteredUsers.length === 0 && state.users.length > 0 && state.currentHouseId !== 'all') {
     const currentHouse = state.houses.find(h => h.id === state.currentHouseId);
     tbody.innerHTML = `
