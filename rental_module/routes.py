@@ -367,7 +367,14 @@ def create_user():
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
-    return jsonify({'success': True, 'user': user})
+    # Same redaction get_full_state()'s safe_users already applies to the
+    # bulk payload — this response feeds state.users.push(data.user) on
+    # the client (see handleAdminCreateUser), so without this the new
+    # tenant's plaintext password would sit in the admin's browser memory
+    # for the rest of that session even though the bulk fetch never
+    # carries it for anyone else.
+    safe_user = {k: v for k, v in user.items() if k != 'password'}
+    return jsonify({'success': True, 'user': safe_user})
 
 @rental_bp.route('/api/users/save', methods=['POST'])
 @permission_required('accounts', 'edit')
@@ -392,7 +399,13 @@ def save_user():
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
-    return jsonify({'success': True, 'user': user, 'deactivatedUsernames': deactivated})
+    # Same redaction as /api/users/create above — handleAdminSaveUser
+    # doesn't currently read data.user.password back into state.users,
+    # but there's no reason to ever put a plaintext password (this
+    # account's OWN new one, or its previous one when unrelated fields
+    # like status/fullName were edited) on the wire in a response body.
+    safe_user = {k: v for k, v in user.items() if k != 'password'}
+    return jsonify({'success': True, 'user': safe_user, 'deactivatedUsernames': deactivated})
 
 @rental_bp.route('/api/users/set-active', methods=['POST'])
 @permission_required('accounts', 'edit')
@@ -401,7 +414,8 @@ def set_user_active():
     user = RentalService.set_user_active(data.get('userId'), bool(data.get('isActive')))
     if not user:
         return jsonify({'success': False, 'error': 'Không thể thay đổi trạng thái tài khoản này'}), 400
-    return jsonify({'success': True, 'user': user})
+    safe_user = {k: v for k, v in user.items() if k != 'password'}
+    return jsonify({'success': True, 'user': safe_user})
 
 @rental_bp.route('/api/users/delete', methods=['POST'])
 @superadmin_required
