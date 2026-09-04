@@ -4010,6 +4010,18 @@ function computeInvestorInvoiceBreakdown(inv, investorId) {
   return { rent, services, total };
 }
 
+// generate_all_invoices() creates one invoice for EVERY room every month,
+// vacant or not, so a room's configured rent still shows up as a real
+// invoice amount even after it's deactivated/emptied (no tenant) — used
+// to reach both computeHouseServiceSummary and computeInvestorReportData
+// below, so a deactivated house could still "generate" nonzero revenue
+// on Báo Cáo Chủ Đầu Tư even though renderInvestorDashboard (the
+// investor's own view of the same numbers) already excluded these.
+// Nobody actually owes this money, so it's filtered out here too.
+function occupiedRoomIdSet() {
+  return new Set(state.rooms.filter(r => r.tenant).map(r => r.id));
+}
+
 // Every service that applies to this house — including ones NOT currently
 // shared with the investor — with its actual billed total this month and
 // what would be shared under its current investorShare config. Powers the
@@ -4018,7 +4030,8 @@ function computeInvestorInvoiceBreakdown(inv, investorId) {
 // computeInvestorInvoiceBreakdown(), which only ever surfaces the
 // already-enabled ones for the revenue math itself.
 function computeHouseServiceSummary(houseId, month, investorId) {
-  const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId);
+  const occupiedRoomIds = occupiedRoomIdSet();
+  const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId && occupiedRoomIds.has(i.roomId));
   const houseServices = state.services.filter(s => serviceMatchesHouse(s, houseId));
 
   return houseServices.map(service => {
@@ -4042,7 +4055,8 @@ function computeHouseServiceSummary(houseId, month, investorId) {
 }
 
 function computeInvestorReportData(houseId, month, investorId) {
-  const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId);
+  const occupiedRoomIds = occupiedRoomIdSet();
+  const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId && occupiedRoomIds.has(i.roomId));
   // Room rent is always sent to the investor in full — it's not part of
   // the per-service opt-in/opt-out system at all.
   const rent = invoices.reduce((s, i) => s + (i.baseRent || 0), 0);
