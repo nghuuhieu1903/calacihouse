@@ -6,7 +6,10 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, url_for, Response
 from .services import RentalService
 from .storage import Storage
-from .auth import login_required, roles_required, admin_required, superadmin_required, permission_required
+from .auth import (
+    login_required, roles_required, admin_required, superadmin_required, permission_required,
+    validate_session, start_session, restamp_session_password
+)
 
 rental_bp = Blueprint(
     'rental',
@@ -89,34 +92,32 @@ def index():
         og_image_url=og_image_url
     )
 
-def _refresh_session_user():
-    """session['user'] is a snapshot taken at login — if an admin changes
-    this account's role, status, or (for an investor) assigned houses
-    while they're already logged in, the old snapshot would otherwise keep
-    driving what get_full_state() filters down to until they happen to log
-    out and back in. An investor whose houses got reassigned away would
-    keep seeing the old ones (and their revenue) in the meantime — refresh
-    from the DB on every state fetch instead so a permission/scope change
-    takes effect on the next request, not the next login."""
-    current = session.get('user')
-    if not current:
+@rental_bp.before_request
+def _revalidate_session():
+    """Re-check the session against the DB on EVERY request rather than
+    only on the bulk state fetch. Doing it here is what makes an admin's
+    password reset / account lock take effect immediately: the decorators
+    below all read session['user'], so once validate_session() clears a
+    session that no longer holds up, every route rejects it as logged-out
+    on its own — no per-route change needed, now or later.
+
+    Never returns a response of its own: a request with no session at all
+    is perfectly normal (login screen, manifest, public settings), and
+    letting login_required/permission_required issue the 401/403 keeps one
+    error path instead of two. Skips static assets so a page load doesn't
+    fire a user lookup per file, and skips the login route itself, which
+    is where a new session gets opened."""
+    if request.endpoint in ('rental.static', 'rental.login'):
         return None
-    fresh = next((u for u in Storage.get_users() if u['id'] == current['id']), None)
-    if not fresh:
-        return current
-    fresh = {k: v for k, v in fresh.items() if k != 'password'}
-    session['user'] = fresh
-    # Upgrades an already-logged-in session from before this existed to a
-    # persistent one too, on its very next request — nobody has to log
-    # out and back in just to stop being logged out and back in.
-    session.permanent = True
-    return fresh
+    if session.get('user'):
+        validate_session()
+    return None
 
 @rental_bp.route('/api/data', methods=['GET'])
 @login_required
 def get_data():
     month = request.args.get('month') or datetime.now().strftime('%Y-%m')
-    data = RentalService.get_full_state(month, _refresh_session_user())
+    data = RentalService.get_full_state(month, session.get('user'))
     return jsonify(data)
 
 @rental_bp.route('/manifest.webmanifest')
@@ -164,24 +165,26 @@ def login():
     if error:
         return jsonify({'success': False, 'error': error}), 400
 
-    session['user'] = user
-    # See app.py's PERMANENT_SESSION_LIFETIME comment — without this the
-    # cookie has no real expiry at all, and a lot of mobile browsers/PWA
-    # contexts treat that as "gone" far sooner than an actual 30-day
-    # session would ever need to end.
-    session.permanent = True
+    # Stamps the session with the password it was opened with, so a later
+    # reset of that password invalidates this session instead of leaving
+    # it valid for the rest of its 30 days. See app.py's
+    # PERMANENT_SESSION_LIFETIME comment for the 30 days itself.
+    start_session(user, password)
     return jsonify({'success': True, 'user': user})
 
 @rental_bp.route('/api/auth/me', methods=['GET'])
 def get_current_user():
-    user = _refresh_session_user()
+    # before_request has already re-validated (and possibly cleared) this
+    # session — an empty one here means it didn't hold up, which is
+    # exactly the 401 the front-end restores the login screen on.
+    user = session.get('user')
     if not user:
         return jsonify({'success': False}), 401
     return jsonify({'success': True, 'user': user})
 
 @rental_bp.route('/api/auth/logout', methods=['POST'])
 def logout():
-    session.pop('user', None)
+    session.clear()
     return jsonify({'success': True})
 
 @rental_bp.route('/api/houses/save', methods=['POST'])
@@ -400,6 +403,14 @@ def save_user():
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
+    # An admin resetting their OWN password would otherwise walk straight
+    # into the session check they just invalidated — the next request would
+    # read a fingerprint that no longer matches and bounce them to the
+    # login screen from the very form they used to make the change. Their
+    # session is legitimate and they've just proven they know the new
+    # password (they chose it), so re-stamp it rather than log them out.
+    if data.get('newPassword') and data.get('id') == session.get('user', {}).get('id'):
+        restamp_session_password(data.get('newPassword'))
     # Same redaction as /api/users/create above — handleAdminSaveUser
     # doesn't currently read data.user.password back into state.users,
     # but there's no reason to ever put a plaintext password (this

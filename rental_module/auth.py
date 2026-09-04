@@ -1,6 +1,77 @@
+import hashlib
 from functools import wraps
 from flask import session, jsonify, request
 from .storage import Storage
+
+
+def password_fingerprint(password):
+    """A one-way marker of which password a session was opened with. Stored
+    in the session cookie alongside the user so validate_session() can tell
+    "this session was opened with the password that's still current" from
+    "this session predates a reset" — without ever putting the password
+    itself (which this app still stores in plaintext) into a cookie that
+    travels to the browser on every request."""
+    return hashlib.sha256((password or '').encode('utf-8')).hexdigest()
+
+
+def start_session(user, password):
+    """Open a logged-in session. See app.py's PERMANENT_SESSION_LIFETIME
+    comment for why permanent matters on mobile/PWA."""
+    session['user'] = user
+    session['pwdFp'] = password_fingerprint(password)
+    session.permanent = True
+
+
+def restamp_session_password(password):
+    """Called when the logged-in user changes their OWN password — without
+    this, the very next request would see their own session's fingerprint
+    go stale and log them out of the page they just used to make the
+    change."""
+    session['pwdFp'] = password_fingerprint(password)
+
+
+def validate_session():
+    """Re-check the logged-in session against the database and drop it if
+    it's no longer legitimate. session['user'] is a snapshot taken at
+    login, and the cookie lives 30 days, so without this an account keeps
+    full access after an admin has already taken it away:
+
+      - password reset: the new password lands in the DB, but whoever is
+        already logged in on their phone keeps browsing (and the admin,
+        reasonably, reads that as "đổi mật khẩu không ăn").
+      - "Khóa tài khoản": status flips to blocked, the account still can't
+        log in FRESH, but an existing session sails straight past it.
+
+    Also refreshes role/houseIds from the DB, so a permission or scope
+    change takes effect on the next request rather than the next login.
+    Returns the refreshed user, or None once the session has been cleared."""
+    current = session.get('user')
+    if not current:
+        return None
+
+    fresh = next((u for u in Storage.get_users() if u['id'] == current.get('id')), None)
+    if fresh is None:
+        # Account deleted out from under an open session.
+        session.clear()
+        return None
+
+    if fresh.get('status') != 'approved':
+        # Blocked (or reverted to pending) while logged in.
+        session.clear()
+        return None
+
+    # A session with no fingerprint at all was opened before this check
+    # existed. It can't be proven to match the current password, so it's
+    # treated as stale — one re-login per user, once, is the price of the
+    # reset actually meaning something from here on.
+    if session.get('pwdFp') != password_fingerprint(fresh.get('password')):
+        session.clear()
+        return None
+
+    safe_user = {k: v for k, v in fresh.items() if k != 'password'}
+    session['user'] = safe_user
+    session.permanent = True
+    return safe_user
 
 
 def login_required(fn):

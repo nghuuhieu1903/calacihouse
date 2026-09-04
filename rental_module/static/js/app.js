@@ -184,6 +184,7 @@ const I18N = {
     toast_view_not_permitted: 'Bạn không có quyền truy cập trang này. Liên hệ Super Admin để được cấp quyền.',
     toast_action_not_permitted: 'Bạn không có quyền thực hiện thao tác này. Thay đổi chưa được lưu — dữ liệu đã được khôi phục.',
     toast_logout_success: 'Đã đăng xuất tài khoản!',
+    toast_session_ended: 'Phiên đăng nhập đã kết thúc (mật khẩu vừa được đổi hoặc tài khoản bị khóa). Vui lòng đăng nhập lại!',
     role_superadmin_label: 'Super Admin',
     role_admin_label: 'Quản trị viên',
     role_manager_label: 'Quản lý',
@@ -851,6 +852,7 @@ const I18N = {
     toast_view_not_permitted: 'You do not have access to this page. Contact Super Admin for access.',
     toast_action_not_permitted: 'You do not have permission to do this. Your change was not saved — data has been restored.',
     toast_logout_success: 'Logged out successfully!',
+    toast_session_ended: 'Your session has ended (the password was changed or the account was locked). Please sign in again.',
     role_superadmin_label: 'Super Admin',
     role_admin_label: 'Administrator',
     role_manager_label: 'Manager',
@@ -1573,6 +1575,29 @@ async function handleLogin(event) {
   }
 }
 
+// Drops back to the login screen without calling the logout endpoint —
+// for when the SERVER has already ended the session (password reset,
+// account locked or deleted while logged in) and the page only finds out
+// from a 401. Mirrors handleLogout()'s teardown so the app doesn't end up
+// half-logged-out: stale state left in memory would otherwise still
+// render behind the login card and flash back on the next re-login.
+function forceLoginScreen(message) {
+  state.currentUser = null;
+  const usernameEl = document.getElementById('login-username');
+  const passwordEl = document.getElementById('login-password');
+  if (usernameEl) usernameEl.value = '';
+  if (passwordEl) passwordEl.value = '';
+  hideAppLoadingOverlay();
+  document.querySelectorAll('.modal-backdrop.active').forEach(m => m.classList.remove('active'));
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('cala-navbar').style.display = 'none';
+  document.getElementById('app-container').style.display = 'none';
+  if (message) showToast(message, 'error');
+  if (history.state && history.state.calaciView) {
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+}
+
 async function handleLogout() {
   try {
     await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
@@ -2080,6 +2105,18 @@ async function fetchState(skipRender) {
   // it's specifically the pre-first-render call that doesn't.
   try {
     const res = await fetch(`${API_BASE}/data?month=${state.currentMonth}`);
+    // The server now drops a session the moment the account behind it
+    // stops holding up — an admin reset its password, locked it, or
+    // deleted it (see validate_session() in auth.py). Before this, a 401
+    // here fell through the `if (res.ok)` silently and the page just sat
+    // there showing the data it had already loaded, so someone who'd been
+    // locked out kept reading a stale screen and every save they tried
+    // failed with a bare "không có quyền". Send them back to the login
+    // screen with a reason instead.
+    if (res.status === 401) {
+      forceLoginScreen(t('toast_session_ended'));
+      return;
+    }
     if (res.ok) {
       const data = await res.json();
       state.houses = data.houses || state.houses;
