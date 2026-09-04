@@ -160,15 +160,6 @@ class RentalService:
 
     @staticmethod
     def calculate_room_services_total(room, services):
-        # headcount only multiplies a "Theo đầu người" service for a KTX/
-        # dorm room, where it's the number of paying occupants that
-        # room's rent is itself split across (see room_rent_for_month).
-        # A single room's headcount is just informational — how many
-        # people happen to live there — not a per-person billing count,
-        # so a service like a flat monthly fee marked "Theo đầu người"
-        # must never get silently ×N just because someone filled in
-        # "4 người" on a single room's own info field.
-        headcount = room.get('headcount', 1) if room.get('roomType') == 'dorm' else 1
         house_id = room.get('houseId', 'house_a')
         room_id = room.get('id', '')
         
@@ -210,6 +201,17 @@ class RentalService:
                 parking_total += item_price
                 item_list.append({ 'id': s.get('id'), 'name': name, 'symbol': symbol, 'price': price, 'unit': item_unit, 'total': item_price, 'isParking': True })
             elif unit == 'Theo đầu người':
+                # A dorm room's per-person services always multiply by
+                # headcount — it's the number of paying occupants that
+                # room's rent is itself split across (see
+                # room_rent_for_month). A single room's headcount is
+                # otherwise just informational (how many people happen
+                # to live there), so a service here only multiplies on a
+                # single room when the admin explicitly opted it in via
+                # applyHeadcountSingle (Cấu Hình Dịch Vụ) — e.g. a flat
+                # non-metered water fee that genuinely is per person,
+                # unlike a shared cleaning fee that isn't.
+                headcount = room.get('headcount', 1) if (room.get('roomType') == 'dorm' or s.get('applyHeadcountSingle')) else 1
                 item_price = price * headcount
                 service_total += item_price
                 item_list.append({ 'id': s.get('id'), 'name': name, 'symbol': symbol, 'price': price, 'unit': f"{headcount} người x {price:,.0f}đ", 'total': item_price, 'isParking': False })
@@ -620,7 +622,7 @@ class RentalService:
         return None
 
     @staticmethod
-    def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None, investor_share=None):
+    def save_service(service_id, house_id, name, price, unit, house_ids=None, calc_type='fixed', custom_formula=None, icon='package', symbol='📦', room_ids=None, investor_share=None, apply_headcount_single=None):
         srv_id = service_id or f"srv_{uuid.uuid4().hex[:6]}"
         # applyRooms is a leftover column from an older scoping mechanism
         # the current UI never sets — carrying it forward rather than
@@ -640,7 +642,12 @@ class RentalService:
             'price': float(price or 0),
             'unit': unit,
             'applyRooms': existing.get('applyRooms', []),
-            'investorShare': investor_share if investor_share is not None else existing.get('investorShare')
+            'investorShare': investor_share if investor_share is not None else existing.get('investorShare'),
+            # Only meaningful for a "Theo đầu người" service — see
+            # calculate_room_services_total(). None (checkbox not part of
+            # this particular save payload) carries the existing value
+            # forward instead of silently turning it back off.
+            'applyHeadcountSingle': bool(apply_headcount_single) if apply_headcount_single is not None else bool(existing.get('applyHeadcountSingle'))
         }
 
         rooms = Storage.get_rooms()

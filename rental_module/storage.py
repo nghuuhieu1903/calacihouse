@@ -339,7 +339,12 @@ def _service(row):
         # of a shared formula library id.
         'customFormula': row['formula_id'] or '',
         'applyRooms': json.loads(row['apply_rooms']) if row['apply_rooms'] else [],
-        'investorShare': investor_share
+        'investorShare': investor_share,
+        # Only meaningful when unit == 'Theo đầu người' — whether this
+        # service also multiplies by headcount on a SINGLE room (a dorm
+        # room's per-person services always multiply, unconditionally;
+        # see calculate_room_services_total). Off by default.
+        'applyHeadcountSingle': bool(row.get('apply_headcount_single'))
     }
 
 def _formula(row):
@@ -808,12 +813,13 @@ class Storage:
                 next_order = cur.fetchone()['m'] + 1
                 cur.execute(
                     "INSERT INTO services "
-                    "(id, house_id, name, price, unit, icon, symbol, calc_type, formula_id, house_ids, room_ids, apply_rooms, investor_share, sort_order) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    "(id, house_id, name, price, unit, icon, symbol, calc_type, formula_id, house_ids, room_ids, apply_rooms, investor_share, apply_headcount_single, sort_order) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                     "ON DUPLICATE KEY UPDATE house_id=VALUES(house_id), name=VALUES(name), price=VALUES(price), "
                     "unit=VALUES(unit), icon=VALUES(icon), symbol=VALUES(symbol), calc_type=VALUES(calc_type), "
                     "formula_id=VALUES(formula_id), house_ids=VALUES(house_ids), room_ids=VALUES(room_ids), "
-                    "apply_rooms=VALUES(apply_rooms), investor_share=VALUES(investor_share)",
+                    "apply_rooms=VALUES(apply_rooms), investor_share=VALUES(investor_share), "
+                    "apply_headcount_single=VALUES(apply_headcount_single)",
                     (
                         s['id'],
                         s.get('houseId', ''),
@@ -828,6 +834,7 @@ class Storage:
                         json.dumps(s.get('roomIds', ['all'])),
                         json.dumps(s.get('applyRooms', [])),
                         json.dumps(investor_share),
+                        1 if s.get('applyHeadcountSingle') else 0,
                         next_order
                     )
                 )

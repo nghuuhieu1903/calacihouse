@@ -1187,11 +1187,20 @@
           </div>
           <div>
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_application_type">Hình thức áp dụng</label>
-            <select id="service-unit" class="form-control">
+            <select id="service-unit" class="form-control" onchange="toggleServiceHeadcountSingleBox()">
               <option value="Cố định / phòng" data-i18n="option_unit_fixed_room">Cố định / phòng</option>
               <option value="Theo đầu người" data-i18n="option_unit_per_person">Theo số người ở (VNĐ / người)</option>
               <option value="Theo xe / tháng" data-i18n="option_unit_per_vehicle">Theo xe / tháng</option>
             </select>
+          </div>
+          <div id="box-service-headcount-single" style="display:none; margin-top: 0.85rem;">
+            <label style="display:flex; align-items:flex-start; gap:0.5rem; cursor:pointer; font-size: 0.85rem;">
+              <input type="checkbox" id="service-apply-headcount-single" style="margin-top:0.2rem;">
+              <span>
+                <strong data-i18n="lbl_apply_headcount_single">Nhân theo số người ở cả với phòng đơn</strong><br>
+                <span style="font-size: 0.78rem; color: var(--text-secondary);" data-i18n="hint_apply_headcount_single">Phòng KTX luôn nhân theo số người. Bật thêm cho phòng đơn nếu dịch vụ này (VD: tiền nước) thật sự tính theo đầu người — để trống thì phòng đơn chỉ tính đúng 1 mức giá, không nhân theo "Số Người" (vì ô đó ở phòng đơn chỉ để ghi chú).</span>
+              </span>
+            </label>
           </div>
         </div>
 

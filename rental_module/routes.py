@@ -228,7 +228,8 @@ def save_service():
         data.get('icon'),
         data.get('symbol'),
         data.get('roomIds'),
-        data.get('investorShare')
+        data.get('investorShare'),
+        data.get('applyHeadcountSingle')
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400

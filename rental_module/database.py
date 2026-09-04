@@ -111,7 +111,8 @@ SCHEMA_STATEMENTS = [
         house_ids    TEXT,
         room_ids     TEXT,
         apply_rooms  TEXT,
-        investor_share TEXT
+        investor_share TEXT,
+        apply_headcount_single TINYINT(1) DEFAULT 0
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
     """
@@ -405,6 +406,16 @@ def init_db():
             _ensure_column(cur, 'houses', 'sort_order', "INT DEFAULT 0")
             _ensure_column(cur, 'rooms', 'sort_order', "INT DEFAULT 0")
             _ensure_column(cur, 'services', 'sort_order', "INT DEFAULT 0")
+            # A "Theo đầu người" service used to always multiply by
+            # room.headcount on a DORM room and never on a single room —
+            # too rigid: some per-person services (e.g. a flat non-metered
+            # water fee) need to multiply on a single room too when it
+            # genuinely has more than one occupant, while others (e.g. a
+            # shared cleaning fee) shouldn't. Default 0 (off) so every
+            # existing service keeps today's just-fixed single-room
+            # behavior (flat price, no multiply) unless an admin opts in
+            # per service.
+            _ensure_column(cur, 'services', 'apply_headcount_single', "TINYINT(1) DEFAULT 0")
             # KTX/dorm rooms share one roomId across several tenant
             # accounts — has_vehicle (a plain yes/no) couldn't say WHICH
             # of possibly several configured parking-fee services (e.g.

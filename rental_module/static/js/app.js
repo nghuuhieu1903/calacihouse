@@ -597,6 +597,8 @@ const I18N = {
     option_calc_formula: '🧮 Tính Theo Chỉ Số (Bảng tính hiện ô điền Chỉ số Cũ/Mới)',
     lbl_price_per_month: 'Đơn giá / Tháng (VNĐ)',
     lbl_application_type: 'Hình thức áp dụng',
+    lbl_apply_headcount_single: 'Nhân theo số người ở cả với phòng đơn',
+    hint_apply_headcount_single: 'Phòng KTX luôn nhân theo số người. Bật thêm cho phòng đơn nếu dịch vụ này (VD: tiền nước) thật sự tính theo đầu người — để trống thì phòng đơn chỉ tính đúng 1 mức giá, không nhân theo "Số Người" (vì ô đó ở phòng đơn chỉ để ghi chú).',
     option_unit_fixed_room: 'Cố định / phòng',
     option_unit_per_person: 'Theo số người ở (VNĐ / người)',
     option_unit_per_vehicle: 'Theo xe / tháng',
@@ -1262,6 +1264,8 @@ const I18N = {
     option_calc_formula: '🧮 By Reading (spreadsheet shows Old/New reading input cells)',
     lbl_price_per_month: 'Price / Month (VND)',
     lbl_application_type: 'Application Type',
+    lbl_apply_headcount_single: 'Also multiply by occupants on a single room',
+    hint_apply_headcount_single: 'A dorm room always multiplies by occupant count. Turn this on for a single room only if this service (e.g. a per-person water fee) genuinely bills per person — leave it off and a single room bills a flat price, ignoring "Occupants" (that field is informational there).',
     option_unit_fixed_room: 'Fixed / room',
     option_unit_per_person: 'Per occupant (VND / person)',
     option_unit_per_vehicle: 'Per vehicle / month',
@@ -2299,11 +2303,6 @@ function getFilteredServices() {
 }
 
 function calculateServiceCostForRoom(service, room) {
-  // headcount only multiplies a "Theo đầu người" service for a KTX/dorm
-  // room — a single room's headcount is just informational (how many
-  // people happen to live there), not a per-person billing count.
-  // Mirrors calculate_room_services_total() in services.py.
-  const headcount = room.roomType === 'dorm' ? (room.headcount || 1) : 1;
   const price = service.price || 0;
   const unit = service.unit || '';
 
@@ -2311,6 +2310,12 @@ function calculateServiceCostForRoom(service, room) {
     return 0; // Calculated via readings meter
   }
   if (unit === 'Theo đầu người') {
+    // A dorm room's per-person services always multiply by headcount; a
+    // single room only does when this service opted in via
+    // applyHeadcountSingle (Cấu Hình Dịch Vụ) — its headcount is
+    // otherwise just informational. Mirrors
+    // calculate_room_services_total() in services.py.
+    const headcount = (room.roomType === 'dorm' || service.applyHeadcountSingle) ? (room.headcount || 1) : 1;
     return price * headcount;
   }
   if (unit === 'Theo xe / tháng') {
@@ -2352,7 +2357,7 @@ function calculateRoomServiceTotal(room) {
     } else {
       serviceTotal += cost;
       serviceCount++;
-      const perPersonCount = room.roomType === 'dorm' ? (room.headcount || 1) : 1;
+      const perPersonCount = (room.roomType === 'dorm' || s.applyHeadcountSingle) ? (room.headcount || 1) : 1;
       items.push({ id: s.id, name, symbol, price: s.price, unit: unit === 'Theo đầu người' ? `${perPersonCount} ${t('formula_per_person_label')} x ${formatMoney(s.price)}đ` : unit, total: cost, isParking: false });
     }
   });
@@ -3038,6 +3043,18 @@ function toggleServiceCalcFields() {
     boxFixed.style.display = 'block';
     boxFormula.style.display = 'none';
   }
+  toggleServiceHeadcountSingleBox();
+}
+
+// Only a "Theo đầu người" service ever needs to say whether it also
+// multiplies by headcount on a single room (a dorm room's per-person
+// services always do, unconditionally) — every other "Hình thức áp
+// dụng" option has nothing to do with headcount at all.
+function toggleServiceHeadcountSingleBox() {
+  const calcType = document.getElementById('service-calc-type').value;
+  const unit = document.getElementById('service-unit').value;
+  const box = document.getElementById('box-service-headcount-single');
+  if (box) box.style.display = (calcType !== 'formula' && unit === 'Theo đầu người') ? 'block' : 'none';
 }
 
 function openAddServiceModal() {
@@ -3049,6 +3066,7 @@ function openAddServiceModal() {
   document.getElementById('service-price').value = '50000';
   document.getElementById('service-unit').value = 'Cố định / phòng';
   document.getElementById('service-custom-formula').value = '';
+  document.getElementById('service-apply-headcount-single').checked = false;
 
   renderIconPicker('package');
   toggleServiceCalcFields();
@@ -3087,6 +3105,8 @@ function editService(srvId) {
     document.getElementById('service-price').value = srv.price || 50000;
     document.getElementById('service-unit').value = srv.unit || 'Cố định / phòng';
   }
+  document.getElementById('service-apply-headcount-single').checked = !!srv.applyHeadcountSingle;
+  toggleServiceHeadcountSingleBox();
 
   document.getElementById('modal-service-config').classList.add('active');
 }
@@ -3120,6 +3140,9 @@ async function saveService(event) {
   } else {
     sObj.price = parseFloat(document.getElementById('service-price').value) || 0;
     sObj.unit = document.getElementById('service-unit').value;
+    if (sObj.unit === 'Theo đầu người') {
+      sObj.applyHeadcountSingle = document.getElementById('service-apply-headcount-single').checked;
+    }
   }
 
   const data = await postAndVerify(`${API_BASE}/services/save`, sObj);
@@ -3827,7 +3850,7 @@ async function generateAndSendAllInvoices() {
       } else {
         const cost = calculateServiceCostForRoom(s, r);
         totalAmount += cost;
-        const perPersonCount = r.roomType === 'dorm' ? (r.headcount || 1) : 1;
+        const perPersonCount = (r.roomType === 'dorm' || s.applyHeadcountSingle) ? (r.headcount || 1) : 1;
         serviceItems.push({
           id: s.id,
           name: s.name,
