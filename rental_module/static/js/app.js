@@ -3816,8 +3816,16 @@ async function viewMeterPhoto(roomId, field) {
 async function deleteMeterPhoto(roomId, field) {
   const ok = await showConfirmModal(t('mp_confirm_delete_photo'), { danger: true, okLabel: t('btn_delete') });
   if (!ok) return;
-  await updateReadingApi(roomId, field, '');
+  // Close right away instead of waiting on the network round trip first —
+  // updateReadingApi() already applies the deletion to local state (and
+  // re-renders the underlying spreadsheet) synchronously before it ever
+  // touches the network, so there's nothing left for this modal to wait
+  // on; awaiting it here only left the old photo sitting on screen for
+  // however long the request took, which read as stuck/laggy rather than
+  // deleted. postAndVerify inside it still resyncs everything from the
+  // server if the request actually fails.
   closeModal('modal-meter-photo');
+  updateReadingApi(roomId, field, '');
 }
 
 async function fetchReadingPhoto(month, roomId, field) {
@@ -3885,9 +3893,15 @@ async function updateReadingApi(roomId, field, value) {
   if (!state.readings[state.currentMonth]) state.readings[state.currentMonth] = {};
   if (!state.readings[state.currentMonth][roomId]) state.readings[state.currentMonth][roomId] = {};
   state.readings[state.currentMonth][roomId][field] = isReadingTextField(field) ? value : (parseFloat(value) || 0);
+  // Reflect the change (e.g. a photo's camera button losing its
+  // "has-photo" state right after deleting it) as soon as it's applied
+  // locally, not only once the network round trip finishes — waiting on
+  // that first is what made deleting a meter photo feel stuck/laggy,
+  // especially over a slow connection.
+  renderSpreadsheet();
 
   const data = await postAndVerify(`${API_BASE}/readings/update`, { month: state.currentMonth, roomId, field, value });
-  if (!data) return;
+  if (!data) return; // postAndVerify already resynced real state on failure
   renderSpreadsheet();
 }
 
@@ -5999,9 +6013,14 @@ async function saveElecReadingField(roomId, field, value) {
   if (!state.readings[state.currentMonth]) state.readings[state.currentMonth] = {};
   if (!state.readings[state.currentMonth][roomId]) state.readings[state.currentMonth][roomId] = {};
   state.readings[state.currentMonth][roomId][field] = field.endsWith('Photo') ? value : (parseFloat(value) || 0);
+  // Repaint from the locally-applied value first, same as updateReadingApi()
+  // does for the spreadsheet — the camera button has to drop its "has-photo"
+  // state the moment the photo is deleted, not once the upload/delete round
+  // trip comes back, which is what made deleting feel stuck.
+  renderManagerMeterPhotos();
 
   const data = await postAndVerify(`${API_BASE}/readings/elec-photo/save`, { month: state.currentMonth, roomId, field, value });
-  if (!data) return;
+  if (!data) return; // postAndVerify already resynced real state on failure
   renderManagerMeterPhotos();
 }
 
@@ -6021,8 +6040,12 @@ async function handleElecPhotoUpload(event, roomId) {
 async function deleteElecPhoto(roomId) {
   const ok = await showConfirmModal(t('mp_confirm_delete_photo'), { danger: true, okLabel: t('btn_delete') });
   if (!ok) return;
-  await saveElecReadingField(roomId, 'elecNewPhoto', '');
+  // Close before the network call, not after: saveElecReadingField() clears
+  // the photo from local state and re-renders synchronously, so there is
+  // nothing left for the modal to wait on — awaiting it here just left the
+  // deleted photo on screen for the length of the request.
   closeModal('modal-elec-photo');
+  saveElecReadingField(roomId, 'elecNewPhoto', '');
 }
 
 async function completeElecReading(roomId) {
