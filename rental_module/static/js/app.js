@@ -290,6 +290,8 @@ const I18N = {
     line_room_rent: 'Tiền Thuê Phòng',
     line_room_rent_short: 'Tiền nhà',
     line_fixed_by_contract: 'Cố định theo hợp đồng',
+    rent_prorated_note_prefix: 'Tính theo hợp đồng: ',
+    rent_prorated_note_days_suffix: 'ngày trong tháng',
     line_electricity: 'Tiền Điện',
     line_electricity_short: 'Tiền điện',
     line_water: 'Tiền Nước',
@@ -953,6 +955,8 @@ const I18N = {
     line_room_rent: 'Room Rent',
     line_room_rent_short: 'Room rent',
     line_fixed_by_contract: 'Fixed as per contract',
+    rent_prorated_note_prefix: 'Prorated by contract: ',
+    rent_prorated_note_days_suffix: 'days this month',
     line_electricity: 'Electricity',
     line_electricity_short: 'Electricity',
     line_water: 'Water',
@@ -3233,6 +3237,16 @@ function roomRentFormulaDescription(room, forAdmin) {
   return `${formatMoney(room.baseRent)}đ / ${t('formula_per_person_label')}`;
 }
 
+// Only set (by room_rent_for_month() in services.py) when a single
+// room's own contractStart/contractEnd actually narrowed this month's
+// rent below the full configured amount — explains a smaller-than-usual
+// "Tiền nhà" line instead of leaving it looking miscalculated.
+function rentProrationNoteHtml(inv) {
+  const p = inv && inv.rentProration;
+  if (!p) return '';
+  return `<br><small style="color:var(--cala-orange);">⏱ ${t('rent_prorated_note_prefix')}${p.occupiedDays}/${p.daysInMonth} ${t('rent_prorated_note_days_suffix')}</small>`;
+}
+
 function renderAdminDashboard() {
   const activeRooms = getFilteredRooms();
   const monthReadings = state.readings[state.currentMonth] || {};
@@ -5240,7 +5254,7 @@ function renderTenantInvoiceView() {
           </tr>
         </thead>
         <tbody>
-          <tr><td style="padding:0.75rem; font-weight:bold;">${rentLineNo}. ${t('line_room_rent')}</td><td style="padding:0.75rem;">${roomRentFormulaDescription(room, false)}</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(personalRent)} đ</td></tr>
+          <tr><td style="padding:0.75rem; font-weight:bold;">${rentLineNo}. ${t('line_room_rent')}</td><td style="padding:0.75rem;">${roomRentFormulaDescription(room, false)}${rentProrationNoteHtml(invoice)}</td><td style="padding:0.75rem; text-align:right; font-weight:700;">${formatMoney(personalRent)} đ</td></tr>
           ${elecLineNo ? `
           <tr>
             <td style="padding:0.75rem; font-weight:bold;">${elecLineNo}. ⚡ ${t('line_electricity')}
@@ -5466,7 +5480,7 @@ function viewInvoiceDetail(invoiceId) {
       <h3 style="color:#03121a;">${t('invoice_detail_title_prefix')}${inv.roomName}</h3>
       <div style="margin:1rem 0;">${t('tenant_colon_label')} <strong>${inv.tenant}</strong> (${inv.phone})</div>
       <table class="excel-table" style="color:#03121a;">
-        <tr><td>${rentLineNo}. ${t('line_room_rent_short')}${room && room.roomType === 'dorm' ? `<br><small style="color:#687176;">${roomRentFormulaDescription(room, true)}</small>` : ''}</td><td style="text-align:right;">${formatMoney(inv.baseRent)} đ</td></tr>
+        <tr><td>${rentLineNo}. ${t('line_room_rent_short')}${room && room.roomType === 'dorm' ? `<br><small style="color:#687176;">${roomRentFormulaDescription(room, true)}</small>` : ''}${rentProrationNoteHtml(inv)}</td><td style="text-align:right;">${formatMoney(inv.baseRent)} đ</td></tr>
         ${elecLineNo ? `
         <tr><td>${elecLineNo}. ⚡ ${t('line_electricity_short')} (${inv.elecUsage} kWh)
           <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${inv.id}')">

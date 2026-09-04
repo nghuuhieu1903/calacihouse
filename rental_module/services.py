@@ -1,5 +1,6 @@
 from .storage import Storage
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+import calendar
 import pymysql
 import re
 import uuid
@@ -44,11 +45,98 @@ class RentalService:
         """Dorm rooms (Phòng Ký Túc Xá) store baseRent as the per-person rate
         (see the room-type hint shown in the room form) — the amount actually
         owed for the room is that rate times headcount. Single rooms bill
-        baseRent as-is. Mirrors roomRentTotal() in app.js."""
+        baseRent as-is. Mirrors roomRentTotal() in app.js.
+
+        This is the FULL, unprorated configured rent — used everywhere a
+        room's rent is just being displayed/quoted (room list, formula
+        descriptions, the investor dashboard's rough monthly projection).
+        Actual invoice generation uses room_rent_for_month() below instead,
+        which prorates by contract dates for that specific month."""
         base_rent = room.get('baseRent', 0) or 0
         if room.get('roomType') == 'dorm':
             return base_rent * max(1, room.get('headcount') or 1)
         return base_rent
+
+    @staticmethod
+    def _days_in_month(month):
+        year, mm = month.split('-')
+        return calendar.monthrange(int(year), int(mm))[1]
+
+    @staticmethod
+    def _contract_overlap_days(contract_start, contract_end, month):
+        """How many days of `month` (YYYY-MM) fall within
+        [contract_start, contract_end] (YYYY-MM-DD strings, either side
+        blank for an open-ended contract — e.g. no end date yet means
+        "still living there through the end of this month"). Returns
+        (occupied_days, days_in_month); an invalid/unparseable date
+        string is treated the same as blank rather than erroring out."""
+        year, mm = month.split('-')
+        year, mm = int(year), int(mm)
+        days_in_month = calendar.monthrange(year, mm)[1]
+        month_start = date(year, mm, 1)
+        month_end = date(year, mm, days_in_month)
+
+        def parse(s):
+            if not s:
+                return None
+            try:
+                y, m, d = (int(p) for p in s.split('-'))
+                return date(y, m, d)
+            except (ValueError, TypeError):
+                return None
+
+        start = parse(contract_start) or month_start
+        end = parse(contract_end) or month_end
+        overlap_start = max(start, month_start)
+        overlap_end = min(end, month_end)
+        occupied_days = max(0, (overlap_end - overlap_start).days + 1)
+        return occupied_days, days_in_month
+
+    @staticmethod
+    def room_rent_for_month(room, month, users):
+        """room_rent_total(), prorated by actual contract-day overlap for
+        THIS invoice month — a room renting at 5.000.000đ/tháng where the
+        tenant only moved in on the 15th only owes for the days actually
+        lived there, not a full month. A room/tenant with no contract
+        dates set at all falls back to the old full-month amount
+        unchanged, so every room that predates this field keeps billing
+        exactly as before.
+
+        Dorm rooms have no room-level contract — each occupant ACCOUNT
+        carries its own start/end (see renderRoomOccupantsConfig in
+        app.js) — so this sums each occupant's own prorated share
+        instead of using headcount as a flat multiplier. A dorm room
+        with no occupant accounts at all (everyone still paying
+        off-system, nobody's logged in yet) falls back to the old
+        headcount × rate, unprorated, since there's nothing to prorate
+        against.
+
+        Returns (amount, proration) — proration is a
+        {occupiedDays, daysInMonth} dict when a single room's own dates
+        actually narrowed the amount, else None (full month, or a dorm
+        room where per-occupant proration doesn't reduce to one note)."""
+        base_rent = room.get('baseRent', 0) or 0
+        if room.get('roomType') == 'dorm':
+            occupants = [u for u in users
+                         if u.get('role') == 'tenant' and u.get('roomId') == room.get('id') and u.get('status') == 'approved']
+            if not occupants:
+                return base_rent * max(1, room.get('headcount') or 1), None
+            total = 0
+            for u in occupants:
+                cs, ce = u.get('contractStart') or '', u.get('contractEnd') or ''
+                if not cs and not ce:
+                    total += base_rent
+                    continue
+                occupied_days, days_in_month = RentalService._contract_overlap_days(cs, ce, month)
+                total += base_rent * (occupied_days / days_in_month) if days_in_month else 0
+            return total, None
+
+        cs, ce = room.get('contractStart') or '', room.get('contractEnd') or ''
+        if not cs and not ce:
+            return base_rent, None
+        occupied_days, days_in_month = RentalService._contract_overlap_days(cs, ce, month)
+        prorated = base_rent * (occupied_days / days_in_month) if days_in_month else 0
+        return prorated, {'occupiedDays': occupied_days, 'daysInMonth': days_in_month}
 
     @staticmethod
     def service_matches_house(s, target_house_id):
@@ -899,7 +987,8 @@ class RentalService:
 
     @staticmethod
     def generate_all_invoices(month):
-        rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), Storage.get_users())
+        users = Storage.get_users()
+        rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), users)
         services = Storage.get_services()
         readings = Storage.get_readings().get(month, {})
 
@@ -911,14 +1000,14 @@ class RentalService:
         # it back to "Chờ thanh toán". Building the whole list inside
         # update_invoices' locked mutate keeps the read-then-write atomic.
         def mutate(invoices):
-            RentalService._rebuild_invoices(invoices, month, rooms, services, readings)
+            RentalService._rebuild_invoices(invoices, month, rooms, services, readings, users)
             return invoices
 
         Storage.update_invoices(mutate)
         return len(rooms)
 
     @staticmethod
-    def _rebuild_invoices(invoices, month, rooms, services, readings):
+    def _rebuild_invoices(invoices, month, rooms, services, readings, users):
         for r in rooms:
             srv_tot, prk_tot, item_list = RentalService.calculate_room_services_total(r, services)
             rd = readings.get(r['id'], {'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0})
@@ -951,7 +1040,7 @@ class RentalService:
 
             service_fee = srv_tot
             parking_fee = prk_tot
-            room_rent = RentalService.room_rent_total(r)
+            room_rent, rent_proration = RentalService.room_rent_for_month(r, month, users)
 
             total_amount = room_rent + elec_cost + water_cost + service_fee + parking_fee
 
@@ -974,6 +1063,14 @@ class RentalService:
                 'tenant': r['tenant'],
                 'phone': r['phone'],
                 'baseRent': room_rent,
+                # Set only when a single room's own contract dates actually
+                # narrowed this month's rent below the full configured
+                # amount — lets the invoice UI show "16/30 ngày (15/09 →
+                # hết tháng)" instead of a smaller number with no
+                # explanation. None for a full month, and for dorm rooms
+                # (each occupant can have a different window, so one note
+                # wouldn't describe the room as a whole).
+                'rentProration': rent_proration,
                 'elecOld': rd.get('elecOld', 0),
                 'elecNew': rd.get('elecNew', 0),
                 'elecUsage': elec_usage,
