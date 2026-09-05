@@ -3397,18 +3397,23 @@ function proratedRatioForMonth(contractStart, contractEnd, month) {
 // this returns exactly roomRentTotal(), untouched).
 function roomRentForMonth(room, month) {
   const baseRent = (room && room.baseRent) || 0;
+  // Rounded down to the nearest 1.000đ — a day-based fraction of
+  // base_rent otherwise lands on an odd, un-billable number (e.g.
+  // 3.500.000đ × 10/31 = 1.129.032,26đ). Mirrors services.py.
+  const roundDown1000 = n => Math.floor(n / 1000) * 1000;
   if (room && room.roomType === 'dorm') {
     const occupants = state.users.filter(u => u.role === 'tenant' && u.roomId === room.id && u.status === 'approved');
     if (!occupants.length) return baseRent * Math.max(1, room.headcount || 1);
-    return occupants.reduce((total, u) => {
+    const total = occupants.reduce((sum, u) => {
       const cs = u.contractStart || '', ce = u.contractEnd || '';
-      if (!u.useContractProration || (!cs && !ce)) return total + baseRent;
-      return total + baseRent * proratedRatioForMonth(cs, ce, month).ratio;
+      if (!u.useContractProration || (!cs && !ce)) return sum + baseRent;
+      return sum + baseRent * proratedRatioForMonth(cs, ce, month).ratio;
     }, 0);
+    return roundDown1000(total);
   }
   const cs = (room && room.contractStart) || '', ce = (room && room.contractEnd) || '';
   if (!room || !room.useContractProration || (!cs && !ce)) return baseRent;
-  return baseRent * proratedRatioForMonth(cs, ce, month).ratio;
+  return roundDown1000(baseRent * proratedRatioForMonth(cs, ce, month).ratio);
 }
 
 // Room-rent line explanation for invoices — just the per-person rate, no

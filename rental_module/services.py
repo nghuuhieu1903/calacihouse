@@ -1,6 +1,7 @@
 from .storage import Storage
 from datetime import datetime, timedelta, date
 import calendar
+import math
 import pymysql
 import re
 import uuid
@@ -158,13 +159,19 @@ class RentalService:
                     continue
                 ratio, _, _ = RentalService._prorated_ratio_for_month(cs, ce, month)
                 total += base_rent * ratio
-            return total, None
+            # Rounded down to the nearest 1.000đ, same as the single-room
+            # branch below — a per-day split (base_rent × ratio) almost
+            # never lands on a clean number otherwise (e.g. 3.500.000đ ×
+            # 10/31 = 1.129.032,26đ), and nobody bills đồng-level change.
+            return math.floor(total / 1000) * 1000, None
 
         cs, ce = room.get('contractStart') or '', room.get('contractEnd') or ''
         if not room.get('useContractProration') or (not cs and not ce):
             return base_rent, None
         ratio, occupied_days, days_in_month = RentalService._prorated_ratio_for_month(cs, ce, month)
-        prorated = base_rent * ratio
+        # Rounded down to the nearest 1.000đ — a day-based fraction of
+        # base_rent otherwise lands on an odd, un-billable number.
+        prorated = math.floor(base_rent * ratio / 1000) * 1000
         proration = None if ratio == 1.0 else {'occupiedDays': occupied_days, 'daysInMonth': days_in_month}
         return prorated, proration
 
