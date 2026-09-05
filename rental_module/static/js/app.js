@@ -303,6 +303,7 @@ const I18N = {
     line_fixed_by_contract: 'Cố định theo hợp đồng',
     rent_prorated_note_prefix: 'Tính theo hợp đồng: ',
     rent_prorated_note_days_suffix: 'ngày trong tháng',
+    rent_not_occupied_yet_note: 'Chưa đến ngày vào ở / đã hết hạn hợp đồng — không tính tiền phòng tháng này',
     line_electricity: 'Tiền Điện',
     line_electricity_short: 'Tiền điện',
     line_water: 'Tiền Nước',
@@ -989,6 +990,7 @@ const I18N = {
     line_fixed_by_contract: 'Fixed as per contract',
     rent_prorated_note_prefix: 'Prorated by contract: ',
     rent_prorated_note_days_suffix: 'days this month',
+    rent_not_occupied_yet_note: 'Before move-in / after contract end — no room rent charged this month',
     line_electricity: 'Electricity',
     line_electricity_short: 'Electricity',
     line_water: 'Water',
@@ -3426,6 +3428,27 @@ function proratedRatioForMonth(contractStart, contractEnd, month) {
   return { ratio: occupied === daysInMonth ? 1 : 0, occupiedDays: occupied, daysInMonth };
 }
 
+// JS mirror of _month_outside_contract_window() in services.py — true
+// when `month` has NO overlap at all with [contractStart, contractEnd]
+// (entirely before move-in, or entirely after move-out). An occupancy
+// question, not a proration-formula one, so it applies even when
+// useContractProration is off.
+function monthOutsideContractWindow(contractStart, contractEnd, month) {
+  const [year, mm] = month.split('-').map(Number);
+  const daysInMonth = daysInMonthJs(month);
+  const monthStart = new Date(year, mm - 1, 1);
+  const monthEnd = new Date(year, mm - 1, daysInMonth);
+  function parse(s) {
+    if (!s) return null;
+    const parts = s.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+  const effectiveStart = parse(contractStart) || monthStart;
+  const effectiveEnd = parse(contractEnd) || monthEnd;
+  return effectiveEnd < monthStart || effectiveStart > monthEnd;
+}
+
 // JS mirror of room_rent_for_month() in services.py — see that
 // function's own comment. Opt-in via useContractProration (off means
 // this returns exactly roomRentTotal(), untouched).
@@ -3441,7 +3464,11 @@ function roomRentForMonth(room, month) {
     if (!occupants.length) return baseRent * headcount;
     let total = occupants.reduce((sum, u) => {
       const cs = u.contractStart || '', ce = u.contractEnd || '';
-      if (!u.useContractProration || (!cs && !ce)) return sum + baseRent;
+      if (!cs && !ce) return sum + baseRent;
+      // Not yet moved in (or already moved out) as of this month —
+      // never bills, regardless of useContractProration.
+      if (monthOutsideContractWindow(cs, ce, month)) return sum;
+      if (!u.useContractProration) return sum + baseRent;
       return sum + baseRent * proratedRatioForMonth(cs, ce, month).ratio;
     }, 0);
     // headcount is the authoritative total occupant count — it can
@@ -3453,7 +3480,13 @@ function roomRentForMonth(room, month) {
     return roundDown1000(total);
   }
   const cs = (room && room.contractStart) || '', ce = (room && room.contractEnd) || '';
-  if (!room || !room.useContractProration || (!cs && !ce)) return baseRent;
+  if (!room || (!cs && !ce)) return baseRent;
+  // Not yet moved in (or already moved out) as of this month — never
+  // bills, regardless of useContractProration. A room's tenant NAME can
+  // already be filled in ahead of the real move-in date, which must not
+  // make an earlier month's total charge full rent for nobody.
+  if (monthOutsideContractWindow(cs, ce, month)) return 0;
+  if (!room.useContractProration) return baseRent;
   return roundDown1000(baseRent * proratedRatioForMonth(cs, ce, month).ratio);
 }
 
@@ -3471,6 +3504,9 @@ function roomRentFormulaDescription(room, forAdmin) {
 function rentProrationNoteHtml(inv) {
   const p = inv && inv.rentProration;
   if (!p) return '';
+  if (p.occupiedDays === 0) {
+    return `<br><small style="color:var(--cala-orange);">⏱ ${t('rent_not_occupied_yet_note')}</small>`;
+  }
   return `<br><small style="color:var(--cala-orange);">⏱ ${t('rent_prorated_note_prefix')}${p.occupiedDays}/${p.daysInMonth} ${t('rent_prorated_note_days_suffix')}</small>`;
 }
 
@@ -3901,9 +3937,15 @@ function renderSpreadsheet() {
     const houseBadge = house ? `<br><span class="badge badge-resolved" style="font-size:0.65rem;">${house.name}</span>` : '';
     // Only a single room's own dates reduce to one clean "X/Y ngày" note —
     // a dorm room sums several occupants' own ratios, so no single note
-    // describes the room as a whole there.
-    const rentNote = (r.roomType !== 'dorm' && r.useContractProration && (r.contractStart || r.contractEnd))
+    // describes the room as a whole there. Shown whenever dates are set
+    // at all (occupancy is unconditional now — see roomRentForMonth),
+    // not just when useContractProration is also on.
+    const rentNote = (r.roomType !== 'dorm' && (r.contractStart || r.contractEnd))
       ? (() => {
+          if (monthOutsideContractWindow(r.contractStart, r.contractEnd, state.currentMonth)) {
+            return `<br><small style="color:var(--cala-orange);">⏱ ${t('rent_not_occupied_yet_note')}</small>`;
+          }
+          if (!r.useContractProration) return '';
           const { ratio, occupiedDays, daysInMonth } = proratedRatioForMonth(r.contractStart, r.contractEnd, state.currentMonth);
           return ratio !== 1 ? `<br><small style="color:var(--cala-orange);">⏱ ${occupiedDays}/${daysInMonth} ${t('rent_prorated_note_days_suffix')}</small>` : '';
         })()
@@ -4200,8 +4242,12 @@ async function generateAndSendAllInvoices() {
     // same invoiceId and let one room's invoice silently overwrite the
     // other's here. Mirrors the same fix in _rebuild_invoices (services.py).
     const idx = state.invoices.findIndex(i => i.roomId === r.id && i.month === state.currentMonth);
-    const rentProration = (r.roomType !== 'dorm' && r.useContractProration && (r.contractStart || r.contractEnd))
+    const rentProration = (r.roomType !== 'dorm' && (r.contractStart || r.contractEnd))
       ? (() => {
+          if (monthOutsideContractWindow(r.contractStart, r.contractEnd, state.currentMonth)) {
+            return { occupiedDays: 0, daysInMonth: daysInMonthJs(state.currentMonth) };
+          }
+          if (!r.useContractProration) return null;
           const p = proratedRatioForMonth(r.contractStart, r.contractEnd, state.currentMonth);
           return p.ratio !== 1 ? { occupiedDays: p.occupiedDays, daysInMonth: p.daysInMonth } : null;
         })()

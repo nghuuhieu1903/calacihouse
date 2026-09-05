@@ -124,12 +124,49 @@ class RentalService:
         return ratio, occupied, days_in_month
 
     @staticmethod
+    def _month_outside_contract_window(contract_start, contract_end, month):
+        """True when `month` has NO overlap at all with
+        [contract_start, contract_end] — entirely before move-in, or
+        entirely after move-out. This is an occupancy question ("was
+        this room even being rented that month"), not a proration
+        formula question, so it applies even when useContractProration
+        is off — a room whose contract only starts next month must
+        never bill full rent for this one just because day-based
+        splitting hasn't been turned on for it."""
+        year, mm = (int(x) for x in month.split('-'))
+        days_in_month = calendar.monthrange(year, mm)[1]
+        month_start = date(year, mm, 1)
+        month_end = date(year, mm, days_in_month)
+
+        def parse(s):
+            if not s:
+                return None
+            try:
+                y, m, d = (int(p) for p in s.split('-'))
+                return date(y, m, d)
+            except (ValueError, TypeError):
+                return None
+
+        effective_start = parse(contract_start) or month_start
+        effective_end = parse(contract_end) or month_end
+        return effective_end < month_start or effective_start > month_end
+
+    @staticmethod
     def room_rent_for_month(room, month, users):
-        """room_rent_total(), prorated by _prorated_ratio_for_month() for
-        THIS invoice month — opt-in per room/occupant via
-        useContractProration (off by default, so a room/account with
-        dates filled in but this NOT turned on still bills a full month
-        exactly as before this feature existed).
+        """room_rent_total(), adjusted for THIS invoice month by contract
+        dates. Two separate questions, both driven by the same
+        contractStart/contractEnd, only one of them opt-in:
+        - Occupancy ("was this room/occupant even being rented at all
+          that month") always applies once dates are set, regardless of
+          useContractProration — a contract starting next month bills
+          0 this month unconditionally; admin filling in the tenant
+          name/contract ahead of the real move-in date must never
+          charge rent for a month nobody was actually there yet.
+        - Day-based proration WITHIN the transition month itself (the
+          day 1-10 grace rule — see _prorated_ratio_for_month) is
+          opt-in via useContractProration; off means that one boundary
+          month still bills in full, same as before this feature
+          existed, for every room/account that predates it.
 
         Dorm rooms have no room-level contract — each occupant ACCOUNT
         carries its own start/end/useContractProration (see
@@ -155,7 +192,16 @@ class RentalService:
             total = 0
             for u in occupants:
                 cs, ce = u.get('contractStart') or '', u.get('contractEnd') or ''
-                if not u.get('useContractProration') or (not cs and not ce):
+                if not cs and not ce:
+                    total += base_rent
+                    continue
+                # Not yet moved in (or already moved out) as of this
+                # month — never bills, regardless of whether day-based
+                # proration is turned on for them; occupancy and
+                # proration are two different questions.
+                if RentalService._month_outside_contract_window(cs, ce, month):
+                    continue
+                if not u.get('useContractProration'):
                     total += base_rent
                     continue
                 ratio, _, _ = RentalService._prorated_ratio_for_month(cs, ce, month)
@@ -178,7 +224,19 @@ class RentalService:
             return math.floor(total / 1000) * 1000, None
 
         cs, ce = room.get('contractStart') or '', room.get('contractEnd') or ''
-        if not room.get('useContractProration') or (not cs and not ce):
+        if not cs and not ce:
+            return base_rent, None
+        # Not yet moved in (or already moved out) as of this month —
+        # never bills, regardless of whether day-based proration is
+        # turned on for this room; occupancy and proration are two
+        # different questions. A room's tenant NAME field can already
+        # be filled in ahead of the real move-in date (so admin can
+        # prepare/preview things), which must not make an earlier
+        # month's invoice charge full rent for a room nobody was
+        # actually renting yet.
+        if RentalService._month_outside_contract_window(cs, ce, month):
+            return 0, {'occupiedDays': 0, 'daysInMonth': RentalService._days_in_month(month)}
+        if not room.get('useContractProration'):
             return base_rent, None
         ratio, occupied_days, days_in_month = RentalService._prorated_ratio_for_month(cs, ce, month)
         # Rounded down to the nearest 1.000đ — a day-based fraction of
