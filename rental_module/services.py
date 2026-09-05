@@ -1655,13 +1655,23 @@ class RentalService:
         services = Storage.get_services()
         investor_expenses = Storage.get_investor_expenses()
         overrides = Storage.get_investor_report_overrides()
-        occupied_room_ids = {r['id'] for r in Storage.get_rooms() if r.get('tenant')}
+        rooms = Storage.get_rooms()
+        # Occupancy is month-specific (a room's tenant name can already
+        # be filled in ahead of its real move-in date — see
+        # room_occupied_this_month) — recomputed per month below rather
+        # than once from today's room state, same reasoning
+        # occupiedRoomIdSet(month) in app.js was given a month param for.
+        occupied_room_ids_by_month = {
+            month: {r['id'] for r in rooms if r.get('tenant') and RentalService.room_occupied_this_month(r, month)}
+            for month in months_to_snapshot
+        }
 
         for house in houses:
             investors = RentalService.investors_for_house(house['id'], users)
             if not investors:
                 continue
             for month in months_to_snapshot:
+                occupied_room_ids = occupied_room_ids_by_month[month]
                 for investor in investors:
                     data = RentalService.compute_investor_report_data(
                         house['id'], month, investor['id'], invoices, services,

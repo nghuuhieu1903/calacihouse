@@ -3592,7 +3592,7 @@ function renderInvestorDashboard() {
   // "doanh thu" (revenue) or "công nợ" (outstanding) even if an invoice
   // record happens to exist for it, since nobody actually owes that money.
   activeRooms.forEach(r => {
-    if (!r.tenant) return;
+    if (!r.tenant || !roomOccupiedThisMonth(r, state.currentMonth)) return;
     occupiedCount++;
     totalRent += roomRentForMonth(r, state.currentMonth);
 
@@ -3620,9 +3620,10 @@ function renderInvestorDashboard() {
   const totalRevenue = totalRent + totalElec + totalWater + totalService;
 
   // Same reasoning for collected/outstanding: an invoice tied to a room
-  // that's vacant right now isn't real money owed by anyone, so it's
+  // that's vacant (or not occupied yet/anymore THIS month — see
+  // roomOccupiedThisMonth) isn't real money owed by anyone, so it's
   // excluded from both regardless of what its stored status says.
-  const occupiedRoomIds = new Set(state.rooms.filter(r => r.tenant).map(r => r.id));
+  const occupiedRoomIds = occupiedRoomIdSet(state.currentMonth);
   const monthInvoices = state.invoices.filter(inv => inv.month === state.currentMonth && (state.currentHouseId === 'all' || inv.houseId === state.currentHouseId) && occupiedRoomIds.has(inv.roomId));
   const paidInvoices = monthInvoices.filter(i => i.status === 'Đã thanh toán');
   const pendingInvoices = monthInvoices.filter(i => i.status !== 'Đã thanh toán');
@@ -3685,8 +3686,10 @@ function renderInvestorDashboard() {
   if (tbody) {
     // Vacant rooms are left out entirely here — no tenant means no money
     // involved, and a "—" row still invited investors to ask what it
-    // meant. Simpler and unambiguous to just not list it.
-    const occupiedRooms = activeRooms.filter(r => r.tenant);
+    // meant. Simpler and unambiguous to just not list it. Same for a
+    // room whose tenant name is already filled in ahead of the real
+    // move-in date but isn't occupied THIS month yet.
+    const occupiedRooms = activeRooms.filter(r => r.tenant && roomOccupiedThisMonth(r, state.currentMonth));
     // Electricity for a room only ever has a number here when its own
     // "Điện" service is actually configured to be shared with THIS
     // investor (computeInvestorInvoiceBreakdown already gates that) —
@@ -3760,7 +3763,7 @@ function renderInvestorDashboard() {
         const houseTotal = houseInvoices.reduce((s, i) => s + computeInvestorInvoiceBreakdown(i, investorId).total, 0);
         houseBreakdownSum += houseTotal;
         const houseRooms = state.rooms.filter(r => r.houseId === h.id);
-        const houseOccupied = houseRooms.filter(r => r.tenant).length;
+        const houseOccupied = houseRooms.filter(r => r.tenant && roomOccupiedThisMonth(r, state.currentMonth)).length;
         return `
           <tr>
             <td><strong>${h.name}</strong></td>
@@ -4309,7 +4312,10 @@ function renderAdminInvoices() {
   // Đầu Tư and the investor's own dashboard already exclude these,
   // this list should too: a vacant room's invoice is just noise nobody
   // owes anything on, not something admin needs to chase payment for.
-  const occupiedRoomIds = new Set(state.rooms.filter(r => r.tenant).map(r => r.id));
+  // Same exclusion for a room whose tenant name is filled in ahead of
+  // the real move-in date but isn't occupied THIS month yet
+  // (roomOccupiedThisMonth) — it reads as "chưa thuê", same as vacant.
+  const occupiedRoomIds = occupiedRoomIdSet(state.currentMonth);
   const monthInvoices = state.invoices.filter(i => i.month === state.currentMonth && (state.currentHouseId === 'all' || i.houseId === state.currentHouseId) && occupiedRoomIds.has(i.roomId));
 
   // Invoices accumulate over time in whatever order they happened to get
@@ -4475,8 +4481,16 @@ function computeInvestorInvoiceBreakdown(inv, investorId) {
 // on Báo Cáo Chủ Đầu Tư even though renderInvestorDashboard (the
 // investor's own view of the same numbers) already excluded these.
 // Nobody actually owes this money, so it's filtered out here too.
-function occupiedRoomIdSet() {
-  return new Set(state.rooms.filter(r => r.tenant).map(r => r.id));
+//
+// Also excludes a room whose tenant NAME is already filled in ahead of
+// the real move-in date (admin preparing things early) but isn't
+// occupied THIS SPECIFIC month yet — roomOccupiedThisMonth() — so a
+// room like that reads as "chưa thuê" (not rented) and disappears from
+// these lists/totals exactly like a genuinely vacant one, instead of
+// sitting there at 0đ inviting the same "why is this here" confusion
+// hiding a real vacant room already avoids.
+function occupiedRoomIdSet(month) {
+  return new Set(state.rooms.filter(r => r.tenant && roomOccupiedThisMonth(r, month)).map(r => r.id));
 }
 
 // Every service that applies to this house — including ones NOT currently
@@ -4487,7 +4501,7 @@ function occupiedRoomIdSet() {
 // computeInvestorInvoiceBreakdown(), which only ever surfaces the
 // already-enabled ones for the revenue math itself.
 function computeHouseServiceSummary(houseId, month, investorId) {
-  const occupiedRoomIds = occupiedRoomIdSet();
+  const occupiedRoomIds = occupiedRoomIdSet(month);
   const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId && occupiedRoomIds.has(i.roomId));
   const houseServices = state.services.filter(s => serviceMatchesHouse(s, houseId));
 
@@ -4512,7 +4526,7 @@ function computeHouseServiceSummary(houseId, month, investorId) {
 }
 
 function computeInvestorReportData(houseId, month, investorId) {
-  const occupiedRoomIds = occupiedRoomIdSet();
+  const occupiedRoomIds = occupiedRoomIdSet(month);
   const invoices = state.invoices.filter(i => i.month === month && i.houseId === houseId && occupiedRoomIds.has(i.roomId));
   // Room rent is always sent to the investor in full — it's not part of
   // the per-service opt-in/opt-out system at all.
