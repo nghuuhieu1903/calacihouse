@@ -209,6 +209,14 @@
           <i data-lucide="shield-check"></i>
           <span data-i18n="nav_permissions">Phân Quyền Hệ Thống</span>
         </a>
+        <!-- Riêng tư: chỉ superadmin/admin. Ẩn mặc định ở đây rồi mới được
+             setupUserRoleUI() bật lên đúng vai trò — cùng cách làm với
+             Sao Lưu Dữ Liệu / Thiết Lập Trang, và switchView() còn chặn
+             một lần nữa nên ẩn nav không phải lớp bảo vệ duy nhất. -->
+        <a class="nav-item" data-view="admin-tax" id="nav-tax" style="display: none;">
+          <i data-lucide="landmark"></i>
+          <span data-i18n="nav_tax">Thuế Hộ Kinh Doanh</span>
+        </a>
         <a class="nav-item" data-view="admin-data-retention" id="nav-data-retention" style="display: none;">
           <i data-lucide="archive"></i>
           <span data-i18n="nav_data_retention">Sao Lưu Dữ Liệu</span>
@@ -695,6 +703,160 @@
           <div id="investor-report-breakdown-container"></div>
         </div>
 
+        <!-- BUSINESS-HOUSEHOLD TAX VIEW — ADMIN ONLY (see nav-tax above) -->
+        <div id="view-admin-tax" class="view-panel" style="display: none;">
+          <div class="cala-card" style="display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; padding: 0.85rem 1.1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <label style="font-size: 0.85rem; font-weight: 700;">📅 Năm tính thuế:</label>
+              <select id="tax-select-year" class="form-control" style="width: auto; min-width: 110px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 800;" onchange="handleTaxYearChange(this)"></select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <label style="font-size: 0.85rem; font-weight: 700;">🏢 Tòa nhà:</label>
+              <select id="tax-select-house" class="form-control" style="width: auto; min-width: 160px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleTaxHouseChange(this)"></select>
+            </div>
+            <div style="margin-left: auto; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="openTaxSettingsModal()">
+                <i data-lucide="settings-2"></i> <span>Tham Số Thuế</span>
+              </button>
+              <button class="btn btn-blue btn-sm" onclick="generateTaxEstimateRecords()">
+                <i data-lucide="wand-2"></i> <span>Tạo Sổ Từ Ước Tính</span>
+              </button>
+              <button class="btn btn-orange btn-sm" onclick="openTaxRecordModal()">
+                <i data-lucide="plus"></i> <span>Ghi Nhận Khoản Thuế</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Doanh thu tính thuế</div>
+                <div class="stat-val" id="tax-stat-revenue">0 đ</div>
+                <div id="tax-stat-revenue-note" style="font-size: 0.75rem; color: var(--text-secondary);"></div>
+              </div>
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: var(--cala-blue-light); color: var(--cala-blue); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="dollar-sign"></i>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Tổng thuế ước tính</div>
+                <div class="stat-val" id="tax-stat-estimated">0 đ</div>
+                <div id="tax-stat-estimated-note" style="font-size: 0.75rem; color: var(--text-secondary);"></div>
+              </div>
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: #fff2ec; color: var(--cala-orange); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="landmark"></i>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Đã nộp trong sổ</div>
+                <div class="stat-val" id="tax-stat-paid">0 đ</div>
+                <div id="tax-stat-paid-note" style="font-size: 0.75rem; color: var(--text-secondary);"></div>
+              </div>
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: #e6f9f2; color: var(--cala-emerald); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="check-circle"></i>
+              </div>
+            </div>
+            <div class="stat-card">
+              <div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600;">Tỷ lệ thuế / doanh thu</div>
+                <div class="stat-val" id="tax-stat-effective">0%</div>
+                <div id="tax-stat-effective-note" style="font-size: 0.75rem; color: var(--text-secondary);"></div>
+              </div>
+              <div style="width: 48px; height: 48px; border-radius: 50%; background: #ffecee; color: var(--cala-red); display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="percent"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kết luận nghiệp vụ: có vượt ngưỡng miễn thuế hay không, và
+               từng loại thuế ra con số đó bằng công thức nào. -->
+          <div class="cala-card" id="tax-analysis-card"></div>
+
+          <div class="cala-card">
+            <h3 style="margin-bottom: 1rem;"><i data-lucide="bar-chart-3" style="color: var(--cala-blue); vertical-align: middle; margin-right: 6px;"></i> Doanh Thu & Thuế Ước Tính Theo Tháng</h3>
+            <div id="tax-monthly-chart" style="display: flex; align-items: flex-end; gap: 0.4rem; height: 180px; overflow-x: auto; padding-bottom: 0.25rem;"></div>
+            <div class="excel-table-wrapper" style="margin-top: 1rem;">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th>Tháng</th>
+                    <th style="text-align: right;">Số HĐ</th>
+                    <th style="text-align: right;">Doanh thu HĐ</th>
+                    <th style="text-align: right;">Tiền thuê phòng</th>
+                    <th style="text-align: right;">Đã thu</th>
+                    <th style="text-align: right;">DT tính thuế</th>
+                    <th style="text-align: right;">GTGT + TNCN ước tính</th>
+                  </tr>
+                </thead>
+                <tbody id="tax-monthly-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="cala-card">
+            <h3 style="margin-bottom: 0.35rem;"><i data-lucide="scale" style="color: var(--cala-orange); vertical-align: middle; margin-right: 6px;"></i> Đối Chiếu Ước Tính ↔ Sổ Thuế</h3>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">Cột "Ước tính" do hệ thống tính từ doanh thu hóa đơn; cột "Đã ghi nhận" là số tiền admin nhập tay theo thông báo thuế thực tế. Chênh lệch lớn thường là do doanh thu khoán cơ quan thuế ấn định khác với doanh thu thực.</p>
+            <div class="excel-table-wrapper">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th>Loại thuế</th>
+                    <th style="text-align: right;">Ước tính</th>
+                    <th style="text-align: right;">Đã ghi nhận</th>
+                    <th style="text-align: right;">Đã nộp</th>
+                    <th style="text-align: right;">Chênh lệch</th>
+                  </tr>
+                </thead>
+                <tbody id="tax-variance-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="cala-card">
+            <h3 style="margin-bottom: 1rem;"><i data-lucide="building-2" style="color: var(--cala-blue); vertical-align: middle; margin-right: 6px;"></i> Phân Bổ Theo Tòa Nhà</h3>
+            <div class="excel-table-wrapper">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th>Tòa nhà</th>
+                    <th style="text-align: right;">Số HĐ</th>
+                    <th style="text-align: right;">DT tính thuế</th>
+                    <th style="text-align: right;">Tỷ trọng</th>
+                    <th style="text-align: right;">GTGT</th>
+                    <th style="text-align: right;">TNCN</th>
+                    <th style="text-align: right;">Tổng thuế</th>
+                  </tr>
+                </thead>
+                <tbody id="tax-by-house-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="cala-card">
+            <h3 style="margin-bottom: 1rem;"><i data-lucide="book-open" style="color: var(--cala-emerald); vertical-align: middle; margin-right: 6px;"></i> Sổ Thuế Đã Ghi Nhận</h3>
+            <div class="excel-table-wrapper">
+              <table class="excel-table">
+                <thead>
+                  <tr>
+                    <th>Kỳ</th>
+                    <th>Loại thuế</th>
+                    <th>Phạm vi</th>
+                    <th style="text-align: right;">Căn cứ DT</th>
+                    <th style="text-align: right;">Thuế suất</th>
+                    <th style="text-align: right;">Số tiền</th>
+                    <th>Trạng thái</th>
+                    <th>Ghi chú</th>
+                    <th style="text-align: right;">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody id="tax-records-table-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <!-- HOUSE / BUILDING MANAGEMENT VIEW -->
         <div id="view-admin-houses" class="view-panel" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.75rem;">
@@ -1109,6 +1271,146 @@
   </div>
 
   <!-- Modal Add / Edit Investor Expense (installation / repair cost for the month) -->
+  <!-- TAX RECORD MODAL — ADMIN ONLY -->
+  <div class="modal-backdrop" id="modal-tax-record">
+    <div class="modal-card" style="max-width: 520px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3 id="modal-tax-record-title"><i data-lucide="landmark" style="color: var(--cala-orange); vertical-align: middle;"></i> Ghi Nhận Khoản Thuế</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-tax-record')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-tax-record" onsubmit="submitTaxRecord(event)">
+        <input type="hidden" id="tx-id">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Loại Thuế</label>
+            <select id="tx-tax-type" class="form-control" onchange="onTaxTypeChange()" required>
+              <option value="mon_bai">Lệ phí môn bài</option>
+              <option value="gtgt">Thuế GTGT (khoán)</option>
+              <option value="tncn">Thuế TNCN (khoán)</option>
+              <option value="khac">Khoản nộp khác</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Kỳ Tính Thuế</label>
+            <!-- Thuế khoán có thể được ấn định theo tháng hoặc chốt cả năm,
+                 tùy cơ quan thuế — nên kỳ là một lựa chọn chứ không suy ra
+                 từ loại thuế. Riêng lệ phí môn bài thì luôn là khoản cả
+                 năm, onTaxTypeChange() khóa ô này lại ở "Cả năm". -->
+            <select id="tx-period-mode" class="form-control" style="margin-bottom: 0.4rem;" onchange="onTaxPeriodModeChange()">
+              <option value="year">Cả năm</option>
+              <option value="month">Theo tháng</option>
+            </select>
+            <input type="number" id="tx-period-year" class="form-control" min="2000" max="2100" step="1" placeholder="2026">
+            <input type="month" id="tx-period-month" class="form-control" style="display:none;">
+          </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Phạm Vi</label>
+          <select id="tx-house-id" class="form-control"></select>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Doanh Thu Căn Cứ (VNĐ)</label>
+            <input type="number" id="tx-revenue-base" class="form-control" min="0" step="1000" oninput="recomputeTaxAmountFromRate()">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Thuế Suất (%)</label>
+            <input type="number" id="tx-rate" class="form-control" min="0" step="0.1" oninput="recomputeTaxAmountFromRate()">
+          </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Số Tiền Thuế (VNĐ)</label>
+          <input type="number" id="tx-amount" class="form-control" min="0" step="1000" required>
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Tự tính = Doanh thu căn cứ × Thuế suất; vẫn sửa tay được để khớp đúng thông báo thuế.</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Trạng Thái</label>
+            <select id="tx-status" class="form-control" onchange="onTaxStatusChange()">
+              <option value="unpaid">Chưa nộp</option>
+              <option value="paid">Đã nộp</option>
+            </select>
+          </div>
+          <div id="tx-paid-date-box" style="display: none;">
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Ngày Nộp</label>
+            <input type="date" id="tx-paid-date" class="form-control">
+          </div>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Ghi Chú</label>
+          <input type="text" id="tx-note" class="form-control" placeholder="VD: Theo thông báo thuế khoán số ...">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-tax-record')">Hủy</button>
+          <button type="submit" class="btn btn-orange">Lưu Khoản Thuế</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TAX SETTINGS MODAL — ADMIN ONLY -->
+  <div class="modal-backdrop" id="modal-tax-settings">
+    <div class="modal-card" style="max-width: 560px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="settings-2" style="color: var(--cala-blue); vertical-align: middle;"></i> Tham Số Tính Thuế</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-tax-settings')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-tax-settings" onsubmit="submitTaxSettings(event)">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên Hộ Kinh Doanh</label>
+            <input type="text" id="ts-business-name" class="form-control">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Mã Số Thuế</label>
+            <input type="text" id="ts-tax-code" class="form-control">
+          </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Ngưỡng Doanh Thu Miễn Thuế / Năm (VNĐ)</label>
+          <input type="number" id="ts-threshold" class="form-control" min="0" step="1000000" required>
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Doanh thu cả năm từ mức này trở xuống thì không phải nộp GTGT &amp; TNCN. Vượt ngưỡng thì tính thuế trên toàn bộ doanh thu, không chỉ phần vượt.</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Thuế Suất GTGT (%)</label>
+            <input type="number" id="ts-vat-rate" class="form-control" min="0" step="0.1" required>
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Thuế Suất TNCN (%)</label>
+            <input type="number" id="ts-pit-rate" class="form-control" min="0" step="0.1" required>
+          </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Doanh Thu Tính Thuế Lấy Theo</label>
+          <select id="ts-revenue-basis" class="form-control">
+            <option value="total">Toàn bộ hóa đơn (thuê + điện nước + dịch vụ)</option>
+            <option value="rent_only">Chỉ tiền thuê phòng (coi điện/nước/dịch vụ là thu hộ)</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Thời Điểm Ghi Nhận Doanh Thu</label>
+          <select id="ts-revenue-recognition" class="form-control">
+            <option value="invoiced">Theo hóa đơn đã phát hành</option>
+            <option value="collected">Chỉ tính hóa đơn đã thu được tiền</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+          <input type="checkbox" id="ts-license-enabled" style="width: 18px; height: 18px;">
+          <label for="ts-license-enabled" style="font-size: 0.85rem; font-weight: 700;">Áp dụng lệ phí môn bài (bỏ chọn cho năm được miễn)</label>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Bậc Lệ Phí Môn Bài Theo Doanh Thu / Năm</label>
+          <div id="ts-license-tiers" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-tax-settings')">Hủy</button>
+          <button type="submit" class="btn btn-blue">Lưu Tham Số</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="modal-investor-expense">
     <div class="modal-card" style="max-width: 480px;">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">

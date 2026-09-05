@@ -170,6 +170,30 @@ SCHEMA_STATEMENTS = [
         images_json   LONGTEXT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
+    # Sổ thuế Hộ Kinh Doanh — một dòng = một khoản thuế đã kê khai/đã nộp
+    # cho MỘT kỳ (lệ phí môn bài tính theo năm, GTGT/TNCN khoán tính theo
+    # tháng/quý/năm tùy cách cơ quan thuế ấn định). Đây là bảng "sự thật đã
+    # xảy ra" — hoàn toàn tách khỏi phần ƯỚC TÍNH mà services.py tự tính ra
+    # từ doanh thu hóa đơn: trang phân tích đặt hai con số cạnh nhau để chỉ
+    # ra chênh lệch, nên gộp chung vào một chỗ là mất đúng thứ cần so sánh.
+    # house_id rỗng = khoản thuế của cả hộ kinh doanh, không gắn riêng tòa
+    # nào (lệ phí môn bài thường rơi vào trường hợp này).
+    """
+    CREATE TABLE IF NOT EXISTS tax_records (
+        id           VARCHAR(191) PRIMARY KEY,
+        house_id     VARCHAR(191) DEFAULT '',
+        year         VARCHAR(8) DEFAULT '',
+        period       VARCHAR(16) DEFAULT '',
+        tax_type     VARCHAR(32) DEFAULT '',
+        revenue_base DOUBLE DEFAULT 0,
+        rate         DOUBLE DEFAULT 0,
+        amount       DOUBLE DEFAULT 0,
+        status       VARCHAR(32) DEFAULT 'unpaid',
+        paid_date    VARCHAR(10) DEFAULT '',
+        note         TEXT,
+        created_at   VARCHAR(32) DEFAULT ''
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
     # Generic key-value store for readings, invoices, permissions & room
     # documents — all of which nest arbitrary JSON (including photos).
     """

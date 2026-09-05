@@ -216,6 +216,46 @@ DEFAULT_SITE_SETTINGS = {
 }
 
 
+# Tham số tính thuế Hộ Kinh Doanh (thuế khoán cho hoạt động cho thuê nhà).
+# Mọi con số ở đây đều là THAM SỐ CẤU HÌNH chứ không hardcode trong công
+# thức: chính sách thuế đổi khá thường xuyên (riêng ngưỡng doanh thu miễn
+# thuế đã đổi từ 100 triệu lên 200 triệu/năm kể từ 01/01/2026 theo Luật
+# Thuế GTGT 2024), và một bản cài đặt chạy nhiều năm phải tra lại được số
+# liệu năm cũ bằng đúng tham số của năm đó. Admin sửa trực tiếp trong
+# modal "Tham Số Thuế" ở trang Thuế Hộ Kinh Doanh.
+DEFAULT_TAX_SETTINGS = {
+    'businessName': '',
+    'taxCode': '',
+    # Ngưỡng doanh thu/năm: từ mức này TRỞ XUỐNG thì không phải nộp GTGT &
+    # TNCN. Lưu ý nghiệp vụ: vượt ngưỡng thì tính thuế trên TOÀN BỘ doanh
+    # thu, không phải chỉ phần vượt — computeTax bên dưới làm đúng như vậy.
+    'revenueThreshold': 200000000,
+    # Cho thuê tài sản: GTGT 5% + TNCN 5% trên doanh thu (Thông tư
+    # 40/2021/TT-BTC, Phụ lục I).
+    'vatRate': 5.0,
+    'pitRate': 5.0,
+    # Lệ phí môn bài theo bậc doanh thu/năm (Nghị định 139/2016/NĐ-CP).
+    # `max` = None nghĩa là bậc cuối, không có trần. Đặt licenseFeeEnabled
+    # = False cho những năm hộ kinh doanh được miễn lệ phí môn bài.
+    'licenseFeeEnabled': True,
+    'licenseFeeTiers': [
+        {'min': 0,         'max': 100000000, 'fee': 0},
+        {'min': 100000000, 'max': 300000000, 'fee': 300000},
+        {'min': 300000000, 'max': 500000000, 'fee': 500000},
+        {'min': 500000000, 'max': None,      'fee': 1000000}
+    ],
+    # Doanh thu tính thuế lấy theo đâu:
+    #   'total'     — toàn bộ số tiền trên hóa đơn (thuê + điện nước + dịch vụ)
+    #   'rent_only' — chỉ tiền thuê phòng, coi điện/nước/dịch vụ là thu hộ
+    # Đây là điểm hay bị tranh luận nhất khi quyết toán, nên để hộ kinh
+    # doanh tự chọn và trang phân tích luôn hiển thị CẢ HAI con số.
+    'revenueBasis': 'total',
+    # 'invoiced'  — ghi nhận doanh thu theo hóa đơn đã phát hành
+    # 'collected' — chỉ tính hóa đơn đã thu được tiền
+    'revenueRecognition': 'invoiced'
+}
+
+
 # ---------------------------------------------------------------------------
 # Row → dict converters (DB column names are snake_case, app uses camelCase)
 # ---------------------------------------------------------------------------
@@ -390,6 +430,22 @@ def _investor_report_override(row):
         'houseId': row['house_id'] or '',
         'month': row['month'] or '',
         'amount': row['amount'] or 0,
+        'note': row['note'] or '',
+        'createdAt': row['created_at'] or ''
+    }
+
+def _tax_record(row):
+    return {
+        'id': row['id'],
+        'houseId': row['house_id'] or '',
+        'year': row['year'] or '',
+        'period': row['period'] or '',
+        'taxType': row['tax_type'] or '',
+        'revenueBase': row['revenue_base'] or 0,
+        'rate': row['rate'] or 0,
+        'amount': row['amount'] or 0,
+        'status': row['status'] or 'unpaid',
+        'paidDate': row['paid_date'] or '',
         'note': row['note'] or '',
         'createdAt': row['created_at'] or ''
     }
@@ -1492,3 +1548,84 @@ class Storage:
     @staticmethod
     def update_room_photos(mutate):
         return Storage._kv_update('room_photos', {}, mutate)
+
+
+    # -- Thuế Hộ Kinh Doanh (private, chỉ admin đọc/ghi) --------------------
+    # Cố tình KHÔNG có mặt trong get_full_state(): sổ thuế không phải dữ
+    # liệu dùng chung như phòng/dịch vụ, và bulk payload /api/data đi tới
+    # mọi vai trò (tenant, saler, investor) — chỉ cần lỡ tay thêm vào đó
+    # một lần là số liệu thuế của hộ kinh doanh nằm sẵn trong tab Network
+    # của khách thuê. Trang Thuế tự gọi /api/tax/* của riêng nó.
+
+    @staticmethod
+    def get_tax_records():
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT * FROM tax_records ORDER BY year DESC, period DESC, created_at DESC"
+                )
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+        return [_tax_record(r) for r in rows]
+
+    @staticmethod
+    def save_tax_record(t):
+        """Upsert một dòng sổ thuế theo khóa chính — cùng lý do như
+        save_house(): ghi đúng một dòng thay vì đọc cả bảng rồi ghi lại,
+        nên hai admin sửa hai khoản thuế khác nhau cùng lúc không đè
+        nhau."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "REPLACE INTO tax_records "
+                    "(id, house_id, year, period, tax_type, revenue_base, rate, amount, "
+                    "status, paid_date, note, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        t['id'],
+                        t.get('houseId', ''),
+                        t.get('year', ''),
+                        t.get('period', ''),
+                        t.get('taxType', ''),
+                        t.get('revenueBase', 0),
+                        t.get('rate', 0),
+                        t.get('amount', 0),
+                        t.get('status', 'unpaid'),
+                        t.get('paidDate', ''),
+                        t.get('note', ''),
+                        t.get('createdAt', '')
+                    )
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_tax_record(record_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM tax_records WHERE id=%s", (record_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+    # -- Tham số tính thuế (một object toàn cục, xem DEFAULT_TAX_SETTINGS) --
+
+    @staticmethod
+    def get_tax_settings():
+        """Trộn với DEFAULT_TAX_SETTINGS thay vì trả thẳng giá trị đã lưu:
+        một tham số thêm vào sau này (ví dụ sau đây có thêm loại thuế mới)
+        sẽ vắng mặt trong bản ghi cũ, và thiếu key ở đây nghĩa là công
+        thức tính lăn ra 0 chứ không phải rơi về mặc định."""
+        stored = Storage._kv_get('tax_settings', {})
+        settings = copy.deepcopy(DEFAULT_TAX_SETTINGS)
+        settings.update(stored or {})
+        return settings
+
+    @staticmethod
+    def save_tax_settings(settings):
+        Storage._kv_set('tax_settings', settings)

@@ -1057,3 +1057,69 @@ def delete_room_photo():
     data = request.json or {}
     success = RentalService.delete_room_photo(data.get('roomId'), data.get('id'))
     return jsonify({'success': success})
+
+# ===========================================================================
+# THUẾ HỘ KINH DOANH — private, chỉ tài khoản Admin
+# ===========================================================================
+# Mọi route dưới đây dùng @admin_required, tức superadmin + admin, KHÔNG đi
+# qua ma trận phân quyền: sổ thuế không phải một "tính năng vận hành" để
+# bật/tắt cho manager, mà là số liệu tài chính riêng của chủ hộ kinh doanh —
+# không có bậc quyền nào ở giữa để mở ra cho vai trò khác. Vì vậy nó cũng
+# không có mặt trong ma trận /api/permissions và không lọt vào bulk payload
+# /api/data (thứ mà tenant/saler/investor đều gọi được).
+#
+# Riêng route xóa: phần còn lại của app quy ước xóa là @superadmin_required.
+# Ở đây cố tình dùng @admin_required vì đúng theo yêu cầu, admin là người
+# sở hữu trọn vẹn nghiệp vụ thuế (tự nhập, tự sửa, tự bỏ dòng nhập sai) —
+# đổi thành superadmin_required là đủ nếu sau này muốn siết lại.
+
+@rental_bp.route('/api/tax/overview', methods=['GET'])
+@admin_required
+def tax_overview():
+    year = request.args.get('year') or ''
+    house_id = request.args.get('houseId') or 'all'
+    data = RentalService.get_tax_overview(year, house_id)
+    return jsonify({'success': True, 'overview': data})
+
+@rental_bp.route('/api/tax/records/save', methods=['POST'])
+@admin_required
+def save_tax_record():
+    data = request.json or {}
+    if not (data.get('period') or '').strip():
+        return jsonify({'success': False, 'error': 'Thiếu kỳ tính thuế (năm hoặc tháng)'}), 400
+    record = RentalService.save_tax_record(
+        data.get('id'),
+        data.get('houseId'),
+        data.get('year'),
+        data.get('period'),
+        data.get('taxType'),
+        data.get('revenueBase'),
+        data.get('rate'),
+        data.get('amount'),
+        data.get('status'),
+        data.get('paidDate'),
+        data.get('note')
+    )
+    return jsonify({'success': True, 'record': record})
+
+@rental_bp.route('/api/tax/records/delete', methods=['POST'])
+@admin_required
+def delete_tax_record():
+    data = request.json or {}
+    RentalService.delete_tax_record(data.get('id'))
+    return jsonify({'success': True})
+
+@rental_bp.route('/api/tax/records/generate', methods=['POST'])
+@admin_required
+def generate_tax_records():
+    data = request.json or {}
+    year = str(data.get('year') or datetime.now().strftime('%Y'))
+    records = RentalService.generate_tax_estimate_records(year)
+    return jsonify({'success': True, 'records': records})
+
+@rental_bp.route('/api/tax/settings/save', methods=['POST'])
+@admin_required
+def save_tax_settings():
+    data = request.json or {}
+    settings = RentalService.save_tax_settings(data.get('settings') or {})
+    return jsonify({'success': True, 'settings': settings})
