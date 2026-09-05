@@ -344,6 +344,10 @@ const I18N = {
     lbl_occupants_config: 'Cấu Hình Từng Người Ở',
     room_occupants_empty_state: 'Chưa có tài khoản khách thuê nào gán vào phòng này.',
     toast_occupant_settings_saved: 'Đã lưu cấu hình người ở.',
+    lbl_room_leader_hint: 'tên hiển thị của phòng — mỗi người vẫn thấy tên thật của mình trên hóa đơn riêng',
+    lbl_room_leader_badge: 'Trưởng phòng',
+    btn_set_as_leader: 'Đặt làm trưởng phòng',
+    toast_room_leader_updated: 'Đã cập nhật tên hiển thị của phòng.',
     document_visible_all_members: 'Tất cả thành viên phòng',
     toast_document_visibility_updated: 'Đã cập nhật người xem được ảnh.',
     col_ticket_id: 'Mã Ticket',
@@ -1035,6 +1039,10 @@ const I18N = {
     lbl_occupants_config: 'Per-Occupant Settings',
     room_occupants_empty_state: 'No tenant accounts assigned to this room yet.',
     toast_occupant_settings_saved: 'Occupant settings saved.',
+    lbl_room_leader_hint: "the room's own display name — each occupant still sees their own real name on their own invoice",
+    lbl_room_leader_badge: 'Room leader',
+    btn_set_as_leader: 'Set as room leader',
+    toast_room_leader_updated: "Updated the room's display name.",
     document_visible_all_members: 'Everyone in the room',
     toast_document_visibility_updated: 'Updated who can see this photo.',
     col_ticket_id: 'Ticket ID',
@@ -1877,7 +1885,14 @@ function setupUserRoleUI() {
     roleEl.innerText = t('role_saler_label');
   } else {
     avatarText.innerText = user.username.substring(0, 2).toUpperCase();
-    roleEl.innerText = user.roomId ? `${t('col_room')} ${user.roomId.replace('R', '')}` : t('role_tenant_label');
+    // user.roomId is the room's internal id (e.g. an auto-generated
+    // "R_mtavua3ri8fi9p" for a room created without an explicit id) —
+    // showing it directly (stripping a leading "R") only ever looked
+    // right by coincidence for the handful of rooms whose id happens to
+    // start with "R" + a short number. Look up the room's own name
+    // instead, which is what this is actually meant to show.
+    const userRoom = user.roomId ? state.rooms.find(r => r.id === user.roomId) : null;
+    roleEl.innerText = userRoom ? `${t('col_room')} ${userRoom.name}` : t('role_tenant_label');
   }
 
   nameEl.innerText = user.fullName;
@@ -5799,7 +5814,13 @@ function renderTenantInvoiceView() {
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; font-size: 0.9rem;">
         <div>
           <div style="color: #687176; font-size: 0.8rem; text-transform: uppercase; font-weight: 700;">${t('tenant_info_label')}</div>
-          <div style="font-weight: 800; font-size: 1.15rem; margin-top: 0.25rem; color: #03121a;">${invoice.tenant}</div>
+          <!-- invoice.tenant is the room's own single text field — for a
+               KTX room that's whichever one occupant it happens to be
+               set to (often called "trưởng phòng"), the same for every
+               occupant's invoice. This tenant's own account already
+               knows their own real name, which is what THEY should see
+               on THEIR bill, not their roommate's. -->
+          <div style="font-weight: 800; font-size: 1.15rem; margin-top: 0.25rem; color: #03121a;">${(isDorm && user.fullName) ? user.fullName : invoice.tenant}</div>
           <div>${t('room_label')} <strong>${invoice.roomName}</strong></div>
         </div>
         <div style="text-align: right;">
@@ -6394,7 +6415,16 @@ function renderRoomsManagement() {
                   ` : ''}
                   <div style="min-width:0;">
                     <div style="font-weight:800; font-size:1rem;">${r.name}</div>
-                    <div style="font-size:0.8rem; color:var(--text-secondary);">${r.tenant || t('no_tenant_label')} ${r.phone ? '· ' + r.phone : ''}</div>
+                    <div style="font-size:0.8rem; color:var(--text-secondary);">
+                      ${r.tenant || t('no_tenant_label')} ${r.phone ? '· ' + r.phone : ''}
+                      <!-- A KTX room's "tenant" field is really just one
+                           label (often whoever's called "trưởng phòng")
+                           for the whole room — the actual occupants (and
+                           who each invoice/proof-photo actually belongs
+                           to) are the individual accounts below, not
+                           this one name. -->
+                      ${r.roomType === 'dorm' && r.tenant ? `<br><small style="font-style:italic;">(${t('lbl_room_leader_hint')})</small>` : ''}
+                    </div>
                   </div>
                 </div>
                 ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `
@@ -6937,9 +6967,26 @@ function renderRoomOccupantsConfig(roomId) {
   // accounts:edit (a Manager scoped narrowly, say) could otherwise see a
   // working-looking Lưu button that just 403s every time.
   const canEditAccounts = hasPermission(state.currentUser.role, 'accounts', 'edit');
-  container.innerHTML = occupants.map(u => `
+  // room.tenant is one plain text field for the whole KTX room (shown
+  // on the room card, and used as the "Khách thuê" label admin sees on
+  // Quản Lý Hóa Đơn) — usually set to whichever occupant is the
+  // "trưởng phòng". Marking which occupant it currently matches (and
+  // letting admin switch it with one click) is the direct answer to
+  // "hiện thêm thông tin để tôi check trưởng phòng" — each occupant's
+  // OWN invoice already shows their own real name regardless of this
+  // (see renderTenantInvoiceView), so this is purely the label admin
+  // sees on the room/invoice-list side.
+  container.innerHTML = occupants.map(u => {
+    const isLeader = room && room.tenant && room.tenant === (u.fullName || u.username);
+    const leaderBadgeHtml = isLeader
+      ? `<span class="badge badge-paid" style="font-size:0.65rem;">👑 ${t('lbl_room_leader_badge')}</span>`
+      : (canEditAccounts ? `<button type="button" class="btn btn-secondary btn-sm" style="font-size:0.68rem; padding:2px 8px;" onclick="setRoomLeader('${roomId}','${u.id}')">${t('btn_set_as_leader')}</button>` : '');
+    return `
     <div class="cala-card" style="padding:0.75rem; margin-bottom:0.6rem;">
-      <div style="font-weight:700; font-size:0.9rem; margin-bottom:0.5rem;">${u.fullName || u.username}</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+        <div style="font-weight:700; font-size:0.9rem;">${u.fullName || u.username}</div>
+        ${leaderBadgeHtml}
+      </div>
       <label style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:0.25rem;">${t('lbl_vehicle_service')}</label>
       <select id="occ-vehicle-${u.id}" class="form-control" style="margin-bottom:0.5rem;" ${canEditAccounts ? '' : 'disabled'}></select>
       <div style="display:flex; gap:0.5rem;">
@@ -6962,7 +7009,8 @@ function renderRoomOccupantsConfig(roomId) {
       </button>
       ` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   occupants.forEach(u => populateVehicleServiceOptions(`occ-vehicle-${u.id}`, room, u.vehicleServiceId));
   renderIcons(container);
@@ -6990,6 +7038,25 @@ async function saveOccupantSettings(userId) {
   u.contractEnd = contractEnd;
   u.useContractProration = useContractProration;
   showToast(t('toast_occupant_settings_saved'), 'success');
+  renderRoomsManagement();
+}
+
+// Points room.tenant (one plain text label for the whole KTX room — see
+// renderRoomOccupantsConfig) at this specific occupant's own name.
+// Doesn't change anything about billing or who sees what on their own
+// invoice (renderTenantInvoiceView already shows each occupant their
+// own real name regardless) — purely which name shows on the room card
+// and admin's own invoice list/detail for this room.
+async function setRoomLeader(roomId, userId) {
+  const room = state.rooms.find(r => r.id === roomId);
+  const u = state.users.find(x => x.id === userId);
+  if (!room || !u) return;
+  const rObj = { ...room, tenant: u.fullName || u.username };
+  const data = await postAndVerify(`${API_BASE}/rooms/save`, rObj);
+  if (!data) return;
+  room.tenant = rObj.tenant;
+  showToast(t('toast_room_leader_updated'), 'success');
+  renderRoomOccupantsConfig(roomId);
   renderRoomsManagement();
 }
 
