@@ -593,6 +593,18 @@ def get_payment_proof_photos():
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 
+@rental_bp.route('/api/invoices/elec-share/save', methods=['POST'])
+@permission_required('invoices', 'edit')
+def save_elec_share():
+    data = request.json or {}
+    invoice_id = data.get('invoiceId')
+    if not invoice_id:
+        return jsonify({'success': False, 'error': 'Thiếu invoiceId'}), 400
+    success = RentalService.save_elec_share(invoice_id, data.get('userIds'))
+    if not success:
+        return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
+    return jsonify({'success': True})
+
 @rental_bp.route('/api/investor-expenses/photos', methods=['GET'])
 @login_required
 def get_investor_expense_photos():

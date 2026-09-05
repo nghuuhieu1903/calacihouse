@@ -620,6 +620,8 @@ const I18N = {
     lbl_vehicle_service: 'Gửi xe (chọn dịch vụ phí xe)',
     lbl_ktx_per_person_breakdown: 'Chia Tiền Theo Từng Người',
     hint_ktx_per_person_breakdown: 'Bảng tham khảo để duyệt trước khi gửi cho từng người — chỉ tính người đã có tài khoản trong phòng. Tổng ở bảng trên mới là số tiền chính thức của cả phòng.',
+    lbl_elec_share_toggle: 'Chia điện',
+    hint_elec_share_toggle: 'Tích chọn người nào thật sự ở trong tháng này để chia tiền điện cho đúng người đó — không tự động chia đều theo Số Người cấu hình nữa (vì có người ở trước, người ở sau khác nhau).',
     option_no_vehicle: 'Không gửi xe',
     lbl_account_status: 'Trạng thái tài khoản',
     option_status_approved: 'Đã duyệt (Hoạt động)',
@@ -1292,6 +1294,8 @@ const I18N = {
     lbl_vehicle_service: 'Vehicle parking (choose a fee service)',
     lbl_ktx_per_person_breakdown: 'Per-Occupant Breakdown',
     hint_ktx_per_person_breakdown: 'Reference table to review before billing each occupant individually — only occupants who have an account in this room are listed. The room total above is still the official amount owed for the whole room.',
+    lbl_elec_share_toggle: 'Shares electricity',
+    hint_elec_share_toggle: 'Check whoever actually lived here this month to split the electricity bill correctly among them — no longer auto-divided by the configured Occupants count (since people move in/out at different times).',
     option_no_vehicle: 'No vehicle',
     lbl_account_status: 'Account status',
     option_status_approved: 'Approved (Active)',
@@ -5441,12 +5445,17 @@ function renderTenantInvoiceView() {
   // each occupant pays their own rent and their share of electricity
   // separately — so this page (unlike admin's, which needs the room-wide
   // total) shows the individual's portion: per-person rent as configured,
-  // electricity divided across headcount, water/services unchanged (never
-  // split — see the room-type hint in the room form).
+  // electricity split among whichever occupants admin picked as actually
+  // sharing it this month (see elecSharedUserIdsFor/toggleElecShare — no
+  // longer a flat headcount divide, since people move in/out at
+  // different times), water/services unchanged (never split — see the
+  // room-type hint in the room form).
   const isDorm = room && room.roomType === 'dorm';
-  const headcount = Math.max(1, (room && room.headcount) || 1);
   const personalRent = isDorm ? (room.baseRent || 0) : invoice.baseRent;
-  const personalElec = isDorm ? Math.round((invoice.elecCost || 0) / headcount) : invoice.elecCost;
+  const elecSharedIds = isDorm ? elecSharedUserIdsFor(invoice, getRoomTenants(room.id).filter(u => u.status === 'approved')) : [];
+  const personalElec = isDorm
+    ? (elecSharedIds.includes(state.currentUser.id) ? Math.round((invoice.elecCost || 0) / Math.max(1, elecSharedIds.length)) : 0)
+    : invoice.elecCost;
   const personalTotal = personalRent + personalElec + (invoice.waterCost || 0) + (invoice.otherFees || 0);
 
   const autoCalc = room ? calculateRoomServiceTotal(room) : { items: [] };
@@ -5530,7 +5539,7 @@ function renderTenantInvoiceView() {
                 <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
               </button>
             </td>
-            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, isDorm ? headcount : 0)}</small></td>
+            <td style="padding:0.75rem;">${t('reading_label')} ${invoice.elecOld} ➔ ${invoice.elecNew} (${invoice.elecUsage} kWh)<br><small style="color:#687176;">${getFormulaDescription(invoice.elecFormula, invoice.elecUsage, (isDorm && elecSharedIds.includes(state.currentUser.id)) ? elecSharedIds.length : 0)}</small></td>
             <td style="padding:0.75rem; text-align:right; font-weight:700; color:var(--cala-blue);">${formatMoney(personalElec)} đ</td>
           </tr>` : ''}
           ${waterLineNo ? `
@@ -5769,7 +5778,7 @@ function viewInvoiceDetail(invoiceId) {
         ${serviceRowsHtml}
         <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
       </table>
-      ${perPersonBreakdownHtml(perPersonBreakdown)}
+      ${perPersonBreakdownHtml(perPersonBreakdown, inv.id)}
       ${paymentProofBlockHtml}
     </div>
   `;
@@ -5785,16 +5794,26 @@ function viewInvoiceDetail(invoiceId) {
 // so this table's own total legitimately falls short of the room's
 // real total whenever headcount > accounts — the room total above is
 // still the one source of truth for what's actually owed overall).
+// Which of a KTX room's occupant accounts split THIS invoice's
+// electricity — an explicit admin choice (see toggleElecShare), not
+// derived from headcount/occupant-count, since people move in/out at
+// different times within the same room and a flat divide stopped being
+// accurate the moment that happens. Undefined (never picked yet, e.g.
+// an invoice from before this existed) defaults to every currently
+// approved occupant; an explicit [] (admin unchecked everyone) is a
+// real, if unusual, choice and is NOT swapped back to "everyone".
+function elecSharedUserIdsFor(inv, occupants) {
+  if (Array.isArray(inv.elecSharedUserIds)) return inv.elecSharedUserIds;
+  return occupants.map(u => u.id);
+}
+
 function computeKtxPerPersonBreakdown(inv, room) {
   if (!room || room.roomType !== 'dorm') return null;
   const occupants = getRoomTenants(room.id).filter(u => u.status === 'approved');
   if (!occupants.length) return null;
 
-  const headcount = Math.max(1, room.headcount || 1);
-  // Electricity is one shared meter for the whole room — split evenly
-  // across every actual occupant (headcount), same convention the
-  // tenant's own invoice view already uses for this.
-  const elecShare = Math.round((inv.elecCost || 0) / headcount);
+  const sharedIds = elecSharedUserIdsFor(inv, occupants);
+  const elecShare = Math.round((inv.elecCost || 0) / Math.max(1, sharedIds.length));
 
   return occupants.map(u => {
     let rent = room.baseRent || 0;
@@ -5815,17 +5834,34 @@ function computeKtxPerPersonBreakdown(inv, room) {
     const vehicleItem = u.vehicleServiceId ? (inv.serviceItems || []).find(item => item.id === u.vehicleServiceId) : null;
     const vehicleFee = vehicleItem ? vehicleItem.price : 0;
 
-    const total = rent + elecShare + servicesTotal + vehicleFee;
+    const sharesElec = sharedIds.includes(u.id);
+    const elecAmount = sharesElec ? elecShare : 0;
+    const total = rent + elecAmount + servicesTotal + vehicleFee;
     return {
+      id: u.id,
       name: u.fullName || u.username,
-      rent, elecShare, perPersonItems, vehicleFee,
+      rent, elecAmount, sharesElec, perPersonItems, vehicleFee,
       vehicleName: vehicleItem ? vehicleItem.name : '',
       total
     };
   });
 }
 
-function perPersonBreakdownHtml(rows) {
+async function toggleElecShare(invoiceId, userId, checked) {
+  const inv = state.invoices.find(i => i.id === invoiceId);
+  if (!inv) return;
+  const room = state.rooms.find(r => r.id === inv.roomId);
+  const occupants = room ? getRoomTenants(room.id).filter(u => u.status === 'approved') : [];
+  const current = elecSharedUserIdsFor(inv, occupants);
+  const next = checked ? Array.from(new Set([...current, userId])) : current.filter(id => id !== userId);
+
+  const data = await postAndVerify(`${API_BASE}/invoices/elec-share/save`, { invoiceId, userIds: next });
+  if (!data) return;
+  inv.elecSharedUserIds = next;
+  viewInvoiceDetail(invoiceId);
+}
+
+function perPersonBreakdownHtml(rows, invoiceId) {
   if (!rows || !rows.length) return '';
   return `
     <div style="margin-top:1.25rem;">
@@ -5837,6 +5873,7 @@ function perPersonBreakdownHtml(rows) {
             <tr style="background:#f7f9fa; color:#43494d;">
               <th>${t('col_tenant')}</th>
               <th style="text-align:right;">${t('line_room_rent_short')}</th>
+              <th style="text-align:center;">${t('lbl_elec_share_toggle')}</th>
               <th style="text-align:right;">${t('line_electricity_short')}</th>
               <th>${t('nav_services')}</th>
               <th style="text-align:right;">${t('lbl_vehicle_service')}</th>
@@ -5848,7 +5885,8 @@ function perPersonBreakdownHtml(rows) {
               <tr>
                 <td><strong>${r.name}</strong></td>
                 <td style="text-align:right;">${formatMoney(r.rent)} đ</td>
-                <td style="text-align:right;">${formatMoney(r.elecShare)} đ</td>
+                <td style="text-align:center;"><input type="checkbox" ${r.sharesElec ? 'checked' : ''} onchange="toggleElecShare('${invoiceId}','${r.id}', this.checked)" title="${t('hint_elec_share_toggle')}"></td>
+                <td style="text-align:right;">${formatMoney(r.elecAmount)} đ</td>
                 <td>${r.perPersonItems.map(it => `${it.symbol || '📦'} ${it.name}: ${formatMoney(it.amount)}đ`).join('<br>') || '—'}</td>
                 <td style="text-align:right;">${r.vehicleFee ? `${formatMoney(r.vehicleFee)} đ` : '—'}</td>
                 <td style="text-align:right; font-weight:800; color:var(--cala-orange);">${formatMoney(r.total)} đ</td>

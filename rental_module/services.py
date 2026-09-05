@@ -1177,6 +1177,16 @@ class RentalService:
                 # a room/service price to match what was actually paid)
                 # silently wiped out any photos already attached.
                 'paymentProofPhotos': invoices[existing_idx].get('paymentProofPhotos', []) if existing_idx >= 0 else [],
+                # Same reasoning as paymentProofPhotos above — which KTX
+                # occupants actually split this month's electricity (see
+                # save_elec_share) is picked by hand per invoice and must
+                # survive a "Cập Nhật Hóa Đơn" regenerate. Absent
+                # entirely (key never carried forward at all, e.g. a
+                # brand-new invoice) is what tells the reading side to
+                # default to "every current occupant" — an explicit []
+                # (admin unchecked everyone) is preserved as-is, not
+                # treated the same as absent.
+                **({'elecSharedUserIds': invoices[existing_idx]['elecSharedUserIds']} if existing_idx >= 0 and 'elecSharedUserIds' in invoices[existing_idx] else {}),
                 'sentAt': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
 
@@ -1245,6 +1255,32 @@ class RentalService:
                     new_proofs = [p for p in proofs if p.get('id') != photo_id]
                     found = len(new_proofs) != len(proofs)
                     inv['paymentProofPhotos'] = new_proofs
+            return invoices
+
+        Storage.update_invoices(mutate)
+        return found
+
+    @staticmethod
+    def save_elec_share(invoice_id, user_ids):
+        """Which of a KTX room's occupant accounts actually split THIS
+        month's electricity bill — people move in/out at different times
+        within the same room, so a flat headcount/occupant-count divide
+        stopped being accurate the moment more than one person's actual
+        presence differs from what's configured. Admin picks the list by
+        hand per invoice (see the checkboxes in the per-person breakdown
+        table) instead of it being auto-derived. [] is a legitimate
+        value (nobody currently selected) — Storage._room()/computed
+        readers fall back to "every occupant" only when the field is
+        entirely ABSENT (a pre-existing invoice from before this
+        feature), not when it's an explicit empty list."""
+        found = False
+
+        def mutate(invoices):
+            nonlocal found
+            for inv in invoices:
+                if inv['id'] == invoice_id:
+                    inv['elecSharedUserIds'] = user_ids or []
+                    found = True
             return invoices
 
         Storage.update_invoices(mutate)
