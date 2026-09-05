@@ -622,6 +622,8 @@ const I18N = {
     hint_ktx_per_person_breakdown: 'Bảng tham khảo để duyệt trước khi gửi cho từng người — chỉ tính người đã có tài khoản trong phòng. Tổng ở bảng trên mới là số tiền chính thức của cả phòng.',
     lbl_elec_share_toggle: 'Chia điện',
     hint_elec_share_toggle: 'Tích chọn người nào thật sự ở trong tháng này để chia tiền điện cho đúng người đó — không tự động chia đều theo Số Người cấu hình nữa (vì có người ở trước, người ở sau khác nhau).',
+    lbl_elec_usage_history: 'Biên Độ Sử Dụng Điện',
+    hint_elec_usage_history: 'Số điện tiêu thụ (kWh) của phòng này qua các tháng gần đây — giúp phát hiện tháng nào dùng bất thường (tăng/giảm đột biến) so với các tháng khác.',
     option_no_vehicle: 'Không gửi xe',
     lbl_account_status: 'Trạng thái tài khoản',
     option_status_approved: 'Đã duyệt (Hoạt động)',
@@ -1296,6 +1298,8 @@ const I18N = {
     hint_ktx_per_person_breakdown: 'Reference table to review before billing each occupant individually — only occupants who have an account in this room are listed. The room total above is still the official amount owed for the whole room.',
     lbl_elec_share_toggle: 'Shares electricity',
     hint_elec_share_toggle: 'Check whoever actually lived here this month to split the electricity bill correctly among them — no longer auto-divided by the configured Occupants count (since people move in/out at different times).',
+    lbl_elec_usage_history: 'Electricity Usage Trend',
+    hint_elec_usage_history: 'This room\'s electricity usage (kWh) over recent months — helps spot an unusual month (a sudden spike or drop) compared to the others.',
     option_no_vehicle: 'No vehicle',
     lbl_account_status: 'Account status',
     option_status_approved: 'Approved (Active)',
@@ -3611,8 +3615,25 @@ function renderInvestorDashboard() {
     // involved, and a "—" row still invited investors to ask what it
     // meant. Simpler and unambiguous to just not list it.
     const occupiedRooms = activeRooms.filter(r => r.tenant);
+    // Electricity for a room only ever has a number here when its own
+    // "Điện" service is actually configured to be shared with THIS
+    // investor (computeInvestorInvoiceBreakdown already gates that) —
+    // otherwise elecShared stays undefined and the row shows "—". The
+    // whole column is hidden outright when not even one room has it,
+    // rather than showing a column of nothing but "—".
+    const elecByRoom = new Map();
+    occupiedRooms.forEach(r => {
+      const inv = monthInvoices.find(i => i.roomId === r.id);
+      const elecEntry = inv ? computeInvestorInvoiceBreakdown(inv, investorId).services.find(s => s.name.includes('Điện')) : null;
+      elecByRoom.set(r.id, elecEntry ? elecEntry.shared : null);
+    });
+    const showElecColumn = Array.from(elecByRoom.values()).some(v => v !== null);
+    const elecTh = document.getElementById('investor-rooms-th-elec');
+    if (elecTh) elecTh.style.display = showElecColumn ? '' : 'none';
+    const colCount = showElecColumn ? 8 : 7;
+
     if (occupiedRooms.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('spreadsheet_empty_state')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding:1.5rem; color:var(--text-secondary);">${t('spreadsheet_empty_state')}</td></tr>`;
     } else {
       tbody.innerHTML = occupiedRooms.map(r => {
         const inv = monthInvoices.find(i => i.roomId === r.id);
@@ -3621,12 +3642,14 @@ function renderInvestorDashboard() {
           ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
           : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`;
         const house = state.houses.find(h => h.id === r.houseId);
+        const elecVal = elecByRoom.get(r.id);
         return `
           <tr>
             <td><strong>${r.name}</strong>${house ? `<br><small style="color:var(--text-muted);">${house.name}</small>` : ''}</td>
             <td>${r.tenant}</td>
             <td>${r.headcount}</td>
             <td>${formatMoney(roomRentTotal(r))} đ</td>
+            ${showElecColumn ? `<td>${elecVal !== null ? formatMoney(elecVal) + ' đ' : '—'}</td>` : ''}
             <td style="font-weight:800; color:var(--cala-orange);">${formatMoney(total)} đ</td>
             <td>${statusBadge}</td>
             <td>${inv ? `<button class="btn btn-secondary btn-sm" onclick="viewInvestorInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i> ${t('btn_view_details')}</button>` : ''}</td>
@@ -3636,6 +3659,7 @@ function renderInvestorDashboard() {
       // Tổng row — so the investor never has to add the "Tổng Cộng"
       // column up by hand to know what the house/rooms owe in total.
       const roomsRentSum = occupiedRooms.reduce((s, r) => s + roomRentTotal(r), 0);
+      const roomsElecSum = Array.from(elecByRoom.values()).reduce((s, v) => s + (v || 0), 0);
       const roomsTotalSum = occupiedRooms.reduce((s, r) => {
         const inv = monthInvoices.find(i => i.roomId === r.id);
         return s + (inv ? computeInvestorInvoiceBreakdown(inv, investorId).total : roomRentForMonth(r, state.currentMonth));
@@ -3644,6 +3668,7 @@ function renderInvestorDashboard() {
         <tr style="background: var(--bg-base); font-weight: 800;">
           <td colspan="3">${t('lbl_total_row')}</td>
           <td>${formatMoney(roomsRentSum)} đ</td>
+          ${showElecColumn ? `<td>${formatMoney(roomsElecSum)} đ</td>` : ''}
           <td style="color:var(--cala-orange);">${formatMoney(roomsTotalSum)} đ</td>
           <td colspan="2"></td>
         </tr>
@@ -5714,6 +5739,51 @@ function toggleInvoiceDetailView() {
   }
 }
 
+// This room's electricity usage (kWh) for `monthsBack` months ending at
+// currentMonth — lets admin spot an unusually high/low reading at a
+// glance instead of only ever seeing one month's number in isolation. A
+// month with no reading recorded at all (room didn't exist yet, or a
+// reading was simply never entered) shows as a gap (null), not a 0 —
+// those aren't the same thing (0 kWh actually used vs. never measured).
+function roomElecUsageHistory(roomId, currentMonth, monthsBack = 6) {
+  const [y, m] = currentMonth.split('-').map(Number);
+  const months = [];
+  for (let i = monthsBack - 1; i >= 0; i--) {
+    let mm = m - i, yy = y;
+    while (mm <= 0) { mm += 12; yy -= 1; }
+    months.push(`${yy}-${String(mm).padStart(2, '0')}`);
+  }
+  return months.map(mo => {
+    const rd = (state.readings[mo] || {})[roomId];
+    const hasReading = !!(rd && (rd.elecOld || rd.elecNew));
+    return { month: mo, usage: hasReading ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : null };
+  });
+}
+
+function elecUsageHistoryHtml(history) {
+  const usages = history.map(h => h.usage).filter(u => u !== null);
+  if (!usages.length) return '';
+  const maxUsage = Math.max(1, ...usages);
+  return `
+    <div class="cala-card" style="margin-top:1.25rem;">
+      <h4 style="color:var(--cala-blue); margin-bottom:0.4rem; font-size:0.95rem;"><i data-lucide="bar-chart-3" style="vertical-align:middle;"></i> ${t('lbl_elec_usage_history')}</h4>
+      <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.85rem;">${t('hint_elec_usage_history')}</p>
+      <div style="display:flex; align-items:flex-end; gap:0.6rem; height:110px;">
+        ${history.map(h => {
+          const barHeight = h.usage !== null ? Math.max(4, Math.round((h.usage / maxUsage) * 85)) : 3;
+          return `
+            <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;">
+              <div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:3px;">${h.usage !== null ? h.usage : '—'}</div>
+              <div style="width:65%; max-width:32px; background:${h.usage !== null ? 'var(--cala-amber)' : 'var(--border-color)'}; height:${barHeight}px; border-radius:4px 4px 0 0;"></div>
+              <div style="font-size:0.68rem; color:var(--text-muted); margin-top:4px; white-space:nowrap;">${formatMonthLabel(h.month)}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
+
 function viewInvoiceDetail(invoiceId) {
   const inv = state.invoices.find(i => i.id === invoiceId);
   if (!inv) return;
@@ -5756,6 +5826,9 @@ function viewInvoiceDetail(invoiceId) {
   // room total, split out per occupant, so it's obvious what each
   // specific person owes instead of just the one lump room figure.
   const perPersonBreakdown = computeKtxPerPersonBreakdown(inv, room);
+  // Electricity usage trend for this specific room — only meaningful
+  // when the room is actually billed by meter (elecLineNo) at all.
+  const elecHistoryHtml = inv.elecFormula ? elecUsageHistoryHtml(roomElecUsageHistory(inv.roomId, inv.month)) : '';
 
   content.innerHTML = `
     <div class="invoice-paper" style="box-shadow:none; border:1px solid var(--border-color);">
@@ -5778,6 +5851,7 @@ function viewInvoiceDetail(invoiceId) {
         ${serviceRowsHtml}
         <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
       </table>
+      ${elecHistoryHtml}
       ${perPersonBreakdownHtml(perPersonBreakdown, inv.id)}
       ${paymentProofBlockHtml}
     </div>
