@@ -4085,7 +4085,13 @@ async function generateAndSendAllInvoices() {
 function renderAdminInvoices() {
   const tbody = document.getElementById('admin-invoices-tbody');
   tbody.innerHTML = '';
-  const monthInvoices = state.invoices.filter(i => i.month === state.currentMonth && (state.currentHouseId === 'all' || i.houseId === state.currentHouseId));
+  // generate_all_invoices() still creates one invoice for EVERY room
+  // every month, vacant or not (see room_rent_for_month) — Báo Cáo Chủ
+  // Đầu Tư and the investor's own dashboard already exclude these,
+  // this list should too: a vacant room's invoice is just noise nobody
+  // owes anything on, not something admin needs to chase payment for.
+  const occupiedRoomIds = new Set(state.rooms.filter(r => r.tenant).map(r => r.id));
+  const monthInvoices = state.invoices.filter(i => i.month === state.currentMonth && (state.currentHouseId === 'all' || i.houseId === state.currentHouseId) && occupiedRoomIds.has(i.roomId));
 
   // Invoices accumulate over time in whatever order they happened to get
   // (re)generated in — an existing room's invoice gets updated in place
