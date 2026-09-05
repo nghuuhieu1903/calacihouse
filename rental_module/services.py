@@ -152,6 +152,28 @@ class RentalService:
         return effective_end < month_start or effective_start > month_end
 
     @staticmethod
+    def room_occupied_this_month(room, month):
+        """Whether a SINGLE room is being rented at all this month, based
+        on its own contractStart/contractEnd — a room whose contract only
+        starts next month (or already ended before this one) doesn't just
+        owe 0 rent (room_rent_for_month already handles that), it owes
+        NOTHING that month: no electricity/water/service fees either,
+        since nobody was actually living there to use any of it. A room's
+        tenant NAME can already be filled in ahead of the real move-in
+        date (so admin can prepare things early), which must not make an
+        earlier month's invoice charge for services nobody used.
+
+        Dorm rooms are handled per-occupant (see room_rent_for_month's
+        dorm branch) rather than as a single on/off switch for the whole
+        room — always True here, unaffected by this check."""
+        if room.get('roomType') == 'dorm':
+            return True
+        cs, ce = room.get('contractStart') or '', room.get('contractEnd') or ''
+        if not cs and not ce:
+            return True
+        return not RentalService._month_outside_contract_window(cs, ce, month)
+
+    @staticmethod
     def room_rent_for_month(room, month, users):
         """room_rent_total(), adjusted for THIS invoice month by contract
         dates. Two separate questions, both driven by the same
@@ -1242,7 +1264,8 @@ class RentalService:
     @staticmethod
     def _rebuild_invoices(invoices, month, rooms, services, readings, users):
         for r in rooms:
-            srv_tot, prk_tot, item_list = RentalService.calculate_room_services_total(r, services)
+            is_occupied = RentalService.room_occupied_this_month(r, month)
+            srv_tot, prk_tot, item_list = RentalService.calculate_room_services_total(r, services) if is_occupied else (0, 0, [])
             rd = readings.get(r['id'], {'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0})
 
             elec_usage = max(0, rd.get('elecNew', 0) - rd.get('elecOld', 0))
@@ -1263,7 +1286,13 @@ class RentalService:
                     continue
                 is_elec = 'Điện' in s.get('name', '')
                 usage = elec_usage if is_elec else water_usage
-                cost = RentalService.utility_cost_for_room(s.get('customFormula'), usage, is_elec, r)
+                # Not occupied this month → nobody was there to run up a
+                # bill, regardless of what a stray/pre-move-in meter
+                # reading might otherwise compute. The formula text
+                # itself still gets recorded either way, so the invoice
+                # line still shows correctly (just at 0đ) instead of
+                # disappearing.
+                cost = RentalService.utility_cost_for_room(s.get('customFormula'), usage, is_elec, r) if is_occupied else 0
                 if is_elec:
                     elec_cost = cost
                     elec_formula_text = s.get('customFormula') or ''

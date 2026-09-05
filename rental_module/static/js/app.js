@@ -3449,6 +3449,19 @@ function monthOutsideContractWindow(contractStart, contractEnd, month) {
   return effectiveEnd < monthStart || effectiveStart > monthEnd;
 }
 
+// JS mirror of room_occupied_this_month() in services.py — for a SINGLE
+// room, whether it's being rented at all this month. A room whose
+// contract only starts next month (or already ended before this one)
+// owes nothing that month — not just 0 rent, but 0 electricity/water/
+// service fees too, since nobody was there to use any of it. Dorm rooms
+// are handled per-occupant elsewhere and always return true here.
+function roomOccupiedThisMonth(room, month) {
+  if (!room || room.roomType === 'dorm') return true;
+  const cs = room.contractStart || '', ce = room.contractEnd || '';
+  if (!cs && !ce) return true;
+  return !monthOutsideContractWindow(cs, ce, month);
+}
+
 // JS mirror of room_rent_for_month() in services.py — see that
 // function's own comment. Opt-in via useContractProration (off means
 // this returns exactly roomRentTotal(), untouched).
@@ -3933,6 +3946,11 @@ function renderSpreadsheet() {
 
     const roomRentThisMonth = roomRentForMonth(r, state.currentMonth);
     let grandTotal = roomRentThisMonth;
+    // Not occupied this month (contract hasn't started yet, or already
+    // ended) → nobody was there to run up electricity/water/service
+    // charges either, not just rent. Mirrors _rebuild_invoices in
+    // services.py.
+    const isOccupiedThisMonth = roomOccupiedThisMonth(r, state.currentMonth);
     const house = state.houses.find(h => h.id === r.houseId);
     const houseBadge = house ? `<br><span class="badge badge-resolved" style="font-size:0.65rem;">${house.name}</span>` : '';
     // Only a single room's own dates reduce to one clean "X/Y ngày" note —
@@ -3972,7 +3990,7 @@ function renderSpreadsheet() {
         const newVal = isElec ? rd.elecNew : rd.waterNew;
         const usage = Math.max(0, (newVal || 0) - (oldVal || 0));
 
-        const cost = isServiceApplicable ? utilityCostForRoom(s.customFormula, usage, isElec, r) : 0;
+        const cost = (isServiceApplicable && isOccupiedThisMonth) ? utilityCostForRoom(s.customFormula, usage, isElec, r) : 0;
         grandTotal += cost;
 
         if (isServiceApplicable) {
@@ -4000,7 +4018,7 @@ function renderSpreadsheet() {
           rowHtml += `<td colspan="4" style="text-align:center; color:var(--text-muted);">${t('not_applicable_label')}</td>`;
         }
       } else {
-        const cost = isServiceApplicable ? calculateServiceCostForRoom(s, r) : 0;
+        const cost = (isServiceApplicable && isOccupiedThisMonth) ? calculateServiceCostForRoom(s, r) : 0;
         grandTotal += cost;
 
         if (isServiceApplicable) {
@@ -4205,6 +4223,10 @@ async function generateAndSendAllInvoices() {
     let waterCost = 0;
     let elecFormulaText = '';
     let waterFormulaText = '';
+    // Not occupied this month → nobody was there to run up electricity/
+    // water/service charges either, not just rent. Mirrors
+    // _rebuild_invoices in services.py.
+    const isOccupiedThisMonth = roomOccupiedThisMonth(r, state.currentMonth);
 
     const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id));
     houseServices.forEach(s => {
@@ -4212,11 +4234,11 @@ async function generateAndSendAllInvoices() {
       if (s.calcType === 'formula') {
         const isElec = s.name.includes('Điện');
         const usage = isElec ? Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0)) : Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
-        const cost = utilityCostForRoom(s.customFormula, usage, isElec, r);
+        const cost = isOccupiedThisMonth ? utilityCostForRoom(s.customFormula, usage, isElec, r) : 0;
         if (isElec) { elecCost = cost; elecFormulaText = s.customFormula || ''; }
         else { waterCost = cost; waterFormulaText = s.customFormula || ''; }
         totalAmount += cost;
-      } else {
+      } else if (isOccupiedThisMonth) {
         const cost = calculateServiceCostForRoom(s, r);
         totalAmount += cost;
         const perPersonCount = (r.roomType === 'dorm' || s.applyHeadcountSingle) ? (r.headcount || 1) : 1;
