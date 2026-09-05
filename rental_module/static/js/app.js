@@ -3319,12 +3319,96 @@ function utilityCostForRoom(formulaExpr, usage, isElec, room) {
 // Dorm rooms store baseRent as the per-person rate (see the room-type hint
 // in the room form) — the amount actually owed for the room is that rate
 // times headcount. Single rooms bill baseRent as-is.
+//
+// This is the FULL, unprorated configured rent — for a room's listed/
+// reference rate (room list, formula descriptions), not a specific
+// month's actual bill. Use roomRentForMonth() below wherever a number
+// is claiming to be what a specific month actually costs/earns — the
+// live "Bảng Báo Chỉ Số" preview, dashboards' revenue totals, and the
+// optimistic invoice object built right before the real one comes back
+// from the server all used to read this instead, so they kept showing
+// the full room rent even for a room with proration turned on, out of
+// step with the real (correctly prorated) invoice the backend actually
+// saves — same number this function returns, just never the one a real
+// invoice bills.
 function roomRentTotal(room) {
   const baseRent = (room && room.baseRent) || 0;
   if (room && room.roomType === 'dorm') {
     return baseRent * Math.max(1, room.headcount || 1);
   }
   return baseRent;
+}
+
+function daysInMonthJs(month) {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+// JS mirror of _prorated_ratio_for_month() in services.py — see that
+// function's own comment for the full rule (day 1-10 move-in still
+// bills a full month, after day 10 bills only days actually lived;
+// moving out always bills only days actually lived). Kept in sync by
+// hand since the invoice math itself only ever runs server-side; this
+// copy exists purely so client-side previews can show the same number
+// the real invoice will end up with, instead of the always-full-month
+// roomRentTotal().
+function proratedRatioForMonth(contractStart, contractEnd, month) {
+  const [year, mm] = month.split('-').map(Number);
+  const daysInMonth = daysInMonthJs(month);
+  const monthStart = new Date(year, mm - 1, 1);
+  const monthEnd = new Date(year, mm - 1, daysInMonth);
+
+  function parse(s) {
+    if (!s) return null;
+    const parts = s.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+  const dayDiff = (a, b) => Math.round((b - a) / 86400000) + 1; // inclusive
+
+  const start = parse(contractStart);
+  const end = parse(contractEnd);
+  const startInMonth = !!(start && start.getFullYear() === year && start.getMonth() === mm - 1);
+  const endInMonth = !!(end && end.getFullYear() === year && end.getMonth() === mm - 1);
+
+  if (startInMonth && !endInMonth) {
+    if (start.getDate() <= 10) return { ratio: 1, occupiedDays: daysInMonth, daysInMonth };
+    const occupied = dayDiff(start, monthEnd);
+    return { ratio: daysInMonth ? occupied / daysInMonth : 0, occupiedDays: occupied, daysInMonth };
+  }
+  if (endInMonth && !startInMonth) {
+    const occupied = Math.max(0, dayDiff(monthStart, end));
+    return { ratio: daysInMonth ? occupied / daysInMonth : 0, occupiedDays: occupied, daysInMonth };
+  }
+  if (startInMonth && endInMonth) {
+    const occupied = Math.max(0, dayDiff(start, end));
+    return { ratio: daysInMonth ? occupied / daysInMonth : 0, occupiedDays: occupied, daysInMonth };
+  }
+  const effectiveStart = start || monthStart;
+  const effectiveEnd = end || monthEnd;
+  const overlapStart = effectiveStart > monthStart ? effectiveStart : monthStart;
+  const overlapEnd = effectiveEnd < monthEnd ? effectiveEnd : monthEnd;
+  const occupied = Math.max(0, dayDiff(overlapStart, overlapEnd));
+  return { ratio: occupied === daysInMonth ? 1 : 0, occupiedDays: occupied, daysInMonth };
+}
+
+// JS mirror of room_rent_for_month() in services.py — see that
+// function's own comment. Opt-in via useContractProration (off means
+// this returns exactly roomRentTotal(), untouched).
+function roomRentForMonth(room, month) {
+  const baseRent = (room && room.baseRent) || 0;
+  if (room && room.roomType === 'dorm') {
+    const occupants = state.users.filter(u => u.role === 'tenant' && u.roomId === room.id && u.status === 'approved');
+    if (!occupants.length) return baseRent * Math.max(1, room.headcount || 1);
+    return occupants.reduce((total, u) => {
+      const cs = u.contractStart || '', ce = u.contractEnd || '';
+      if (!u.useContractProration || (!cs && !ce)) return total + baseRent;
+      return total + baseRent * proratedRatioForMonth(cs, ce, month).ratio;
+    }, 0);
+  }
+  const cs = (room && room.contractStart) || '', ce = (room && room.contractEnd) || '';
+  if (!room || !room.useContractProration || (!cs && !ce)) return baseRent;
+  return baseRent * proratedRatioForMonth(cs, ce, month).ratio;
 }
 
 // Room-rent line explanation for invoices — just the per-person rate, no
@@ -3351,7 +3435,7 @@ function renderAdminDashboard() {
 
   activeRooms.forEach(r => {
     const rd = monthReadings[r.id] || {};
-    let roomTot = roomRentTotal(r);
+    let roomTot = roomRentForMonth(r, state.currentMonth);
 
     const houseServices = state.services.filter(s => serviceMatchesHouse(s, r.houseId) && serviceMatchesRoom(s, r.id));
     houseServices.forEach(s => {
@@ -3414,7 +3498,7 @@ function renderInvestorDashboard() {
   activeRooms.forEach(r => {
     if (!r.tenant) return;
     occupiedCount++;
-    totalRent += roomRentTotal(r);
+    totalRent += roomRentForMonth(r, state.currentMonth);
 
     const rd = monthReadings[r.id] || {};
     // Only services checked "gửi cho Chủ Đầu Tư" count toward what the
@@ -3512,7 +3596,7 @@ function renderInvestorDashboard() {
     } else {
       tbody.innerHTML = occupiedRooms.map(r => {
         const inv = monthInvoices.find(i => i.roomId === r.id);
-        const total = inv ? computeInvestorInvoiceBreakdown(inv, investorId).total : roomRentTotal(r);
+        const total = inv ? computeInvestorInvoiceBreakdown(inv, investorId).total : roomRentForMonth(r, state.currentMonth);
         const statusBadge = inv
           ? `<span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>`
           : `<span class="badge badge-resolved">${t('dashboard_no_invoices_hint')}</span>`;
@@ -3534,7 +3618,7 @@ function renderInvestorDashboard() {
       const roomsRentSum = occupiedRooms.reduce((s, r) => s + roomRentTotal(r), 0);
       const roomsTotalSum = occupiedRooms.reduce((s, r) => {
         const inv = monthInvoices.find(i => i.roomId === r.id);
-        return s + (inv ? computeInvestorInvoiceBreakdown(inv, investorId).total : roomRentTotal(r));
+        return s + (inv ? computeInvestorInvoiceBreakdown(inv, investorId).total : roomRentForMonth(r, state.currentMonth));
       }, 0);
       tbody.innerHTML += `
         <tr style="background: var(--bg-base); font-weight: 800;">
@@ -3662,14 +3746,24 @@ function renderSpreadsheet() {
   activeRooms.forEach(r => {
     const rd = monthReadings[r.id] || { elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0 };
 
-    let grandTotal = roomRentTotal(r);
+    const roomRentThisMonth = roomRentForMonth(r, state.currentMonth);
+    let grandTotal = roomRentThisMonth;
     const house = state.houses.find(h => h.id === r.houseId);
     const houseBadge = house ? `<br><span class="badge badge-resolved" style="font-size:0.65rem;">${house.name}</span>` : '';
+    // Only a single room's own dates reduce to one clean "X/Y ngày" note —
+    // a dorm room sums several occupants' own ratios, so no single note
+    // describes the room as a whole there.
+    const rentNote = (r.roomType !== 'dorm' && r.useContractProration && (r.contractStart || r.contractEnd))
+      ? (() => {
+          const { ratio, occupiedDays, daysInMonth } = proratedRatioForMonth(r.contractStart, r.contractEnd, state.currentMonth);
+          return ratio !== 1 ? `<br><small style="color:var(--cala-orange);">⏱ ${occupiedDays}/${daysInMonth} ${t('rent_prorated_note_days_suffix')}</small>` : '';
+        })()
+      : '';
 
     let rowHtml = `
       <td><strong>${r.name}</strong>${houseBadge}</td>
       <td>${r.tenant || `<em>${t('empty_tenant_label')}</em>`} <br><small style="color: var(--text-muted);">${r.headcount} ${t('formula_per_person_label')}</small></td>
-      <td>${formatMoney(roomRentTotal(r))}</td>
+      <td>${formatMoney(roomRentThisMonth)}${rentNote}</td>
     `;
 
     // Render Each Active Service as its Own Independent Column!
@@ -3913,7 +4007,8 @@ async function generateAndSendAllInvoices() {
   const monthReadings = state.readings[state.currentMonth] || {};
   state.rooms.forEach(r => {
     const rd = monthReadings[r.id] || { elecOld: 0, elecNew: 0, waterOld: 0, waterNew: 0 };
-    let totalAmount = roomRentTotal(r);
+    const roomRentThisMonth = roomRentForMonth(r, state.currentMonth);
+    let totalAmount = roomRentThisMonth;
     let serviceItems = [];
     let elecCost = 0;
     let waterCost = 0;
@@ -3956,9 +4051,15 @@ async function generateAndSendAllInvoices() {
     // same invoiceId and let one room's invoice silently overwrite the
     // other's here. Mirrors the same fix in _rebuild_invoices (services.py).
     const idx = state.invoices.findIndex(i => i.roomId === r.id && i.month === state.currentMonth);
+    const rentProration = (r.roomType !== 'dorm' && r.useContractProration && (r.contractStart || r.contractEnd))
+      ? (() => {
+          const p = proratedRatioForMonth(r.contractStart, r.contractEnd, state.currentMonth);
+          return p.ratio !== 1 ? { occupiedDays: p.occupiedDays, daysInMonth: p.daysInMonth } : null;
+        })()
+      : null;
     const invObj = {
       id: invoiceId, month: state.currentMonth, roomId: r.id, houseId: r.houseId, roomName: r.name, tenant: r.tenant, phone: r.phone,
-      baseRent: roomRentTotal(r), elecOld: rd.elecOld, elecNew: rd.elecNew, elecUsage, elecFormula: elecFormulaText, elecCost,
+      baseRent: roomRentThisMonth, rentProration, elecOld: rd.elecOld, elecNew: rd.elecNew, elecUsage, elecFormula: elecFormulaText, elecCost,
       waterOld: rd.waterOld, waterNew: rd.waterNew, waterUsage, waterFormula: waterFormulaText, waterCost,
       serviceFee: serviceItems.reduce((sum, item) => sum + item.total, 0),
       parkingFee: 0,
