@@ -4068,7 +4068,14 @@ async function generateAndSendAllInvoices() {
       waterOld: rd.waterOld, waterNew: rd.waterNew, waterUsage, waterFormula: waterFormulaText, waterCost,
       serviceFee: serviceItems.reduce((sum, item) => sum + item.total, 0),
       parkingFee: 0,
-      serviceItems, otherFees: serviceItems.reduce((sum, item) => sum + item.total, 0), totalAmount, sendStatus: 'Đã gửi tự động', status: idx >= 0 ? state.invoices[idx].status : 'Chờ thanh toán', sentAt: 'Hôm nay'
+      serviceItems, otherFees: serviceItems.reduce((sum, item) => sum + item.total, 0), totalAmount, sendStatus: 'Đã gửi tự động', status: idx >= 0 ? state.invoices[idx].status : 'Chờ thanh toán',
+      // This replaces the WHOLE invoice object at state.invoices[idx] —
+      // without carrying this forward, any proof-of-payment photos
+      // already attached would flash away in the UI the instant "Cập
+      // Nhật Hóa Đơn" is clicked, even though the server itself (see
+      // _rebuild_invoices in services.py) correctly keeps them.
+      paymentProofPhotos: idx >= 0 ? (state.invoices[idx].paymentProofPhotos || []) : [],
+      sentAt: 'Hôm nay'
     };
 
     if (idx >= 0) state.invoices[idx] = invObj;

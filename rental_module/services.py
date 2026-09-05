@@ -1156,6 +1156,15 @@ class RentalService:
                 'totalAmount': total_amount,
                 'sendStatus': 'Đã gửi tự động',
                 'status': invoices[existing_idx]['status'] if existing_idx >= 0 else 'Chờ thanh toán',
+                # Tenant/admin-uploaded proof-of-payment photos (see
+                # add_payment_proof_photo/delete_payment_proof_photo)
+                # live directly on the invoice object, not somewhere
+                # separate — this rebuild replaces the WHOLE invoice_obj
+                # for an already-existing room+month, so without this
+                # every "Cập Nhật Hóa Đơn" (re-generating after tweaking
+                # a room/service price to match what was actually paid)
+                # silently wiped out any photos already attached.
+                'paymentProofPhotos': invoices[existing_idx].get('paymentProofPhotos', []) if existing_idx >= 0 else [],
                 'sentAt': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
 
