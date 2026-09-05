@@ -1343,6 +1343,32 @@ class Storage:
 
         return deleted_invoice_count, removed_months
 
+    # -- Investor monthly report snapshots (survive invoice deletion) -------
+    # The 3-month invoice retention policy above means the raw data behind
+    # a month's investor revenue/expense/profit numbers is gone forever
+    # once that month rolls past the cutoff — but the investor dashboard's
+    # 5-month trend chart still needs SOMETHING to show for those months.
+    # RentalService._snapshot_investor_reports() computes each house's
+    # numbers per investor right before deletion and saves them here, kept
+    # completely separate from (and never touched by) the invoice/reading
+    # delete above.
+    @staticmethod
+    def get_investor_monthly_snapshots():
+        return Storage._kv_get('investor_monthly_summary', {})
+
+    @staticmethod
+    def save_investor_monthly_snapshot(house_id, investor_id, month, revenue, expenses, profit):
+        key = f"{house_id}|{investor_id}|{month}"
+
+        def mutate(snapshots):
+            snapshots[key] = {
+                'houseId': house_id, 'investorId': investor_id, 'month': month,
+                'revenue': revenue, 'expenses': expenses, 'profit': profit
+            }
+            return snapshots
+
+        Storage._kv_update('investor_monthly_summary', {}, mutate)
+
     @staticmethod
     def next_ticket_number():
         """Monotonic counter for ticket ids, persisted in kv_store

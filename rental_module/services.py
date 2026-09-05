@@ -216,6 +216,91 @@ class RentalService:
             return True
         return target_room_id in room_ids
 
+    # -- Investor revenue-share math (Python port) ------------------------
+    # This whole computation only ever existed in app.js
+    # (computeInvestorReportData/computeInvestorInvoiceBreakdown/
+    # getInvestorShareFor/investorShareForAmount/investorsForHouse) since
+    # it only ever needed to run client-side, on demand, from data the
+    # investor's own browser already has. It's ported here verbatim
+    # (same field names, same rules) purely so _snapshot_investor_reports
+    # below can capture a month's numbers server-side, right before that
+    # month's invoices/expenses get permanently deleted by the retention
+    # policy — at which point no browser could ever recompute this again.
+    # Keep both copies in sync if the sharing rules ever change.
+    @staticmethod
+    def get_investor_share_for(service, investor_id):
+        share_map = service.get('investorShare') or {}
+        return share_map.get(investor_id) or {'enabled': False, 'mode': 'full', 'value': 0}
+
+    @staticmethod
+    def investor_share_for_amount(investor_share, actual_amount):
+        if not investor_share or not investor_share.get('enabled'):
+            return 0
+        mode = investor_share.get('mode') or 'full'
+        if mode == 'percent':
+            return actual_amount * ((investor_share.get('value') or 0) / 100)
+        if mode == 'fixed':
+            return investor_share.get('value') or 0
+        return actual_amount
+
+    @staticmethod
+    def investors_for_house(house_id, users):
+        result = []
+        for u in users:
+            if u.get('role') != 'investor':
+                continue
+            ids = u.get('houseIds') or ([u['houseId']] if u.get('houseId') else [])
+            if 'all' in ids or house_id in ids:
+                result.append(u)
+        return result
+
+    @staticmethod
+    def compute_investor_invoice_breakdown(inv, investor_id, services):
+        rent = inv.get('baseRent', 0) or 0
+        shared_total = 0
+
+        formula_services = [s for s in services if s.get('calcType') == 'formula'
+                            and RentalService.service_matches_house(s, inv.get('houseId'))
+                            and RentalService.service_matches_room(s, inv.get('roomId'))]
+        for s in formula_services:
+            share = RentalService.get_investor_share_for(s, investor_id)
+            if not share.get('enabled'):
+                continue
+            is_elec = 'Điện' in (s.get('name') or '')
+            actual = inv.get('elecCost', 0) if is_elec else inv.get('waterCost', 0)
+            shared_total += RentalService.investor_share_for_amount(share, actual or 0)
+
+        for item in inv.get('serviceItems') or []:
+            s = next((sv for sv in services if sv.get('id') == item.get('id')), None)
+            share = RentalService.get_investor_share_for(s, investor_id) if s else {'enabled': True, 'mode': 'full', 'value': 0}
+            if not share.get('enabled'):
+                continue
+            shared_total += RentalService.investor_share_for_amount(share, item.get('total', 0) or 0)
+
+        return rent + shared_total
+
+    @staticmethod
+    def compute_investor_report_data(house_id, month, investor_id, invoices, services, investor_expenses, houses, overrides, occupied_room_ids):
+        month_invoices = [i for i in invoices if i.get('month') == month and i.get('houseId') == house_id and i.get('roomId') in occupied_room_ids]
+        gross_revenue = sum(RentalService.compute_investor_invoice_breakdown(inv, investor_id, services) for inv in month_invoices)
+
+        expenses = sum(e.get('amount', 0) or 0 for e in investor_expenses if e.get('month') == month and e.get('houseId') == house_id)
+
+        house = next((h for h in houses if h.get('id') == house_id), None)
+        manager_fee = (house or {}).get('managerFee') or {'mode': 'percent', 'value': 20}
+        manager_share = (manager_fee.get('value') or 0) if manager_fee.get('mode') == 'fixed' else gross_revenue * ((manager_fee.get('value') or 0) / 100)
+        computed_investor_share = gross_revenue - expenses - manager_share
+
+        override = next((o for o in overrides if o.get('houseId') == house_id and o.get('month') == month), None)
+        investor_share = override['amount'] if override else computed_investor_share
+
+        return {
+            'invoiceCount': len(month_invoices),
+            'grossRevenue': gross_revenue,
+            'expenses': expenses,
+            'investorShare': investor_share
+        }
+
     @staticmethod
     def calculate_room_services_total(room, services):
         house_id = room.get('houseId', 'house_a')
@@ -393,6 +478,7 @@ class RentalService:
         # an investor or tenant session (see role filtering below).
         investor_expenses = Storage.get_investor_expenses_light()
         investor_report_overrides = Storage.get_investor_report_overrides()
+        investor_monthly_snapshots = Storage.get_investor_monthly_snapshots()
 
         RentalService.sync_readings_with_services(month)
         readings = Storage.get_readings_light()
@@ -419,6 +505,11 @@ class RentalService:
                 room_documents = {rid: docs for rid, docs in room_documents.items() if rid in room_ids}
                 room_photos = {rid: p for rid, p in room_photos.items() if rid in room_ids}
                 investor_expenses = [e for e in investor_expenses if e.get('houseId') in investor_house_ids]
+            # This investor's own snapshots only — same reasoning as
+            # investor_expenses just above (payout numbers are private
+            # to whoever they belong to), regardless of house scope.
+            my_id = current_user.get('id')
+            investor_monthly_snapshots = {k: v for k, v in investor_monthly_snapshots.items() if v.get('investorId') == my_id}
             users = []  # investor dashboard has no need for the account directory
 
         # Salers need to spot rooms/beds they can still fill and their public
@@ -463,6 +554,7 @@ class RentalService:
             room_documents = {}
             investor_expenses = []
             investor_report_overrides = []
+            investor_monthly_snapshots = {}
 
         # Tenants only ever need their own room's data — this branch was
         # simply missing before (investor/saler already had one above),
@@ -509,6 +601,12 @@ class RentalService:
         # in the first place, so there's nothing for them to see here.
         if role not in ('superadmin', 'admin', 'manager'):
             investor_report_overrides = []
+        # Snapshots are already narrowed to "this investor's own" above
+        # when role == 'investor'; admin/manager legitimately see every
+        # investor's here (same audience as the override list just
+        # above); anyone else (tenant) has no use for it at all.
+        if role not in ('superadmin', 'admin', 'manager', 'investor'):
+            investor_monthly_snapshots = {}
 
         safe_users = [{k: v for k, v in u.items() if k != 'password'} for u in users]
 
@@ -560,6 +658,7 @@ class RentalService:
             'salerCommissionPercent': saler_commission_percent,
             'investorExpenses': investor_expenses,
             'investorReportOverrides': investor_report_overrides,
+            'investorMonthlySnapshots': investor_monthly_snapshots,
             'currentMonth': month
         }
 
@@ -1451,6 +1550,44 @@ class RentalService:
         return f"{total // 12}-{(total % 12) + 1:02d}"
 
     @staticmethod
+    def _snapshot_investor_reports(cutoff_month, invoices):
+        """Captures each house's revenue/expenses/profit, per investor,
+        for every month about to be purged by the retention delete right
+        after this returns — the investor dashboard's 5-month trend chart
+        reads these once the real invoices/expenses are gone. Skipped
+        entirely for a house+investor+month with 0 invoices (nothing to
+        show either way, and a house's investor list/config can itself
+        change over time — recording a `0đ, no data` snapshot for a
+        combination that was never actually relevant would be misleading
+        clutter, not a real zero month)."""
+        months_to_snapshot = sorted(set(i.get('month') for i in invoices if (i.get('month') or '') <= cutoff_month))
+        if not months_to_snapshot:
+            return
+        houses = Storage.get_houses()
+        users = Storage.get_users()
+        services = Storage.get_services()
+        investor_expenses = Storage.get_investor_expenses()
+        overrides = Storage.get_investor_report_overrides()
+        occupied_room_ids = {r['id'] for r in Storage.get_rooms() if r.get('tenant')}
+
+        for house in houses:
+            investors = RentalService.investors_for_house(house['id'], users)
+            if not investors:
+                continue
+            for month in months_to_snapshot:
+                for investor in investors:
+                    data = RentalService.compute_investor_report_data(
+                        house['id'], month, investor['id'], invoices, services,
+                        investor_expenses, houses, overrides, occupied_room_ids
+                    )
+                    if data['invoiceCount'] == 0:
+                        continue
+                    Storage.save_investor_monthly_snapshot(
+                        house['id'], investor['id'], month,
+                        data['grossRevenue'], data['expenses'], data['investorShare']
+                    )
+
+    @staticmethod
     def check_data_retention(current_month):
         """Called once per superadmin session (see /api/data-retention/
         status) — reports what's about to be purged (still inside its
@@ -1473,6 +1610,10 @@ class RentalService:
             if today.day <= RentalService.RETENTION_GRACE_DAYS:
                 pending_invoice_month = cutoff_month
             else:
+                # Last chance to ever compute these months' investor
+                # numbers — capture them before the invoices/expenses
+                # they're derived from are gone for good.
+                RentalService._snapshot_investor_reports(cutoff_month, invoices)
                 deleted_invoice_count, deleted_reading_months = Storage.delete_invoices_and_readings_before(cutoff_month)
 
         ticket_delete_cutoff = today - timedelta(days=RentalService.TICKET_RETENTION_DAYS)

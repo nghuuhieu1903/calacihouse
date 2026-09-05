@@ -76,6 +76,15 @@ const I18N = {
     inv_profit_revenue_label: 'Doanh thu tháng này:',
     inv_profit_expenses_label: 'Trừ chi phí lắp đặt/sửa chữa:',
     inv_profit_desc: 'Con số dự kiến dựa trên doanh thu và chi phí đã ghi nhận trong tháng — có thể thay đổi nếu có cập nhật thêm.',
+    inv_trend_title: 'Doanh Thu - Chi Phí - Lợi Nhuận (5 Tháng Gần Nhất)',
+    inv_trend_desc: 'Dữ liệu vẫn được giữ lại ở đây ngay cả khi hóa đơn tháng cũ đã bị xóa theo chính sách lưu trữ — bấm vào 1 tháng để xem chi tiết (chỉ khi dữ liệu gốc còn tồn tại).',
+    inv_trend_revenue_label: 'Doanh thu',
+    inv_trend_expenses_label: 'Chi phí',
+    inv_trend_profit_label: 'Lợi nhuận',
+    inv_trend_click_hint: 'Bấm để xem chi tiết tháng này',
+    inv_trend_snapshot_hint: 'Dữ liệu chi tiết tháng này đã bị xóa — chỉ còn số liệu tổng hợp',
+    inv_trend_no_data: 'Chưa có dữ liệu',
+    inv_trend_archived_label: 'Đã lưu trữ',
     inv_breakdown_title: 'Cơ Cấu Doanh Thu Tháng',
     inv_house_breakdown_title: 'Doanh Thu Theo Tòa Nhà',
     inv_rooms_title: 'Chi Tiết Doanh Thu Theo Phòng',
@@ -752,6 +761,15 @@ const I18N = {
     inv_profit_revenue_label: 'Revenue this month:',
     inv_profit_expenses_label: 'Less installation/repair costs:',
     inv_profit_desc: 'An estimate based on the revenue and costs recorded so far this month — may change if more is added.',
+    inv_trend_title: 'Revenue - Expenses - Profit (Last 5 Months)',
+    inv_trend_desc: 'This data stays available here even after old months\' invoices are deleted by the retention policy — click a month to view details (only possible while the original data still exists).',
+    inv_trend_revenue_label: 'Revenue',
+    inv_trend_expenses_label: 'Expenses',
+    inv_trend_profit_label: 'Profit',
+    inv_trend_click_hint: 'Click to view this month in detail',
+    inv_trend_snapshot_hint: 'This month\'s detailed data has been deleted — only the summary numbers remain',
+    inv_trend_no_data: 'No data yet',
+    inv_trend_archived_label: 'Archived',
     inv_breakdown_title: 'Monthly Revenue Breakdown',
     inv_house_breakdown_title: 'Revenue By Building',
     inv_rooms_title: 'Revenue Detail By Room',
@@ -1447,6 +1465,7 @@ let state = {
   salerCommissionPercent: 0,
   investorExpenses: [],
   investorReportOverrides: [],
+  investorMonthlySnapshots: {},
   siteSettings: { siteName: 'CalaciHouse', title: 'CalaciHouse - Hệ Thống Quản Lý Phòng Trọ', description: '', keywords: '', shareImage: '', favicon: '' },
   customIcons: []
 };
@@ -2149,6 +2168,7 @@ async function fetchState(skipRender) {
       state.salerCommissionPercent = data.salerCommissionPercent || 0;
       state.investorExpenses = data.investorExpenses || state.investorExpenses;
       state.investorReportOverrides = data.investorReportOverrides || state.investorReportOverrides;
+      state.investorMonthlySnapshots = data.investorMonthlySnapshots || state.investorMonthlySnapshots;
       state.customIcons = data.customIcons || state.customIcons;
       if (data.siteSettings) applySiteSettings(data.siteSettings);
       renderHouseSelector();
@@ -3512,6 +3532,7 @@ function renderInvestorDashboard() {
   const investorId = state.currentUser.id;
   const activeRooms = getFilteredRooms();
   const monthReadings = state.readings[state.currentMonth] || {};
+  renderInvestorTrendChart();
 
   let totalRent = 0, totalElec = 0, totalWater = 0, totalService = 0;
   let occupiedCount = 0;
@@ -3736,6 +3757,87 @@ function renderInvestorDashboard() {
       expensesCard.style.display = 'none';
     }
   }
+}
+
+// Doanh thu/Chi phí/Lợi nhuận summed across every house this investor
+// covers, for one month. Prefers LIVE data (computeInvestorReportData,
+// same math the admin report/investor dashboard already use elsewhere)
+// whenever this month's invoices still exist; falls back to the
+// snapshot RentalService._snapshot_investor_reports() captured
+// server-side right before the retention policy deleted them (see
+// services.py) for a month that's aged out. isLive stays true only when
+// EVERY house contributing to this total still has its real data — a
+// mix of live + snapshotted houses is rare (retention deletes by month
+// across the whole system at once) but treated as "can't drill in" to
+// avoid a detail view that's silently incomplete for part of the total.
+function investorMonthlyTotals(investorId, month) {
+  let revenue = 0, expenses = 0, profit = 0, hasAny = false, allLive = true;
+  state.houses.forEach(h => {
+    const hasInvoices = state.invoices.some(i => i.houseId === h.id && i.month === month);
+    if (hasInvoices) {
+      hasAny = true;
+      const d = computeInvestorReportData(h.id, month, investorId);
+      revenue += d.grossRevenue;
+      expenses += d.expenses;
+      profit += d.investorShare;
+    } else {
+      const snap = state.investorMonthlySnapshots[`${h.id}|${investorId}|${month}`];
+      if (snap) {
+        hasAny = true;
+        allLive = false;
+        revenue += snap.revenue;
+        expenses += snap.expenses;
+        profit += snap.profit;
+      }
+    }
+  });
+  return { revenue, expenses, profit, hasAny, isLive: hasAny && allLive };
+}
+
+function viewInvestorTrendMonth(month) {
+  state.currentMonth = month;
+  const sel = document.getElementById('select-month');
+  if (sel) sel.value = month;
+  fetchState();
+}
+
+function renderInvestorTrendChart() {
+  const container = document.getElementById('investor-trend-chart');
+  if (!container) return;
+  const investorId = state.currentUser.id;
+  const [y, m] = state.currentMonth.split('-').map(Number);
+  const months = [];
+  for (let i = 4; i >= 0; i--) {
+    let mm = m - i, yy = y;
+    while (mm <= 0) { mm += 12; yy -= 1; }
+    months.push(`${yy}-${String(mm).padStart(2, '0')}`);
+  }
+  const data = months.map(mo => ({ month: mo, ...investorMonthlyTotals(investorId, mo) }));
+  const maxVal = Math.max(1, ...data.flatMap(d => [d.revenue, d.expenses, Math.abs(d.profit)]));
+  const barHeight = (val) => Math.max(3, Math.round((Math.max(0, val) / maxVal) * 130));
+
+  container.innerHTML = `
+    <div style="display:flex; align-items:flex-end; gap:0.75rem; height:200px; overflow-x:auto; padding-bottom:0.5rem;">
+      ${data.map(d => `
+        <div style="display:flex; flex-direction:column; align-items:center; min-width:80px; ${d.isLive ? 'cursor:pointer;' : ''}"
+             ${d.isLive ? `onclick="viewInvestorTrendMonth('${d.month}')"` : ''}
+             title="${d.isLive ? t('inv_trend_click_hint') : (d.hasAny ? t('inv_trend_snapshot_hint') : '')}">
+          <div style="display:flex; align-items:flex-end; gap:4px; height:135px;">
+            <div style="width:16px; background:${d.hasAny ? 'var(--cala-blue)' : 'var(--border-color)'}; height:${d.hasAny ? barHeight(d.revenue) : 3}px; border-radius:3px 3px 0 0;" title="${t('inv_trend_revenue_label')}: ${formatMoney(d.revenue)}đ"></div>
+            <div style="width:16px; background:${d.hasAny ? 'var(--cala-red)' : 'var(--border-color)'}; height:${d.hasAny ? barHeight(d.expenses) : 3}px; border-radius:3px 3px 0 0;" title="${t('inv_trend_expenses_label')}: ${formatMoney(d.expenses)}đ"></div>
+            <div style="width:16px; background:${d.hasAny ? 'var(--cala-emerald)' : 'var(--border-color)'}; height:${d.hasAny ? barHeight(d.profit) : 3}px; border-radius:3px 3px 0 0;" title="${t('inv_trend_profit_label')}: ${formatMoney(d.profit)}đ"></div>
+          </div>
+          <div style="font-size:0.75rem; font-weight:700; color:var(--text-primary); margin-top:6px;">${formatMonthLabel(d.month)}</div>
+          ${!d.hasAny ? `<div style="font-size:0.65rem; color:var(--text-muted);">${t('inv_trend_no_data')}</div>` : (!d.isLive ? `<div style="font-size:0.62rem; color:var(--text-muted);">${t('inv_trend_archived_label')}</div>` : '')}
+        </div>
+      `).join('')}
+    </div>
+    <div style="display:flex; gap:1.25rem; margin-top:0.85rem; font-size:0.78rem; flex-wrap:wrap;">
+      <div><span style="display:inline-block; width:10px; height:10px; background:var(--cala-blue); border-radius:2px; margin-right:4px; vertical-align:middle;"></span>${t('inv_trend_revenue_label')}</div>
+      <div><span style="display:inline-block; width:10px; height:10px; background:var(--cala-red); border-radius:2px; margin-right:4px; vertical-align:middle;"></span>${t('inv_trend_expenses_label')}</div>
+      <div><span style="display:inline-block; width:10px; height:10px; background:var(--cala-emerald); border-radius:2px; margin-right:4px; vertical-align:middle;"></span>${t('inv_trend_profit_label')}</div>
+    </div>
+  `;
 }
 
 function renderSpreadsheet() {
