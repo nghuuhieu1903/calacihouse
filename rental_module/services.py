@@ -147,10 +147,11 @@ class RentalService:
         to one note)."""
         base_rent = room.get('baseRent', 0) or 0
         if room.get('roomType') == 'dorm':
+            headcount = max(1, room.get('headcount') or 1)
             occupants = [u for u in users
                          if u.get('role') == 'tenant' and u.get('roomId') == room.get('id') and u.get('status') == 'approved']
             if not occupants:
-                return base_rent * max(1, room.get('headcount') or 1), None
+                return base_rent * headcount, None
             total = 0
             for u in occupants:
                 cs, ce = u.get('contractStart') or '', u.get('contractEnd') or ''
@@ -159,6 +160,17 @@ class RentalService:
                     continue
                 ratio, _, _ = RentalService._prorated_ratio_for_month(cs, ce, month)
                 total += base_rent * ratio
+            # headcount is the authoritative total occupant count (kept
+            # in sync by admin manually) — it can be larger than the
+            # number of occupants who actually have a login account
+            # (some still pay in cash, or haven't been approved yet), so
+            # only summing tracked accounts here silently undercounted
+            # the room's rent whenever headcount > len(occupants).
+            # Anyone not represented by a tracked account bills at the
+            # full rate, exactly as headcount × base_rent always did
+            # before per-account proration existed.
+            untracked = max(0, headcount - len(occupants))
+            total += untracked * base_rent
             # Rounded down to the nearest 1.000đ, same as the single-room
             # branch below — a per-day split (base_rent × ratio) almost
             # never lands on a clean number otherwise (e.g. 3.500.000đ ×

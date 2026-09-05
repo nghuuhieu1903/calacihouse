@@ -3402,13 +3402,20 @@ function roomRentForMonth(room, month) {
   // 3.500.000đ × 10/31 = 1.129.032,26đ). Mirrors services.py.
   const roundDown1000 = n => Math.floor(n / 1000) * 1000;
   if (room && room.roomType === 'dorm') {
+    const headcount = Math.max(1, room.headcount || 1);
     const occupants = state.users.filter(u => u.role === 'tenant' && u.roomId === room.id && u.status === 'approved');
-    if (!occupants.length) return baseRent * Math.max(1, room.headcount || 1);
-    const total = occupants.reduce((sum, u) => {
+    if (!occupants.length) return baseRent * headcount;
+    let total = occupants.reduce((sum, u) => {
       const cs = u.contractStart || '', ce = u.contractEnd || '';
       if (!u.useContractProration || (!cs && !ce)) return sum + baseRent;
       return sum + baseRent * proratedRatioForMonth(cs, ce, month).ratio;
     }, 0);
+    // headcount is the authoritative total occupant count — it can
+    // exceed the number of occupants who actually have a login account
+    // (still paying cash, or not approved yet), so anyone not
+    // represented by a tracked account still bills at the full rate.
+    // Mirrors services.py's room_rent_for_month().
+    total += Math.max(0, headcount - occupants.length) * baseRent;
     return roundDown1000(total);
   }
   const cs = (room && room.contractStart) || '', ce = (room && room.contractEnd) || '';
