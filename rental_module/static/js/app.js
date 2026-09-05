@@ -75,6 +75,7 @@ const I18N = {
     inv_profit_title: 'Lợi Nhuận Dự Kiến Nhận Tháng Này',
     inv_profit_revenue_label: 'Doanh thu tháng này',
     inv_profit_expenses_label: 'Chi phí lắp đặt/sửa chữa',
+    inv_profit_manager_label: 'Phần Quản Lý',
     inv_profit_net_label: '= Lợi nhuận dự kiến',
     inv_profit_desc: 'Con số dự kiến dựa trên doanh thu và chi phí đã ghi nhận trong tháng — có thể thay đổi nếu có cập nhật thêm.',
     inv_trend_title: 'Doanh Thu - Chi Phí - Lợi Nhuận (5 Tháng Gần Nhất)',
@@ -762,6 +763,7 @@ const I18N = {
     inv_profit_title: 'Expected Take-Home Profit This Month',
     inv_profit_revenue_label: 'Revenue this month',
     inv_profit_expenses_label: 'Installation/repair costs',
+    inv_profit_manager_label: 'Management Share',
     inv_profit_net_label: '= Expected profit',
     inv_profit_desc: 'An estimate based on the revenue and costs recorded so far this month — may change if more is added.',
     inv_trend_title: 'Revenue - Expenses - Profit (Last 5 Months)',
@@ -3587,6 +3589,10 @@ function renderInvestorDashboard() {
 
   let totalRent = 0, totalElec = 0, totalWater = 0, totalService = 0;
   let occupiedCount = 0;
+  // Per-house revenue — a house's managerFee (% of gross, or a flat
+  // VNĐ/month) only makes sense applied to THAT house's own revenue,
+  // not the combined total across every house this investor covers.
+  const revenueByHouse = {};
 
   // A vacant room has no tenant paying rent — it must not contribute to
   // "doanh thu" (revenue) or "công nợ" (outstanding) even if an invoice
@@ -3594,7 +3600,8 @@ function renderInvestorDashboard() {
   activeRooms.forEach(r => {
     if (!r.tenant || !roomOccupiedThisMonth(r, state.currentMonth)) return;
     occupiedCount++;
-    totalRent += roomRentForMonth(r, state.currentMonth);
+    let roomRevenue = roomRentForMonth(r, state.currentMonth);
+    totalRent += roomRevenue;
 
     const rd = monthReadings[r.id] || {};
     // Only services checked "gửi cho Chủ Đầu Tư" count toward what the
@@ -3610,11 +3617,15 @@ function renderInvestorDashboard() {
         const cost = utilityCostForRoom(s.customFormula, usage, isElec, r);
         const shared = investorShareForAmount(share, cost);
         if (isElec) totalElec += shared; else totalWater += shared;
+        roomRevenue += shared;
       } else {
         const cost = calculateServiceCostForRoom(s, r);
-        totalService += investorShareForAmount(share, cost);
+        const shared = investorShareForAmount(share, cost);
+        totalService += shared;
+        roomRevenue += shared;
       }
     });
+    revenueByHouse[r.houseId] = (revenueByHouse[r.houseId] || 0) + roomRevenue;
   });
 
   const totalRevenue = totalRent + totalElec + totalWater + totalService;
@@ -3641,17 +3652,38 @@ function renderInvestorDashboard() {
   setText('inv-stat-tickets', openTickets);
 
   // Lợi Nhuận Dự Kiến — the headline "how much will I actually get this
-  // month" number: this month's revenue share minus this month's
-  // installation/repair deductions. Computed from the same totalRevenue
-  // projection as inv-stat-revenue (not tied to whether invoices have
-  // actually been marked paid yet), so it reads as "expected", matching
-  // the disclaimer text under it.
+  // month" number: this month's revenue share, minus this month's
+  // installation/repair deductions, minus the management cut (same
+  // managerFee — % of gross, or a flat VNĐ/month — Báo Cáo Chủ Đầu Tư
+  // and the 5-month trend chart already subtract via
+  // computeInvestorReportData). Missing that last deduction here made
+  // this headline number silently disagree with those other two.
+  // Computed per house (managerFee only makes sense against that
+  // house's own revenue) then summed, so multiple houses each with a
+  // different fee arrangement are handled correctly.
   const totalExpensesForProfit = state.investorExpenses
     .filter(e => e.month === state.currentMonth && (state.currentHouseId === 'all' || e.houseId === state.currentHouseId))
     .reduce((s, e) => s + (e.amount || 0), 0);
-  const netProfit = totalRevenue - totalExpensesForProfit;
+  let totalManagerShare = 0;
+  const managerFeeHouses = state.houses.filter(h => revenueByHouse[h.id]);
+  managerFeeHouses.forEach(h => {
+    const fee = h.managerFee || { mode: 'percent', value: 20 };
+    const houseRevenue = revenueByHouse[h.id] || 0;
+    totalManagerShare += fee.mode === 'fixed' ? (fee.value || 0) : houseRevenue * ((fee.value || 0) / 100);
+  });
+  const netProfit = totalRevenue - totalExpensesForProfit - totalManagerShare;
+  // The % only reads as one clean number when every contributing house
+  // shares the same percent-of-gross arrangement — otherwise (mixed
+  // fixed/percent fees, or different percentages across houses) just
+  // the đ amount is shown, not a blended/misleading percentage.
+  const uniformPercent = managerFeeHouses.length > 0 && managerFeeHouses.every(h => (h.managerFee || { mode: 'percent', value: 20 }).mode === 'percent' && (h.managerFee || { mode: 'percent', value: 20 }).value === (managerFeeHouses[0].managerFee || { mode: 'percent', value: 20 }).value)
+    ? (managerFeeHouses[0].managerFee || { mode: 'percent', value: 20 }).value
+    : null;
   setText('investor-profit-revenue', '+ ' + formatMoney(totalRevenue) + ' đ');
   setText('investor-profit-expenses', '− ' + formatMoney(totalExpensesForProfit) + ' đ');
+  setText('investor-profit-manager-share', '− ' + formatMoney(totalManagerShare) + ' đ');
+  const managerLabelEl = document.getElementById('investor-profit-manager-label');
+  if (managerLabelEl) managerLabelEl.innerText = uniformPercent !== null ? `${t('inv_profit_manager_label')} (${uniformPercent}%)` : t('inv_profit_manager_label');
   const netProfitEl = document.getElementById('investor-profit-net');
   if (netProfitEl) {
     netProfitEl.innerText = formatMoney(netProfit) + ' đ';
