@@ -6131,6 +6131,14 @@ function viewInvestorInvoiceDetail(invoiceId) {
     rowsHtml += `<tr><td>${lineNo++}. ${sv.symbol} ${sv.name}${sv.unit ? ` (${sv.unit})` : ''}</td><td style="text-align:right;">${formatMoney(sv.shared)} đ</td></tr>`;
   });
 
+  // Read-only — an investor can see the tenant's own proof of payment
+  // (the backend already allows it, same _user_can_access_invoice check
+  // as admin/tenant) but never uploads/deletes one themselves, so this
+  // always passes canEdit=false regardless of the 'invoices':'edit'
+  // permission an investor account might otherwise hold.
+  const room = state.rooms.find(r => r.id === inv.roomId);
+  const ppSections = paymentProofSections(inv, room).filter(s => s.count > 0);
+
   content.innerHTML = `
     <div class="invoice-paper" style="box-shadow:none; border:1px solid var(--border-color);">
       <h3 style="color:#03121a;">${t('invoice_detail_title_prefix')}${inv.roomName}</h3>
@@ -6139,10 +6147,16 @@ function viewInvestorInvoiceDetail(invoiceId) {
         ${rowsHtml}
         <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(breakdown.total)} đ</td></tr>
       </table>
+      ${ppSections.length ? `
+        <div style="margin-top:1.25rem;">
+          ${ppSections.map(s => paymentProofCardHtml(s, false)).join('')}
+        </div>
+      ` : ''}
     </div>
   `;
   document.getElementById('modal-invoice-detail').classList.add('active');
   renderIcons(content);
+  if (ppSections.length) loadPaymentProofSections(ppSections, inv.id, false);
 }
 
 function previewRoomInvoice(roomId) {
