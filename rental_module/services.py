@@ -664,7 +664,30 @@ class RentalService:
                 for rid, docs in room_documents.items() if rid in room_ids
             }
             room_photos = {}
-            users = []
+            # A KTX/dorm room's own invoice is shared by every occupant,
+            # so working out THIS tenant's own share of it (rent —
+            # useContractProration/contract dates — a "Theo đầu người"
+            # service's real per-person price instead of the room-wide
+            # total, a vehicle fee only if it's actually theirs) needs to
+            # know their roommates' own sharing-relevant fields — see
+            # computeKtxPerPersonBreakdown() in app.js, which this now
+            # has enough to run for the current tenant's own row. Kept
+            # to only that one room and only the fields actually needed
+            # for that math — no username/password/phone/other rooms'
+            # accounts, unlike the admin/investor account directory.
+            if room_ids:
+                users = [
+                    {
+                        'id': u['id'], 'fullName': u.get('fullName', ''), 'role': u['role'],
+                        'roomId': u.get('roomId', ''), 'status': u.get('status', ''),
+                        'vehicleServiceId': u.get('vehicleServiceId', ''),
+                        'contractStart': u.get('contractStart', ''), 'contractEnd': u.get('contractEnd', ''),
+                        'useContractProration': u.get('useContractProration', False)
+                    }
+                    for u in users if u.get('role') == 'tenant' and u.get('roomId') in room_ids
+                ]
+            else:
+                users = []
 
         # The investor payout report itself (admin's revenue-share math) is
         # admin/manager-only, but the underlying repair/installation cost
@@ -1876,3 +1899,360 @@ class RentalService:
 
         Storage.update_room_photos(mutate)
         return True
+
+    # ======================================================================
+    # THUẾ HỘ KINH DOANH — tổng hợp & phân tích (private, chỉ Admin)
+    # ======================================================================
+    # Ba loại thuế cơ bản của một hộ kinh doanh cho thuê nhà:
+    #   mon_bai — Lệ phí môn bài, tính theo BẬC doanh thu cả năm, nộp 1 lần/năm
+    #   gtgt    — Thuế GTGT theo phương pháp khoán: 5% doanh thu (cho thuê tài sản)
+    #   tncn    — Thuế TNCN theo phương pháp khoán: 5% doanh thu (cho thuê tài sản)
+    # Cả GTGT lẫn TNCN chỉ phát sinh khi doanh thu cả năm VƯỢT ngưỡng miễn
+    # thuế, và khi đã vượt thì tính trên TOÀN BỘ doanh thu chứ không phải
+    # phần vượt — đây là chỗ dễ tính sai nhất, nên _tax_for_revenue() bên
+    # dưới là nơi duy nhất trong cả app quyết định điều đó.
+
+    TAX_TYPE_LABELS = {
+        'mon_bai': 'Lệ phí môn bài',
+        'gtgt': 'Thuế GTGT (khoán)',
+        'tncn': 'Thuế TNCN (khoán)',
+        'khac': 'Khoản nộp khác'
+    }
+
+    @staticmethod
+    def _license_fee_for_revenue(annual_revenue, settings):
+        """Bậc lệ phí môn bài tương ứng doanh thu cả năm. Trả về
+        (số tiền, nhãn bậc) — nhãn để trang phân tích giải thích ĐƯỢC vì
+        sao ra con số đó thay vì chỉ hiện một số trần trụi."""
+        if not settings.get('licenseFeeEnabled'):
+            return 0, 'Được miễn lệ phí môn bài (đã tắt trong tham số)'
+        tiers = settings.get('licenseFeeTiers') or []
+        for tier in tiers:
+            low = tier.get('min') or 0
+            high = tier.get('max')
+            # Bậc được hiểu là (min, max]: doanh thu đúng bằng mốc trần
+            # (VD đúng 100 triệu) vẫn thuộc bậc dưới — khớp với cách
+            # "doanh thu TRÊN 100 triệu" được diễn đạt trong quy định.
+            if annual_revenue > low and (high is None or annual_revenue <= high):
+                fee = tier.get('fee') or 0
+                high_label = 'trở lên' if high is None else f'đến {high:,.0f} đ'.replace(',', '.')
+                return fee, f'Doanh thu trên {low:,.0f} đ {high_label}'.replace(',', '.')
+        return 0, 'Doanh thu chưa tới bậc chịu lệ phí môn bài'
+
+    @staticmethod
+    def _tax_for_revenue(taxable_revenue, business_revenue, settings):
+        """GTGT & TNCN khoán trên `taxable_revenue`, nhưng việc CÓ chịu
+        thuế hay không lại xét trên `business_revenue` — tổng doanh thu cả
+        hộ kinh doanh. Hai tham số riêng biệt vì khi admin lọc theo một
+        tòa nhà, phần thuế phân bổ cho tòa đó vẫn phải phát sinh nếu cả hộ
+        đã vượt ngưỡng; xét ngưỡng trên riêng doanh thu tòa đang lọc sẽ
+        cho ra "được miễn" một cách sai lệch."""
+        threshold = settings.get('revenueThreshold') or 0
+        over = business_revenue > threshold
+        if not over:
+            return 0.0, 0.0, False
+        vat = taxable_revenue * (settings.get('vatRate') or 0) / 100.0
+        pit = taxable_revenue * (settings.get('pitRate') or 0) / 100.0
+        return vat, pit, True
+
+    @staticmethod
+    def _invoice_is_paid(inv):
+        return (inv.get('status') or '') == 'Đã thanh toán'
+
+    @staticmethod
+    def _revenue_of(invoices, settings):
+        """(doanh thu toàn phần, chỉ tiền thuê, phần đã thu, doanh thu
+        tính thuế) của một tập hóa đơn. Doanh thu tính thuế phụ thuộc 2
+        tham số: lấy toàn bộ hay chỉ tiền thuê (revenueBasis), và ghi nhận
+        theo hóa đơn đã phát hành hay chỉ phần đã thu (revenueRecognition)."""
+        total = sum(i.get('totalAmount', 0) or 0 for i in invoices)
+        rent = sum(i.get('baseRent', 0) or 0 for i in invoices)
+        paid_invoices = [i for i in invoices if RentalService._invoice_is_paid(i)]
+        collected = sum(i.get('totalAmount', 0) or 0 for i in paid_invoices)
+        collected_rent = sum(i.get('baseRent', 0) or 0 for i in paid_invoices)
+
+        rent_only = settings.get('revenueBasis') == 'rent_only'
+        if settings.get('revenueRecognition') == 'collected':
+            taxable = collected_rent if rent_only else collected
+        else:
+            taxable = rent if rent_only else total
+        return total, rent, collected, taxable
+
+    @staticmethod
+    def get_tax_overview(year=None, house_id='all'):
+        """Toàn bộ số liệu trang "Tổng Hợp & Phân Tích Thuế Hộ Kinh Doanh"
+        trong MỘT lần gọi: doanh thu theo tháng, thuế ước tính, thuế đã ghi
+        nhận trong sổ, chênh lệch giữa hai bên, và phân bổ theo từng tòa
+        nhà. Gom lại một endpoint thay vì để front-end tự cộng: công thức
+        thuế phải có đúng một nguồn sự thật (còn dùng lại ở
+        generate_tax_estimate_records bên dưới), và front-end thì không có
+        sẵn hóa đơn của MỌI tháng trong năm — /api/data chỉ tải theo tháng
+        đang chọn."""
+        settings = Storage.get_tax_settings()
+        houses = Storage.get_houses()
+        invoices = Storage.get_invoices_light()
+        records = Storage.get_tax_records()
+
+        all_years = sorted({(i.get('month') or '')[:4] for i in invoices if i.get('month')}, reverse=True)
+        all_years = [y for y in all_years if len(y) == 4]
+        current_year = datetime.now().strftime('%Y')
+        if current_year not in all_years:
+            all_years.insert(0, current_year)
+        for r in records:
+            if r.get('year') and r['year'] not in all_years:
+                all_years.append(r['year'])
+        all_years = sorted(set(all_years), reverse=True)
+
+        year = str(year or current_year)
+        year_invoices = [i for i in invoices if (i.get('month') or '').startswith(year + '-')]
+
+        # Ngưỡng miễn thuế xét trên doanh thu CẢ HỘ KINH DOANH, không phụ
+        # thuộc bộ lọc tòa nhà đang xem — xem _tax_for_revenue().
+        _, _, _, business_taxable = RentalService._revenue_of(year_invoices, settings)
+
+        scoped = year_invoices if house_id in ('all', '', None) else [
+            i for i in year_invoices if i.get('houseId') == house_id
+        ]
+        total_revenue, rent_revenue, collected_revenue, taxable_revenue = \
+            RentalService._revenue_of(scoped, settings)
+
+        # -- Doanh thu & thuế ước tính theo từng tháng ----------------------
+        months = []
+        for m in range(1, 13):
+            month_key = f'{year}-{m:02d}'
+            month_invoices = [i for i in scoped if i.get('month') == month_key]
+            m_total, m_rent, m_collected, m_taxable = RentalService._revenue_of(month_invoices, settings)
+            m_vat, m_pit, _ = RentalService._tax_for_revenue(m_taxable, business_taxable, settings)
+            months.append({
+                'month': month_key,
+                'invoiceCount': len(month_invoices),
+                'revenueTotal': m_total,
+                'revenueRent': m_rent,
+                'collected': m_collected,
+                'taxableRevenue': m_taxable,
+                # Lệ phí môn bài là khoản cả năm, không chia theo tháng —
+                # cột thuế theo tháng ở đây chỉ gồm GTGT + TNCN.
+                'estimatedTax': m_vat + m_pit
+            })
+
+        # -- Ước tính cả năm ------------------------------------------------
+        vat, pit, over_threshold = RentalService._tax_for_revenue(taxable_revenue, business_taxable, settings)
+        license_fee, license_label = RentalService._license_fee_for_revenue(business_taxable, settings)
+        # Lệ phí môn bài là nghĩa vụ của cả hộ kinh doanh — khi đang lọc
+        # một tòa, hiển thị nguyên khoản đó nhưng đánh dấu businessWide để
+        # front-end nói rõ "khoản này tính cho cả hộ, không riêng tòa đang
+        # xem" thay vì để người đọc tưởng mỗi tòa phải nộp một lần.
+        estimated_total = license_fee + vat + pit
+
+        active_months = len([mo for mo in months if mo['invoiceCount'] > 0])
+        projected_annual = (business_taxable / active_months * 12) if (
+            year == current_year and active_months and active_months < 12
+        ) else business_taxable
+
+        estimate = {
+            'licenseFee': license_fee,
+            'licenseFeeTierLabel': license_label,
+            'licenseFeeIsBusinessWide': True,
+            'vat': vat,
+            'pit': pit,
+            'vatRate': settings.get('vatRate') or 0,
+            'pitRate': settings.get('pitRate') or 0,
+            'totalTax': estimated_total,
+            'threshold': settings.get('revenueThreshold') or 0,
+            'isOverThreshold': over_threshold,
+            'businessRevenue': business_taxable,
+            'projectedAnnualRevenue': projected_annual,
+            'activeMonths': active_months,
+            # Thuế / doanh thu — con số dùng để so sánh giữa các năm và
+            # thấy ngay tác động của việc đổi cách xác định doanh thu.
+            'effectiveRate': (estimated_total / taxable_revenue * 100) if taxable_revenue else 0
+        }
+
+        # -- Thuế đã ghi nhận trong sổ (thực tế đã kê khai/đã nộp) ----------
+        year_records = [r for r in records if r.get('year') == year]
+        if house_id not in ('all', '', None):
+            # Khoản gắn houseId rỗng = của cả hộ kinh doanh, luôn hiển thị
+            # kể cả khi đang lọc một tòa (lệ phí môn bài rơi vào nhóm này).
+            year_records = [r for r in year_records if r.get('houseId') in (house_id, '')]
+
+        recorded = {}
+        for tax_type in ('mon_bai', 'gtgt', 'tncn', 'khac'):
+            type_records = [r for r in year_records if r.get('taxType') == tax_type]
+            amount = sum(r.get('amount', 0) or 0 for r in type_records)
+            paid = sum(r.get('amount', 0) or 0 for r in type_records if r.get('status') == 'paid')
+            recorded[tax_type] = {
+                'label': RentalService.TAX_TYPE_LABELS[tax_type],
+                'count': len(type_records),
+                'amount': amount,
+                'paid': paid,
+                'unpaid': amount - paid
+            }
+        recorded['totalAmount'] = sum(recorded[t]['amount'] for t in ('mon_bai', 'gtgt', 'tncn', 'khac'))
+        recorded['totalPaid'] = sum(recorded[t]['paid'] for t in ('mon_bai', 'gtgt', 'tncn', 'khac'))
+        recorded['totalUnpaid'] = recorded['totalAmount'] - recorded['totalPaid']
+
+        # -- Chênh lệch ước tính ↔ đã ghi nhận ------------------------------
+        estimated_by_type = {'mon_bai': license_fee, 'gtgt': vat, 'tncn': pit}
+        variance = [
+            {
+                'taxType': tax_type,
+                'label': RentalService.TAX_TYPE_LABELS[tax_type],
+                'estimated': estimated_by_type[tax_type],
+                'recorded': recorded[tax_type]['amount'],
+                'paid': recorded[tax_type]['paid'],
+                'diff': recorded[tax_type]['amount'] - estimated_by_type[tax_type]
+            }
+            for tax_type in ('mon_bai', 'gtgt', 'tncn')
+        ]
+
+        # -- Phân bổ theo tòa nhà (luôn tính trên TOÀN BỘ tòa, kể cả khi
+        # đang lọc một tòa — đây chính là bảng để so sánh giữa các tòa) ----
+        by_house = []
+        for h in houses:
+            h_invoices = [i for i in year_invoices if i.get('houseId') == h['id']]
+            h_total, h_rent, h_collected, h_taxable = RentalService._revenue_of(h_invoices, settings)
+            h_vat, h_pit, _ = RentalService._tax_for_revenue(h_taxable, business_taxable, settings)
+            by_house.append({
+                'houseId': h['id'],
+                'houseName': h.get('name') or h['id'],
+                'invoiceCount': len(h_invoices),
+                'revenueTotal': h_total,
+                'revenueRent': h_rent,
+                'collected': h_collected,
+                'taxableRevenue': h_taxable,
+                'vat': h_vat,
+                'pit': h_pit,
+                'totalTax': h_vat + h_pit,
+                'revenueShare': (h_taxable / business_taxable * 100) if business_taxable else 0
+            })
+
+        house_names = {h['id']: h.get('name') or h['id'] for h in houses}
+        for r in year_records:
+            r['houseName'] = house_names.get(r.get('houseId'), 'Cả hộ kinh doanh')
+            r['taxTypeLabel'] = RentalService.TAX_TYPE_LABELS.get(r.get('taxType'), r.get('taxType'))
+
+        return {
+            'year': year,
+            'houseId': house_id or 'all',
+            'availableYears': all_years,
+            'settings': settings,
+            'revenue': {
+                'total': total_revenue,
+                'rent': rent_revenue,
+                'collected': collected_revenue,
+                'taxable': taxable_revenue,
+                'outstanding': total_revenue - collected_revenue,
+                'basis': settings.get('revenueBasis'),
+                'recognition': settings.get('revenueRecognition')
+            },
+            'months': months,
+            'estimate': estimate,
+            'recorded': recorded,
+            'variance': variance,
+            'byHouse': by_house,
+            'records': year_records
+        }
+
+    @staticmethod
+    def save_tax_record(record_id, house_id, year, period, tax_type, revenue_base,
+                        rate, amount, status, paid_date, note):
+        """Thêm/sửa một dòng sổ thuế. `year` luôn được suy ra từ `period`
+        khi period là 'YYYY-MM' để hai trường không bao giờ lệch nhau —
+        toàn bộ phần tổng hợp lọc theo `year`, nên một dòng ghi tháng
+        2026-03 mà year lại là 2025 sẽ biến mất khỏi mọi báo cáo."""
+        period = (period or '').strip()
+        year = (period[:4] if len(period) >= 4 else str(year or '')).strip()
+        r_obj = {
+            'id': record_id or f'tax_{uuid.uuid4().hex[:12]}',
+            'houseId': house_id or '',
+            'year': year,
+            'period': period or year,
+            'taxType': tax_type or 'khac',
+            'revenueBase': float(revenue_base or 0),
+            'rate': float(rate or 0),
+            'amount': float(amount or 0),
+            'status': status if status in ('paid', 'unpaid') else 'unpaid',
+            # Ngày nộp chỉ có nghĩa với khoản ĐÃ nộp; giữ lại ngày cũ trên
+            # một khoản vừa bị đánh dấu lại thành chưa nộp là thông tin sai.
+            'paidDate': (paid_date or '') if status == 'paid' else '',
+            'note': note or '',
+            'createdAt': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }
+        Storage.save_tax_record(r_obj)
+        return r_obj
+
+    @staticmethod
+    def delete_tax_record(record_id):
+        Storage.delete_tax_record(record_id)
+        return True
+
+    @staticmethod
+    def generate_tax_estimate_records(year):
+        """Đổ số liệu ƯỚC TÍNH của cả năm vào sổ thuế thành 3 dòng nháp
+        (môn bài / GTGT / TNCN) để admin khỏi gõ tay. Dùng id tất định
+        (tax_est_<năm>_<loại>) nên chạy lại nhiều lần chỉ CẬP NHẬT đúng 3
+        dòng đó thay vì nhân bản sổ thuế lên mỗi lần bấm nút.
+
+        Một dòng đã được đánh dấu "đã nộp" thì chỉ số tiền ước tính mới
+        được làm mới — trạng thái, ngày nộp và ghi chú giữ nguyên: đó là
+        dữ kiện thật do admin nhập, không phải thứ báo cáo được phép ghi
+        đè. Dòng đã nộp có số tiền lệch so với ước tính chính là tín hiệu
+        đáng chú ý nhất trên bảng chênh lệch, không phải lỗi."""
+        overview = RentalService.get_tax_overview(year, 'all')
+        settings = overview['settings']
+        estimate = overview['estimate']
+        existing = {r['id']: r for r in Storage.get_tax_records()}
+
+        planned = [
+            ('mon_bai', estimate['licenseFee'], 0,
+             f"Ước tính tự động — {estimate['licenseFeeTierLabel']}"),
+            ('gtgt', estimate['vat'], settings.get('vatRate') or 0,
+             'Ước tính tự động từ doanh thu hóa đơn'),
+            ('tncn', estimate['pit'], settings.get('pitRate') or 0,
+             'Ước tính tự động từ doanh thu hóa đơn')
+        ]
+
+        saved = []
+        for tax_type, amount, rate, note in planned:
+            record_id = f'tax_est_{year}_{tax_type}'
+            prev = existing.get(record_id)
+            r_obj = {
+                'id': record_id,
+                'houseId': '',
+                'year': str(year),
+                'period': str(year),
+                'taxType': tax_type,
+                'revenueBase': estimate['businessRevenue'],
+                'rate': rate,
+                'amount': amount,
+                'status': (prev or {}).get('status', 'unpaid'),
+                'paidDate': (prev or {}).get('paidDate', ''),
+                'note': (prev or {}).get('note') or note,
+                'createdAt': (prev or {}).get('createdAt') or datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            Storage.save_tax_record(r_obj)
+            saved.append(r_obj)
+        return saved
+
+    @staticmethod
+    def save_tax_settings(settings):
+        """Chỉ nhận đúng các key đã biết — tham số thuế đi thẳng vào công
+        thức tính tiền, nên một key lạ lọt vào từ request body sẽ nằm im
+        trong DB rồi có ngày trùng tên với tham số thật thêm sau này."""
+        current = Storage.get_tax_settings()
+        allowed = (
+            'businessName', 'taxCode', 'revenueThreshold', 'vatRate', 'pitRate',
+            'licenseFeeEnabled', 'licenseFeeTiers', 'revenueBasis', 'revenueRecognition'
+        )
+        for key in allowed:
+            if key in (settings or {}):
+                current[key] = settings[key]
+        for numeric in ('revenueThreshold', 'vatRate', 'pitRate'):
+            current[numeric] = float(current.get(numeric) or 0)
+        current['licenseFeeEnabled'] = bool(current.get('licenseFeeEnabled'))
+        if current.get('revenueBasis') not in ('total', 'rent_only'):
+            current['revenueBasis'] = 'total'
+        if current.get('revenueRecognition') not in ('invoiced', 'collected'):
+            current['revenueRecognition'] = 'invoiced'
+        Storage.save_tax_settings(current)
+        return current

@@ -411,6 +411,9 @@ const I18N = {
     nav_rooms: 'Quản Lý Phòng',
     nav_meter_photos: 'Cập Nhật Ảnh Số Điện',
     nav_permissions: 'Phân Quyền Hệ Thống',
+    nav_tax: 'Thuế Hộ Kinh Doanh',
+    view_admin_tax_title: '🧾 Tổng Hợp & Phân Tích Thuế Hộ Kinh Doanh',
+    view_admin_tax_subtitle: 'Lệ phí môn bài, thuế GTGT & TNCN khoán — tính từ doanh thu hóa đơn và đối chiếu với sổ thuế đã nộp.',
     nav_data_retention: 'Sao Lưu Dữ Liệu',
     retention_title: '🗄️ Sao Lưu & Dọn Dữ Liệu Cũ',
     retention_desc: 'Tự động giải phóng bộ nhớ trên server — hóa đơn/số điện nước lưu 3 tháng gần nhất, báo lỗi lưu 1 năm, cảnh báo trước 7 ngày để bạn kịp tải sao lưu.',
@@ -1099,6 +1102,9 @@ const I18N = {
     nav_rooms: 'Room Management',
     nav_meter_photos: 'Electricity Meter Photo Updates',
     nav_permissions: 'System Permissions',
+    nav_tax: 'Household Business Tax',
+    view_admin_tax_title: '🧾 Household Business Tax Summary & Analysis',
+    view_admin_tax_subtitle: 'Licence fee, presumptive VAT & PIT — computed from invoiced revenue and reconciled against the tax ledger.',
     nav_data_retention: 'Data Backup',
     retention_title: '🗄️ Backup & Clean Up Old Data',
     retention_desc: 'Automatically frees up storage on the server — invoices/meter readings kept for the trailing 3 months, tickets kept 1 year, with a 7-day warning before anything is actually deleted so you have time to back up.',
@@ -1812,6 +1818,11 @@ const ADMIN_TAB_PERMISSIONS = {
 function canAccessAdminView(role, viewId) {
   if (viewId === 'admin-permissions') return role === 'superadmin';
   if (viewId === 'admin-data-retention') return role === 'superadmin';
+  // Thuế Hộ Kinh Doanh: chỉ superadmin/admin. Không nằm trong ma trận
+  // phân quyền (không có bậc quyền nào ở giữa để mở cho manager) — khớp
+  // đúng @admin_required của mọi route /api/tax/* bên server, nên đây chỉ
+  // là lớp ẩn giao diện chứ không phải chỗ chặn thật sự.
+  if (viewId === 'admin-tax') return role === 'superadmin' || role === 'admin';
   // Manager's home is Xử Lý Báo Lỗi, not the revenue-oriented Tổng Quan —
   // deliberately hardcoded per-role rather than a matrix toggle, since
   // there's no "view" action on a feature called 'dashboard' to hang a
@@ -1917,6 +1928,8 @@ function setupUserRoleUI() {
     if (siteSettingsNav) siteSettingsNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
     const dataRetentionNav = document.getElementById('nav-data-retention');
     if (dataRetentionNav) dataRetentionNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
+    const taxNav = document.getElementById('nav-tax');
+    if (taxNav) taxNav.style.display = canAccessAdminView(user.role, 'admin-tax') ? 'flex' : 'none';
 
     // Shortcut buttons OUTSIDE the sidebar that jump straight to one of
     // the views above (Dashboard's "Phím Tắt Thao Tác Nhanh", the
@@ -2281,6 +2294,11 @@ function switchView(viewId) {
       titleEl.innerText = dict.view_admin_permissions_title;
       subtitleEl.innerText = dict.view_admin_permissions_subtitle;
       renderAdminPermissions();
+      break;
+    case 'admin-tax':
+      titleEl.innerText = dict.view_admin_tax_title;
+      subtitleEl.innerText = dict.view_admin_tax_subtitle;
+      renderTaxView();
       break;
     case 'admin-data-retention':
       titleEl.innerText = dict.retention_title;
@@ -5694,15 +5712,43 @@ function renderTenantInvoiceView() {
   // different times), water/services unchanged (never split — see the
   // room-type hint in the room form).
   const isDorm = room && room.roomType === 'dorm';
-  const personalRent = isDorm ? (room.baseRent || 0) : invoice.baseRent;
-  const elecSharedIds = isDorm ? elecSharedUserIdsFor(invoice, getRoomTenants(room.id).filter(u => u.status === 'approved')) : [];
-  const personalElec = isDorm
-    ? (elecSharedIds.includes(state.currentUser.id) ? Math.round((invoice.elecCost || 0) / Math.max(1, elecSharedIds.length)) : 0)
-    : invoice.elecCost;
-  const personalTotal = personalRent + personalElec + (invoice.waterCost || 0) + (invoice.otherFees || 0);
+  // computeKtxPerPersonBreakdown() (built for admin's own "Chia Tiền
+  // Theo Từng Người" table) already correctly works out exactly what
+  // ONE occupant owes — their own rent, their own share of electricity
+  // (elecSharedUserIdsFor), each "Theo đầu người" service at its actual
+  // per-person price (not the room-wide price × headcount total sitting
+  // on the invoice's own serviceItems), and a vehicle fee only if THEY
+  // have one assigned. Reusing it here instead of re-deriving the same
+  // numbers a second time is what keeps this page and admin's table
+  // permanently in agreement — they used to compute these very
+  // differently, so a KTX tenant saw the whole room's water/service/
+  // parking totals (four people's worth) instead of just their own.
+  const ktxBreakdown = isDorm ? computeKtxPerPersonBreakdown(invoice, room) : null;
+  const myKtxRow = ktxBreakdown ? ktxBreakdown.find(row => row.id === state.currentUser.id) : null;
 
-  const autoCalc = room ? calculateRoomServiceTotal(room) : { items: [] };
-  const itemsList = (invoice.serviceItems && invoice.serviceItems.length > 0) ? invoice.serviceItems : autoCalc.items;
+  const elecSharedIds = isDorm ? elecSharedUserIdsFor(invoice, getRoomTenants(room.id).filter(u => u.status === 'approved')) : [];
+  let personalRent, personalElec, personalTotal, itemsList;
+  if (isDorm && myKtxRow) {
+    personalRent = myKtxRow.rent;
+    personalElec = myKtxRow.elecAmount;
+    itemsList = myKtxRow.perPersonItems.map(it => ({ name: it.name, symbol: it.symbol, unit: t('formula_per_person_label'), total: it.amount }));
+    if (myKtxRow.vehicleFee) {
+      itemsList.push({ name: myKtxRow.vehicleName, symbol: '🛵', unit: t('formula_per_person_label'), total: myKtxRow.vehicleFee });
+    }
+    personalTotal = myKtxRow.total;
+  } else {
+    // Single room (or a dorm occupant somehow not in the tracked
+    // accounts list — shouldn't normally happen for someone who's
+    // actually logged in): the invoice's own room-wide figures already
+    // ARE that one tenant's own bill.
+    personalRent = isDorm ? (room.baseRent || 0) : invoice.baseRent;
+    personalElec = isDorm
+      ? (elecSharedIds.includes(state.currentUser.id) ? Math.round((invoice.elecCost || 0) / Math.max(1, elecSharedIds.length)) : 0)
+      : invoice.elecCost;
+    personalTotal = personalRent + personalElec + (invoice.waterCost || 0) + (invoice.otherFees || 0);
+    const autoCalc = room ? calculateRoomServiceTotal(room) : { items: [] };
+    itemsList = (invoice.serviceItems && invoice.serviceItems.length > 0) ? invoice.serviceItems : autoCalc.items;
+  }
 
   // elecFormula/waterFormula are only ever non-empty when a matching
   // formula-type service was actually found for this room at invoice-
@@ -8657,3 +8703,536 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.modal-backdrop.active').forEach(m => m.classList.remove('active'));
   });
 });
+
+/* ==========================================================================
+   THUẾ HỘ KINH DOANH — TỔNG HỢP & PHÂN TÍCH (chỉ Admin)
+   --------------------------------------------------------------------------
+   Trang này KHÔNG đọc từ `state` như các trang khác: /api/data cố tình
+   không chở theo số liệu thuế (payload đó đi tới cả tenant/saler/investor),
+   nên toàn bộ dữ liệu ở đây đến từ /api/tax/overview — một endpoint riêng,
+   @admin_required, gọi lại mỗi lần đổi năm/tòa nhà. Đổi lại, mọi công thức
+   thuế nằm gọn một chỗ ở server (services.py) thay vì bị chép lại ở đây.
+   ========================================================================== */
+
+const _taxState = {
+  year: '',
+  houseId: 'all',
+  overview: null,
+  // Bậc lệ phí môn bài đang sửa dở trong modal Tham Số — giữ ngoài DOM để
+  // thêm/xóa bậc không phải đọc ngược lại từ các ô input đã render.
+  editingTiers: []
+};
+
+function escapeTaxText(str) {
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// setText ở renderInvestorDashboard() là biến cục bộ trong hàm đó, không
+// phải helper toàn cục — trang này cần bản của riêng mình.
+function setTaxText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.innerText = value;
+}
+
+function taxMoney(num) {
+  return formatMoney(num) + ' đ';
+}
+
+async function renderTaxView() {
+  const params = new URLSearchParams({
+    year: _taxState.year || '',
+    houseId: _taxState.houseId || 'all'
+  });
+  let overview = null;
+  try {
+    const res = await fetch(`${API_BASE}/tax/overview?${params.toString()}`);
+    if (res.status === 401) {
+      forceLoginScreen(t('toast_session_ended'));
+      return;
+    }
+    if (res.status === 403) {
+      // Vai trò không được phép — switchView() lẽ ra đã chặn trước, nhưng
+      // vai trò có thể vừa bị hạ ngay trong phiên đang mở (validate_session
+      // làm mới role mỗi request), nên vẫn phải xử lý ở đây.
+      showToast(t('toast_view_not_permitted'), 'error');
+      switchView('admin-dashboard');
+      return;
+    }
+    const data = await res.json();
+    overview = data.overview;
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+    return;
+  }
+  if (!overview) return;
+
+  _taxState.overview = overview;
+  _taxState.year = overview.year;
+  _taxState.houseId = overview.houseId;
+
+  renderTaxSelectors(overview);
+  renderTaxStats(overview);
+  renderTaxAnalysisCard(overview);
+  renderTaxMonthly(overview);
+  renderTaxVarianceTable(overview);
+  renderTaxByHouseTable(overview);
+  renderTaxRecordsTable(overview);
+  renderIcons(document.getElementById('view-admin-tax'));
+}
+
+function renderTaxSelectors(overview) {
+  const yearSel = document.getElementById('tax-select-year');
+  if (yearSel) {
+    yearSel.innerHTML = (overview.availableYears || []).map(y =>
+      `<option value="${y}" ${y === overview.year ? 'selected' : ''}>Năm ${y}</option>`
+    ).join('');
+  }
+  const houseSel = document.getElementById('tax-select-house');
+  if (houseSel) {
+    const options = ['<option value="all">Tất cả tòa nhà</option>'].concat(
+      (overview.byHouse || []).map(h =>
+        `<option value="${escapeTaxText(h.houseId)}">${escapeTaxText(h.houseName)}</option>`
+      )
+    );
+    houseSel.innerHTML = options.join('');
+    houseSel.value = overview.houseId || 'all';
+  }
+}
+
+function handleTaxYearChange(el) {
+  _taxState.year = el.value;
+  renderTaxView();
+}
+
+function handleTaxHouseChange(el) {
+  _taxState.houseId = el.value;
+  renderTaxView();
+}
+
+function renderTaxStats(overview) {
+  const rev = overview.revenue;
+  const est = overview.estimate;
+  const basisLabel = rev.basis === 'rent_only' ? 'chỉ tiền thuê phòng' : 'toàn bộ hóa đơn';
+  const recognitionLabel = rev.recognition === 'collected' ? 'đã thu' : 'đã phát hành';
+
+  setTaxText('tax-stat-revenue', taxMoney(rev.taxable));
+  setTaxText('tax-stat-revenue-note', `Căn cứ: ${basisLabel}, ${recognitionLabel} · Tổng HĐ ${taxMoney(rev.total)}`);
+
+  setTaxText('tax-stat-estimated', taxMoney(est.totalTax));
+  setTaxText('tax-stat-estimated-note',
+    `Môn bài ${taxMoney(est.licenseFee)} · GTGT ${taxMoney(est.vat)} · TNCN ${taxMoney(est.pit)}`);
+
+  setTaxText('tax-stat-paid', taxMoney(overview.recorded.totalPaid));
+  setTaxText('tax-stat-paid-note',
+    `Đã ghi nhận ${taxMoney(overview.recorded.totalAmount)} · Còn phải nộp ${taxMoney(overview.recorded.totalUnpaid)}`);
+
+  setTaxText('tax-stat-effective', `${(est.effectiveRate || 0).toFixed(2)}%`);
+  setTaxText('tax-stat-effective-note', `Tổng thuế ước tính / doanh thu tính thuế`);
+}
+
+function renderTaxAnalysisCard(overview) {
+  const box = document.getElementById('tax-analysis-card');
+  if (!box) return;
+  const est = overview.estimate;
+  const s = overview.settings;
+  const over = est.isOverThreshold;
+  // Năm đang chạy dở thì doanh thu mới là một phần — nói thẳng con số
+  // ngoại suy cả năm ra, vì đó mới là thứ quyết định có vượt ngưỡng hay
+  // không khi chốt năm, chứ không phải doanh thu tới thời điểm này.
+  const projectionRow = (est.projectedAnnualRevenue > est.businessRevenue) ? `
+    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.35rem;">
+      Năm đang chạy dở (${est.activeMonths} tháng có hóa đơn) — ngoại suy cả năm khoảng
+      <b>${taxMoney(est.projectedAnnualRevenue)}</b>${est.projectedAnnualRevenue > est.threshold && !over
+        ? ' → nhiều khả năng sẽ VƯỢT ngưỡng khi chốt năm, nên chuẩn bị trước dòng tiền nộp thuế.'
+        : '.'}
+    </div>` : '';
+
+  box.innerHTML = `
+    <h3 style="margin-bottom: 0.75rem;">
+      <i data-lucide="${over ? 'alert-triangle' : 'shield-check'}" style="color: ${over ? 'var(--cala-orange)' : 'var(--cala-emerald)'}; vertical-align: middle; margin-right: 6px;"></i>
+      Kết Luận Nghĩa Vụ Thuế Năm ${overview.year}
+    </h3>
+    <div style="padding: 0.85rem 1rem; border-radius: 10px; background: ${over ? '#fff2ec' : '#e6f9f2'}; margin-bottom: 1rem;">
+      <div style="font-weight: 800;">
+        ${over
+          ? `Doanh thu cả hộ kinh doanh ${taxMoney(est.businessRevenue)} đã VƯỢT ngưỡng ${taxMoney(est.threshold)}/năm → phải nộp thuế GTGT và TNCN.`
+          : `Doanh thu cả hộ kinh doanh ${taxMoney(est.businessRevenue)} chưa vượt ngưỡng ${taxMoney(est.threshold)}/năm → được miễn thuế GTGT và TNCN.`}
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.35rem;">
+        Lưu ý: khi đã vượt ngưỡng thì thuế tính trên <b>toàn bộ</b> doanh thu, không phải chỉ phần vượt.
+      </div>
+      ${projectionRow}
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
+      <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem 1rem;">
+        <div style="font-weight: 800; margin-bottom: 0.35rem;">🏷️ Lệ phí môn bài</div>
+        <div style="font-size: 1.15rem; font-weight: 800;">${taxMoney(est.licenseFee)}</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
+          ${escapeTaxText(est.licenseFeeTierLabel)}. Khoản của cả hộ kinh doanh, nộp một lần cho cả năm.
+        </div>
+      </div>
+      <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem 1rem;">
+        <div style="font-weight: 800; margin-bottom: 0.35rem;">🧾 Thuế GTGT (khoán)</div>
+        <div style="font-size: 1.15rem; font-weight: 800;">${taxMoney(est.vat)}</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
+          ${over ? `${taxMoney(overview.revenue.taxable)} × ${est.vatRate}%` : `Miễn — chưa vượt ngưỡng doanh thu`}
+        </div>
+      </div>
+      <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem 1rem;">
+        <div style="font-weight: 800; margin-bottom: 0.35rem;">👤 Thuế TNCN (khoán)</div>
+        <div style="font-size: 1.15rem; font-weight: 800;">${taxMoney(est.pit)}</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
+          ${over ? `${taxMoney(overview.revenue.taxable)} × ${est.pitRate}%` : `Miễn — chưa vượt ngưỡng doanh thu`}
+        </div>
+      </div>
+    </div>
+    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 1rem;">
+      Số liệu mang tính tham khảo nội bộ, tính theo tham số đang cấu hình
+      (ngưỡng ${taxMoney(s.revenueThreshold)}, GTGT ${s.vatRate}%, TNCN ${s.pitRate}%) —
+      số phải nộp chính thức vẫn là số trên thông báo thuế của cơ quan thuế.
+    </div>
+  `;
+}
+
+function renderTaxMonthly(overview) {
+  const months = overview.months || [];
+  const chart = document.getElementById('tax-monthly-chart');
+  // Thang đo chung cho cả 12 cột (không phải mỗi cột tự chuẩn hóa) —
+  // nếu không, tháng doanh thu 2 triệu và tháng 200 triệu sẽ cao bằng nhau.
+  const maxRevenue = Math.max(1, ...months.map(m => m.taxableRevenue || 0));
+  if (chart) {
+    chart.innerHTML = months.map(m => {
+      const h = Math.round((m.taxableRevenue || 0) / maxRevenue * 130);
+      const taxH = Math.round((m.estimatedTax || 0) / maxRevenue * 130);
+      const label = m.month.split('-')[1];
+      return `
+        <div style="flex: 1 0 42px; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;"
+             title="Tháng ${label}: DT tính thuế ${taxMoney(m.taxableRevenue)} · Thuế ${taxMoney(m.estimatedTax)}">
+          <div style="flex: 1; display: flex; align-items: flex-end; gap: 2px;">
+            <div style="width: 14px; height: ${h}px; min-height: 2px; background: var(--cala-blue); border-radius: 3px 3px 0 0;"></div>
+            <div style="width: 8px; height: ${taxH}px; min-height: 2px; background: var(--cala-orange); border-radius: 3px 3px 0 0;"></div>
+          </div>
+          <div style="font-size: 0.7rem; color: var(--text-secondary);">T${label}</div>
+        </div>`;
+    }).join('') + `
+      <div style="flex: 0 0 auto; align-self: flex-start; font-size: 0.75rem; color: var(--text-secondary); padding-left: 0.75rem;">
+        <div><span style="display:inline-block;width:10px;height:10px;background:var(--cala-blue);border-radius:2px;"></span> DT tính thuế</div>
+        <div><span style="display:inline-block;width:10px;height:10px;background:var(--cala-orange);border-radius:2px;"></span> Thuế ước tính</div>
+      </div>`;
+  }
+
+  const tbody = document.getElementById('tax-monthly-table-body');
+  if (!tbody) return;
+  const rows = months.filter(m => m.invoiceCount > 0);
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--text-secondary);">Chưa có hóa đơn nào trong năm ${overview.year}.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(m => `
+    <tr>
+      <td style="font-weight: 700;">Tháng ${m.month.split('-')[1]}/${overview.year}</td>
+      <td style="text-align: right;">${m.invoiceCount}</td>
+      <td style="text-align: right;">${taxMoney(m.revenueTotal)}</td>
+      <td style="text-align: right;">${taxMoney(m.revenueRent)}</td>
+      <td style="text-align: right;">${taxMoney(m.collected)}</td>
+      <td style="text-align: right; font-weight: 700;">${taxMoney(m.taxableRevenue)}</td>
+      <td style="text-align: right; color: var(--cala-orange); font-weight: 700;">${taxMoney(m.estimatedTax)}</td>
+    </tr>`).join('') + `
+    <tr style="font-weight: 800; background: var(--bg-base);">
+      <td>Cả năm</td>
+      <td style="text-align: right;">${rows.reduce((a, m) => a + m.invoiceCount, 0)}</td>
+      <td style="text-align: right;">${taxMoney(overview.revenue.total)}</td>
+      <td style="text-align: right;">${taxMoney(overview.revenue.rent)}</td>
+      <td style="text-align: right;">${taxMoney(overview.revenue.collected)}</td>
+      <td style="text-align: right;">${taxMoney(overview.revenue.taxable)}</td>
+      <td style="text-align: right; color: var(--cala-orange);">${taxMoney(overview.estimate.vat + overview.estimate.pit)}</td>
+    </tr>`;
+}
+
+function renderTaxVarianceTable(overview) {
+  const tbody = document.getElementById('tax-variance-table-body');
+  if (!tbody) return;
+  tbody.innerHTML = (overview.variance || []).map(v => {
+    const diff = v.diff || 0;
+    const color = Math.abs(diff) < 1 ? 'var(--text-secondary)' : (diff > 0 ? 'var(--cala-red)' : 'var(--cala-emerald)');
+    const sign = diff > 0 ? '+' : (diff < 0 ? '−' : '');
+    return `
+      <tr>
+        <td style="font-weight: 700;">${escapeTaxText(v.label)}</td>
+        <td style="text-align: right;">${taxMoney(v.estimated)}</td>
+        <td style="text-align: right;">${taxMoney(v.recorded)}</td>
+        <td style="text-align: right; color: var(--cala-emerald);">${taxMoney(v.paid)}</td>
+        <td style="text-align: right; font-weight: 700; color: ${color};">${sign}${taxMoney(Math.abs(diff))}</td>
+      </tr>`;
+  }).join('');
+}
+
+function renderTaxByHouseTable(overview) {
+  const tbody = document.getElementById('tax-by-house-table-body');
+  if (!tbody) return;
+  const rows = overview.byHouse || [];
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--text-secondary);">Chưa có tòa nhà nào.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(h => `
+    <tr>
+      <td style="font-weight: 700;">${escapeTaxText(h.houseName)}</td>
+      <td style="text-align: right;">${h.invoiceCount}</td>
+      <td style="text-align: right;">${taxMoney(h.taxableRevenue)}</td>
+      <td style="text-align: right;">${(h.revenueShare || 0).toFixed(1)}%</td>
+      <td style="text-align: right;">${taxMoney(h.vat)}</td>
+      <td style="text-align: right;">${taxMoney(h.pit)}</td>
+      <td style="text-align: right; font-weight: 700;">${taxMoney(h.totalTax)}</td>
+    </tr>`).join('');
+}
+
+function renderTaxRecordsTable(overview) {
+  const tbody = document.getElementById('tax-records-table-body');
+  if (!tbody) return;
+  const records = overview.records || [];
+  if (!records.length) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--text-secondary);">Chưa ghi nhận khoản thuế nào cho năm ${overview.year}. Bấm "Tạo Sổ Từ Ước Tính" để tạo nhanh 3 dòng nháp.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = records.map(r => {
+    const paid = r.status === 'paid';
+    return `
+      <tr>
+        <td style="font-weight: 700;">${escapeTaxText(r.period)}</td>
+        <td>${escapeTaxText(r.taxTypeLabel)}</td>
+        <td>${r.houseId ? escapeTaxText(r.houseName) : 'Cả hộ kinh doanh'}</td>
+        <td style="text-align: right;">${r.revenueBase ? taxMoney(r.revenueBase) : '—'}</td>
+        <td style="text-align: right;">${r.rate ? r.rate + '%' : '—'}</td>
+        <td style="text-align: right; font-weight: 700;">${taxMoney(r.amount)}</td>
+        <td>
+          <span class="badge ${paid ? 'badge-paid' : 'badge-pending'}">${paid ? 'Đã nộp' + (r.paidDate ? ' ' + escapeTaxText(r.paidDate) : '') : 'Chưa nộp'}</span>
+        </td>
+        <td style="max-width: 220px; white-space: normal;">${escapeTaxText(r.note)}</td>
+        <td style="text-align: right; white-space: nowrap;">
+          <button class="btn btn-secondary btn-sm" onclick="openTaxRecordModal('${escapeTaxText(r.id)}')"><i data-lucide="edit-3"></i></button>
+          <button class="btn btn-secondary btn-sm" style="color: var(--cala-red);" onclick="deleteTaxRecordApi('${escapeTaxText(r.id)}')"><i data-lucide="trash-2"></i></button>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+/* ----- Ghi nhận / sửa một khoản thuế ------------------------------------ */
+
+function openTaxRecordModal(recordId) {
+  const overview = _taxState.overview;
+  if (!overview) return;
+  const record = (overview.records || []).find(r => r.id === recordId) || null;
+
+  document.getElementById('tx-id').value = record ? record.id : '';
+  document.getElementById('tx-tax-type').value = record ? record.taxType : 'gtgt';
+
+  const houseSel = document.getElementById('tx-house-id');
+  houseSel.innerHTML = ['<option value="">Cả hộ kinh doanh (không gắn tòa)</option>'].concat(
+    (overview.byHouse || []).map(h => `<option value="${escapeTaxText(h.houseId)}">${escapeTaxText(h.houseName)}</option>`)
+  ).join('');
+  houseSel.value = record ? (record.houseId || '') : (overview.houseId === 'all' ? '' : overview.houseId);
+
+  const period = record ? record.period : overview.year;
+  document.getElementById('tx-period-year').value = period.slice(0, 4);
+  document.getElementById('tx-period-month').value = period.length > 4 ? period : `${overview.year}-01`;
+  document.getElementById('tx-revenue-base').value = record ? Math.round(record.revenueBase || 0) : '';
+  document.getElementById('tx-rate').value = record ? (record.rate || '') : '';
+  document.getElementById('tx-amount').value = record ? Math.round(record.amount || 0) : '';
+  document.getElementById('tx-status').value = record ? record.status : 'unpaid';
+  document.getElementById('tx-paid-date').value = record ? (record.paidDate || '') : '';
+  document.getElementById('tx-note').value = record ? record.note : '';
+  document.getElementById('modal-tax-record-title').innerHTML =
+    `<i data-lucide="landmark" style="color: var(--cala-orange); vertical-align: middle;"></i> ${record ? 'Sửa Khoản Thuế' : 'Ghi Nhận Khoản Thuế'}`;
+
+  document.getElementById('tx-period-mode').value = (period && period.length > 4) ? 'month' : 'year';
+  onTaxTypeChange();
+  onTaxStatusChange();
+  const modal = document.getElementById('modal-tax-record');
+  modal.classList.add('active');
+  renderIcons(modal);
+}
+
+function onTaxTypeChange() {
+  // Lệ phí môn bài không có khái niệm "kỳ tháng" — luôn là khoản cả năm,
+  // nên ô chọn kỳ bị khóa lại thay vì cho phép chọn rồi lưu ra một kỳ vô
+  // nghĩa.
+  const type = document.getElementById('tx-tax-type').value;
+  const modeSel = document.getElementById('tx-period-mode');
+  if (type === 'mon_bai') {
+    modeSel.value = 'year';
+    modeSel.disabled = true;
+  } else {
+    modeSel.disabled = false;
+  }
+  onTaxPeriodModeChange();
+
+  // Điền sẵn thuế suất theo tham số đang cấu hình cho đúng loại thuế —
+  // gõ lại 5% mỗi lần là thao tác thừa và dễ gõ nhầm.
+  const s = (_taxState.overview || {}).settings || {};
+  const rateInput = document.getElementById('tx-rate');
+  if (!rateInput.value) {
+    if (type === 'gtgt') rateInput.value = s.vatRate || '';
+    else if (type === 'tncn') rateInput.value = s.pitRate || '';
+  }
+}
+
+function onTaxPeriodModeChange() {
+  const isYearly = document.getElementById('tx-period-mode').value === 'year';
+  document.getElementById('tx-period-year').style.display = isYearly ? '' : 'none';
+  document.getElementById('tx-period-month').style.display = isYearly ? 'none' : '';
+}
+
+function onTaxStatusChange() {
+  const paid = document.getElementById('tx-status').value === 'paid';
+  document.getElementById('tx-paid-date-box').style.display = paid ? '' : 'none';
+}
+
+function recomputeTaxAmountFromRate() {
+  const base = parseFloat(document.getElementById('tx-revenue-base').value) || 0;
+  const rate = parseFloat(document.getElementById('tx-rate').value) || 0;
+  if (!base || !rate) return;
+  document.getElementById('tx-amount').value = Math.round(base * rate / 100);
+}
+
+function taxRecordPeriodValue() {
+  const isYearly = document.getElementById('tx-period-mode').value === 'year';
+  return isYearly
+    ? String(document.getElementById('tx-period-year').value || '').trim()
+    : String(document.getElementById('tx-period-month').value || '').trim();
+}
+
+async function submitTaxRecord(event) {
+  event.preventDefault();
+  const period = taxRecordPeriodValue();
+  if (!period) {
+    showToast('Vui lòng nhập kỳ tính thuế!', 'error');
+    return;
+  }
+  const payload = {
+    id: document.getElementById('tx-id').value || '',
+    houseId: document.getElementById('tx-house-id').value,
+    period: period,
+    year: period.slice(0, 4),
+    taxType: document.getElementById('tx-tax-type').value,
+    revenueBase: parseFloat(document.getElementById('tx-revenue-base').value) || 0,
+    rate: parseFloat(document.getElementById('tx-rate').value) || 0,
+    amount: parseFloat(document.getElementById('tx-amount').value) || 0,
+    status: document.getElementById('tx-status').value,
+    paidDate: document.getElementById('tx-paid-date').value || '',
+    note: document.getElementById('tx-note').value.trim()
+  };
+  const data = await postAndVerify(`${API_BASE}/tax/records/save`, payload);
+  if (!data) return;
+  showToast('Đã lưu khoản thuế!', 'success');
+  closeModal('modal-tax-record');
+  // Lưu vào năm khác năm đang xem thì nhảy theo, nếu không dòng vừa lưu
+  // sẽ "biến mất" vì bảng chỉ hiện đúng năm đang lọc.
+  _taxState.year = payload.year;
+  renderTaxView();
+}
+
+async function deleteTaxRecordApi(recordId) {
+  if (!confirm('Xóa khoản thuế này khỏi sổ?')) return;
+  const data = await postAndVerify(`${API_BASE}/tax/records/delete`, { id: recordId });
+  if (!data) return;
+  showToast('Đã xóa khoản thuế!', 'success');
+  renderTaxView();
+}
+
+async function generateTaxEstimateRecords() {
+  if (!confirm(`Tạo/cập nhật 3 dòng sổ thuế ước tính (môn bài, GTGT, TNCN) cho năm ${_taxState.year}?\n\nCác khoản đã đánh dấu "đã nộp" chỉ được làm mới số tiền ước tính, trạng thái và ghi chú giữ nguyên.`)) return;
+  const data = await postAndVerify(`${API_BASE}/tax/records/generate`, { year: _taxState.year });
+  if (!data) return;
+  showToast('Đã tạo sổ thuế từ số liệu ước tính!', 'success');
+  renderTaxView();
+}
+
+/* ----- Tham số tính thuế ------------------------------------------------ */
+
+function openTaxSettingsModal() {
+  const s = (_taxState.overview || {}).settings;
+  if (!s) return;
+  document.getElementById('ts-business-name').value = s.businessName || '';
+  document.getElementById('ts-tax-code').value = s.taxCode || '';
+  document.getElementById('ts-threshold').value = s.revenueThreshold || 0;
+  document.getElementById('ts-vat-rate').value = s.vatRate || 0;
+  document.getElementById('ts-pit-rate').value = s.pitRate || 0;
+  document.getElementById('ts-revenue-basis').value = s.revenueBasis || 'total';
+  document.getElementById('ts-revenue-recognition').value = s.revenueRecognition || 'invoiced';
+  document.getElementById('ts-license-enabled').checked = !!s.licenseFeeEnabled;
+  _taxState.editingTiers = JSON.parse(JSON.stringify(s.licenseFeeTiers || []));
+  renderTaxLicenseTiers();
+  const modal = document.getElementById('modal-tax-settings');
+  modal.classList.add('active');
+  renderIcons(modal);
+}
+
+function renderTaxLicenseTiers() {
+  const box = document.getElementById('ts-license-tiers');
+  if (!box) return;
+  box.innerHTML = _taxState.editingTiers.map((tier, i) => `
+    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+      <span style="font-size: 0.8rem; color: var(--text-secondary);">Trên</span>
+      <input type="number" class="form-control" style="max-width: 130px;" step="1000000" min="0"
+             value="${tier.min || 0}" oninput="updateTaxTier(${i}, 'min', this.value)">
+      <span style="font-size: 0.8rem; color: var(--text-secondary);">đến</span>
+      <input type="number" class="form-control" style="max-width: 130px;" step="1000000" min="0"
+             placeholder="không giới hạn" value="${tier.max == null ? '' : tier.max}"
+             oninput="updateTaxTier(${i}, 'max', this.value)">
+      <span style="font-size: 0.8rem; color: var(--text-secondary);">→ nộp</span>
+      <input type="number" class="form-control" style="max-width: 110px;" step="50000" min="0"
+             value="${tier.fee || 0}" oninput="updateTaxTier(${i}, 'fee', this.value)">
+      <button type="button" class="btn btn-secondary btn-sm" style="color: var(--cala-red);" onclick="removeTaxTier(${i})"><i data-lucide="trash-2"></i></button>
+    </div>`).join('') + `
+    <button type="button" class="btn btn-secondary btn-sm" style="align-self: flex-start;" onclick="addTaxTier()">
+      <i data-lucide="plus"></i> Thêm bậc
+    </button>`;
+  renderIcons(box);
+}
+
+function updateTaxTier(index, field, value) {
+  const tier = _taxState.editingTiers[index];
+  if (!tier) return;
+  // Ô "đến" bỏ trống = bậc cuối, không có trần — phải là null chứ không
+  // phải 0, vì 0 sẽ khiến bậc đó không bao giờ khớp doanh thu nào.
+  tier[field] = (field === 'max' && String(value).trim() === '') ? null : (parseFloat(value) || 0);
+}
+
+function addTaxTier() {
+  const last = _taxState.editingTiers[_taxState.editingTiers.length - 1];
+  _taxState.editingTiers.push({ min: last ? (last.max || last.min || 0) : 0, max: null, fee: 0 });
+  renderTaxLicenseTiers();
+}
+
+function removeTaxTier(index) {
+  _taxState.editingTiers.splice(index, 1);
+  renderTaxLicenseTiers();
+}
+
+async function submitTaxSettings(event) {
+  event.preventDefault();
+  const settings = {
+    businessName: document.getElementById('ts-business-name').value.trim(),
+    taxCode: document.getElementById('ts-tax-code').value.trim(),
+    revenueThreshold: parseFloat(document.getElementById('ts-threshold').value) || 0,
+    vatRate: parseFloat(document.getElementById('ts-vat-rate').value) || 0,
+    pitRate: parseFloat(document.getElementById('ts-pit-rate').value) || 0,
+    revenueBasis: document.getElementById('ts-revenue-basis').value,
+    revenueRecognition: document.getElementById('ts-revenue-recognition').value,
+    licenseFeeEnabled: document.getElementById('ts-license-enabled').checked,
+    licenseFeeTiers: _taxState.editingTiers
+      .slice()
+      // Xếp bậc tăng dần theo mốc doanh thu — công thức chọn bậc bên
+      // server duyệt theo thứ tự mảng, nên một bậc nhập lộn xộn sẽ khớp
+      // sai trước khi tới bậc đúng.
+      .sort((a, b) => (a.min || 0) - (b.min || 0))
+  };
+  const data = await postAndVerify(`${API_BASE}/tax/settings/save`, { settings });
+  if (!data) return;
+  showToast('Đã lưu tham số tính thuế!', 'success');
+  closeModal('modal-tax-settings');
+  renderTaxView();
+}
