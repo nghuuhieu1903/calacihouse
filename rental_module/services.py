@@ -1042,11 +1042,25 @@ class RentalService:
 
     @staticmethod
     def _deactivate_other_tenants_in_room(room_id, keep_user_id):
-        """When a room gets a (re-)approved tenant, any OTHER tenant
-        account still marked approved for that same room is someone who
-        has moved out — leaving them active would let a former tenant keep
-        logging in and viewing the new occupant's invoices/tickets.
-        Returns the usernames deactivated, so the caller can tell the admin."""
+        """When a SINGLE room gets a (re-)approved tenant, any OTHER
+        tenant account still marked approved for that same room is
+        someone who has moved out — leaving them active would let a
+        former tenant keep logging in and viewing the new occupant's
+        invoices/tickets. Returns the usernames deactivated, so the
+        caller can tell the admin.
+
+        A KTX/dorm room is the opposite case: several tenant accounts
+        sharing the same roomId simultaneously is the normal, permanent
+        state, not "one replacing another" — approving/editing one
+        occupant (e.g. saveOccupantSettings' per-person vehicle/contract
+        form) must never block their roommates. This used to do exactly
+        that: every KTX account sharing a room got silently logged out
+        the next time ANY one of them was approved or had their profile
+        saved, which is what "mỗi khi sửa là tài khoản KTX khác bị khóa"
+        was actually caused by."""
+        room = next((r for r in Storage.get_rooms() if r['id'] == room_id), None)
+        if room and room.get('roomType') == 'dorm':
+            return []
         deactivated = []
         for u in Storage.get_users():
             if u['id'] != keep_user_id and u.get('role') == 'tenant' and u.get('roomId') == room_id and u.get('status') == 'approved':
