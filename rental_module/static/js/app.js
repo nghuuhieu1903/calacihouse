@@ -6303,14 +6303,14 @@ function renderRoomsManagement() {
                   ${contractStatusBadgeHtml(r)}
                 </div>
               ` : '')}
-              <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `<button class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="openEditRoomModal('${r.id}')">
-                  <i data-lucide="edit-2"></i> ${t('btn_edit')}
+              <div style="display:flex; gap:0.4rem; flex-wrap:nowrap;">
+                ${hasPermission(state.currentUser.role, 'rooms', 'edit') ? `<button class="btn btn-blue btn-sm" style="flex:1 1 0; min-width:0; justify-content:center; padding-left:0.4rem; padding-right:0.4rem;" onclick="openEditRoomModal('${r.id}')">
+                  <i data-lucide="edit-2" style="flex-shrink:0;"></i> <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t('btn_edit')}</span>
                 </button>` : ''}
-                <button class="btn btn-orange btn-sm" style="flex:1; justify-content:center;" onclick="openRoomDocumentsModal('${r.id}')">
-                  <i data-lucide="image"></i> ${t('contract_photos_label')}${(state.roomDocuments[r.id] || []).length ? ` (${(state.roomDocuments[r.id] || []).length})` : ''}
+                <button class="btn btn-orange btn-sm" style="flex:1 1 0; min-width:0; justify-content:center; padding-left:0.4rem; padding-right:0.4rem;" onclick="openRoomDocumentsModal('${r.id}')">
+                  <i data-lucide="image" style="flex-shrink:0;"></i> <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${t('contract_photos_label')}${(state.roomDocuments[r.id] || []).length ? ` (${(state.roomDocuments[r.id] || []).length})` : ''}</span>
                 </button>
-                ${canDelete() ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoom('${r.id}')">
+                ${canDelete() ? `<button class="btn btn-secondary btn-sm" style="flex:0 0 auto; color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteRoom('${r.id}')">
                   <i data-lucide="trash-2"></i>
                 </button>` : ''}
               </div>
