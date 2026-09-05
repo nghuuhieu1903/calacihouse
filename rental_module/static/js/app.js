@@ -618,6 +618,8 @@ const I18N = {
     lbl_residing_room: 'Phòng lưu trú',
     lbl_has_vehicle: 'Có gửi xe (tính phí gửi xe riêng cho người này)',
     lbl_vehicle_service: 'Gửi xe (chọn dịch vụ phí xe)',
+    lbl_ktx_per_person_breakdown: 'Chia Tiền Theo Từng Người',
+    hint_ktx_per_person_breakdown: 'Bảng tham khảo để duyệt trước khi gửi cho từng người — chỉ tính người đã có tài khoản trong phòng. Tổng ở bảng trên mới là số tiền chính thức của cả phòng.',
     option_no_vehicle: 'Không gửi xe',
     lbl_account_status: 'Trạng thái tài khoản',
     option_status_approved: 'Đã duyệt (Hoạt động)',
@@ -1288,6 +1290,8 @@ const I18N = {
     lbl_residing_room: 'Assigned room',
     lbl_has_vehicle: 'Has a vehicle (billed for parking separately)',
     lbl_vehicle_service: 'Vehicle parking (choose a fee service)',
+    lbl_ktx_per_person_breakdown: 'Per-Occupant Breakdown',
+    hint_ktx_per_person_breakdown: 'Reference table to review before billing each occupant individually — only occupants who have an account in this room are listed. The room total above is still the official amount owed for the whole room.',
     option_no_vehicle: 'No vehicle',
     lbl_account_status: 'Account status',
     option_status_approved: 'Approved (Active)',
@@ -5739,6 +5743,11 @@ function viewInvoiceDetail(invoiceId) {
     </div>
   ` : '';
 
+  // Second "dạng hoá đơn" the admin can review before sending — the same
+  // room total, split out per occupant, so it's obvious what each
+  // specific person owes instead of just the one lump room figure.
+  const perPersonBreakdown = computeKtxPerPersonBreakdown(inv, room);
+
   content.innerHTML = `
     <div class="invoice-paper" style="box-shadow:none; border:1px solid var(--border-color);">
       <h3 style="color:#03121a;">${t('invoice_detail_title_prefix')}${inv.roomName}</h3>
@@ -5760,12 +5769,96 @@ function viewInvoiceDetail(invoiceId) {
         ${serviceRowsHtml}
         <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
       </table>
+      ${perPersonBreakdownHtml(perPersonBreakdown)}
       ${paymentProofBlockHtml}
     </div>
   `;
   document.getElementById('modal-invoice-detail').classList.add('active');
   renderIcons(content);
   if (ppVisible.length) loadPaymentProofSections(ppVisible, inv.id, canEditInvoiceProof);
+}
+
+// The room's one invoice covers everyone in a KTX room, but each
+// occupant needs to be told THEIR OWN amount to actually collect from
+// them — this splits it out per occupant ACCOUNT only (an occupant
+// without a login account yet has no name/identity to attach a row to,
+// so this table's own total legitimately falls short of the room's
+// real total whenever headcount > accounts — the room total above is
+// still the one source of truth for what's actually owed overall).
+function computeKtxPerPersonBreakdown(inv, room) {
+  if (!room || room.roomType !== 'dorm') return null;
+  const occupants = getRoomTenants(room.id).filter(u => u.status === 'approved');
+  if (!occupants.length) return null;
+
+  const headcount = Math.max(1, room.headcount || 1);
+  // Electricity is one shared meter for the whole room — split evenly
+  // across every actual occupant (headcount), same convention the
+  // tenant's own invoice view already uses for this.
+  const elecShare = Math.round((inv.elecCost || 0) / headcount);
+
+  return occupants.map(u => {
+    let rent = room.baseRent || 0;
+    if (u.useContractProration && (u.contractStart || u.contractEnd)) {
+      rent = Math.floor(rent * proratedRatioForMonth(u.contractStart, u.contractEnd, inv.month).ratio / 1000) * 1000;
+    }
+    // A "Theo đầu người" service's own configured price already IS one
+    // person's share (the room's total for it is that price × headcount).
+    const perPersonItems = (inv.serviceItems || []).filter(item => {
+      const svc = state.services.find(s => s.id === item.id);
+      return svc && svc.unit === 'Theo đầu người';
+    }).map(item => ({ name: item.name, symbol: item.symbol, amount: item.price }));
+    const servicesTotal = perPersonItems.reduce((s, x) => s + x.amount, 0);
+
+    // A vehicle fee only belongs to whoever's account actually has that
+    // parking service assigned — not split with roommates who don't
+    // have a vehicle at all.
+    const vehicleItem = u.vehicleServiceId ? (inv.serviceItems || []).find(item => item.id === u.vehicleServiceId) : null;
+    const vehicleFee = vehicleItem ? vehicleItem.price : 0;
+
+    const total = rent + elecShare + servicesTotal + vehicleFee;
+    return {
+      name: u.fullName || u.username,
+      rent, elecShare, perPersonItems, vehicleFee,
+      vehicleName: vehicleItem ? vehicleItem.name : '',
+      total
+    };
+  });
+}
+
+function perPersonBreakdownHtml(rows) {
+  if (!rows || !rows.length) return '';
+  return `
+    <div style="margin-top:1.25rem;">
+      <h4 style="color:var(--cala-blue); margin-bottom:0.4rem; font-size:0.95rem;">${t('lbl_ktx_per_person_breakdown')}</h4>
+      <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.6rem;">${t('hint_ktx_per_person_breakdown')}</p>
+      <div class="excel-table-wrapper">
+        <table class="excel-table" style="color:#03121a;">
+          <thead>
+            <tr style="background:#f7f9fa; color:#43494d;">
+              <th>${t('col_tenant')}</th>
+              <th style="text-align:right;">${t('line_room_rent_short')}</th>
+              <th style="text-align:right;">${t('line_electricity_short')}</th>
+              <th>${t('nav_services')}</th>
+              <th style="text-align:right;">${t('lbl_vehicle_service')}</th>
+              <th style="text-align:right;">${t('total_label_short')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td><strong>${r.name}</strong></td>
+                <td style="text-align:right;">${formatMoney(r.rent)} đ</td>
+                <td style="text-align:right;">${formatMoney(r.elecShare)} đ</td>
+                <td>${r.perPersonItems.map(it => `${it.symbol || '📦'} ${it.name}: ${formatMoney(it.amount)}đ`).join('<br>') || '—'}</td>
+                <td style="text-align:right;">${r.vehicleFee ? `${formatMoney(r.vehicleFee)} đ` : '—'}</td>
+                <td style="text-align:right; font-weight:800; color:var(--cala-orange);">${formatMoney(r.total)} đ</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
 }
 
 // A KTX/dorm room's one invoice is shared by every occupant, so their
