@@ -73,8 +73,9 @@ const I18N = {
     inv_stat_outstanding: 'Công nợ chưa thu',
     inv_stat_tickets: 'Báo lỗi đang mở',
     inv_profit_title: 'Lợi Nhuận Dự Kiến Nhận Tháng Này',
-    inv_profit_revenue_label: 'Doanh thu tháng này:',
-    inv_profit_expenses_label: 'Trừ chi phí lắp đặt/sửa chữa:',
+    inv_profit_revenue_label: 'Doanh thu tháng này',
+    inv_profit_expenses_label: 'Chi phí lắp đặt/sửa chữa',
+    inv_profit_net_label: '= Lợi nhuận dự kiến',
     inv_profit_desc: 'Con số dự kiến dựa trên doanh thu và chi phí đã ghi nhận trong tháng — có thể thay đổi nếu có cập nhật thêm.',
     inv_trend_title: 'Doanh Thu - Chi Phí - Lợi Nhuận (5 Tháng Gần Nhất)',
     inv_trend_desc: 'Dữ liệu vẫn được giữ lại ở đây ngay cả khi hóa đơn tháng cũ đã bị xóa theo chính sách lưu trữ — bấm vào 1 tháng để xem chi tiết (chỉ khi dữ liệu gốc còn tồn tại).',
@@ -758,8 +759,9 @@ const I18N = {
     inv_stat_outstanding: 'Outstanding balance',
     inv_stat_tickets: 'Open issue tickets',
     inv_profit_title: 'Expected Take-Home Profit This Month',
-    inv_profit_revenue_label: 'Revenue this month:',
-    inv_profit_expenses_label: 'Less installation/repair costs:',
+    inv_profit_revenue_label: 'Revenue this month',
+    inv_profit_expenses_label: 'Installation/repair costs',
+    inv_profit_net_label: '= Expected profit',
     inv_profit_desc: 'An estimate based on the revenue and costs recorded so far this month — may change if more is added.',
     inv_trend_title: 'Revenue - Expenses - Profit (Last 5 Months)',
     inv_trend_desc: 'This data stays available here even after old months\' invoices are deleted by the retention policy — click a month to view details (only possible while the original data still exists).',
@@ -2000,7 +2002,7 @@ function renderHouseSelector() {
   // đầu tư) and the one inside trang Quản Lý Hóa Đơn (Admin/Quản lý). Only
   // one is ever visible per role, but keep both populated/in sync so
   // switching roles or views never shows a stale selector.
-  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house', 'users-select-house'].forEach(id => {
+  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house', 'users-select-house', 'investor-rooms-filter-house'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
   });
@@ -2037,7 +2039,7 @@ function renderMonthSelector() {
     return `<option value="${monthStr}" ${monthStr === state.currentMonth ? 'selected' : ''}>${t('month_select_prefix')} ${m}/${y}</option>`;
   }).join('');
 
-  ['select-month', 'invoices-select-month', 'spreadsheet-select-month', 'ir-select-month', 'meterphotos-select-month'].forEach(id => {
+  ['select-month', 'invoices-select-month', 'spreadsheet-select-month', 'ir-select-month', 'meterphotos-select-month', 'investor-rooms-filter-month'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = html;
   });
@@ -2062,7 +2064,7 @@ function handleHouseChange(sourceEl) {
   const value = sourceEl ? sourceEl.value : document.getElementById('select-house').value;
   state.currentHouseId = value;
   state.currentRoomId = 'all';
-  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house', 'users-select-house'].forEach(id => {
+  ['select-house', 'invoices-select-house', 'spreadsheet-select-house', 'ir-select-house', 'meterphotos-select-house', 'users-select-house', 'investor-rooms-filter-house'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el !== sourceEl) el.value = value;
   });
@@ -3598,8 +3600,8 @@ function renderInvestorDashboard() {
     .filter(e => e.month === state.currentMonth && (state.currentHouseId === 'all' || e.houseId === state.currentHouseId))
     .reduce((s, e) => s + (e.amount || 0), 0);
   const netProfit = totalRevenue - totalExpensesForProfit;
-  setText('investor-profit-revenue', formatMoney(totalRevenue) + ' đ');
-  setText('investor-profit-expenses', '−' + formatMoney(totalExpensesForProfit) + ' đ');
+  setText('investor-profit-revenue', '+ ' + formatMoney(totalRevenue) + ' đ');
+  setText('investor-profit-expenses', '− ' + formatMoney(totalExpensesForProfit) + ' đ');
   const netProfitEl = document.getElementById('investor-profit-net');
   if (netProfitEl) {
     netProfitEl.innerText = formatMoney(netProfit) + ' đ';
@@ -7922,7 +7924,7 @@ async function saveRoomConfig(event) {
 function handleMonthChange(sourceEl) {
   const value = sourceEl ? sourceEl.value : document.getElementById('select-month').value;
   state.currentMonth = value;
-  ['select-month', 'invoices-select-month', 'spreadsheet-select-month', 'ir-select-month', 'meterphotos-select-month'].forEach(id => {
+  ['select-month', 'invoices-select-month', 'spreadsheet-select-month', 'ir-select-month', 'meterphotos-select-month', 'investor-rooms-filter-month'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el !== sourceEl) el.value = value;
   });

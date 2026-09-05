@@ -430,17 +430,27 @@
           </div>
 
           <!-- The headline number: what the owner will actually pocket this
-               month after installation/repair costs are deducted. -->
+               month after installation/repair costs are deducted. Laid out
+               as an explicit sum (+ doanh thu, − chi phí, = lợi nhuận) so
+               the arithmetic behind the headline figure is never a mystery. -->
           <div class="cala-card" style="background: linear-gradient(135deg, var(--cala-blue) 0%, #0a5fb0 100%); color: #fff;">
-            <h3 style="margin-bottom: 1rem; color: #fff;"><i data-lucide="wallet" style="vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="inv_profit_title">Lợi Nhuận Dự Kiến Nhận Tháng Này</span></h3>
-            <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; align-items:baseline; margin-bottom: 0.75rem;">
-              <div style="font-size: 2rem; font-weight: 800;" id="investor-profit-net">0 đ</div>
+            <h3 style="margin-bottom: 1.25rem; color: #fff;"><i data-lucide="wallet" style="vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="inv_profit_title">Lợi Nhuận Dự Kiến Nhận Tháng Này</span></h3>
+            <div style="display:flex; flex-direction:column; gap:0.6rem; max-width:460px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                <span style="font-size:0.9rem; opacity:0.9;" data-i18n="inv_profit_revenue_label">Doanh thu tháng này</span>
+                <strong id="investor-profit-revenue" style="font-size:1.05rem; white-space:nowrap;">+ 0 đ</strong>
+              </div>
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                <span style="font-size:0.9rem; opacity:0.9;" data-i18n="inv_profit_expenses_label">Chi phí lắp đặt/sửa chữa</span>
+                <strong id="investor-profit-expenses" style="font-size:1.05rem; color:#ffd7d7; white-space:nowrap;">− 0 đ</strong>
+              </div>
+              <div style="border-top:1px dashed rgba(255,255,255,0.45); margin:0.15rem 0;"></div>
+              <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+                <span style="font-size:0.95rem; font-weight:700;" data-i18n="inv_profit_net_label">= Lợi nhuận dự kiến</span>
+                <div style="font-size: 1.9rem; font-weight: 800; white-space:nowrap;" id="investor-profit-net">0 đ</div>
+              </div>
             </div>
-            <div style="display:flex; flex-wrap:wrap; gap: 1.5rem; font-size: 0.85rem; opacity: 0.9;">
-              <div><span data-i18n="inv_profit_revenue_label">Doanh thu tháng này:</span> <strong id="investor-profit-revenue">0 đ</strong></div>
-              <div><span data-i18n="inv_profit_expenses_label">Trừ chi phí lắp đặt/sửa chữa:</span> <strong id="investor-profit-expenses">−0 đ</strong></div>
-            </div>
-            <p style="font-size: 0.78rem; opacity: 0.8; margin-top: 0.75rem; margin-bottom:0;" data-i18n="inv_profit_desc">Con số dự kiến dựa trên doanh thu và chi phí đã ghi nhận trong tháng — có thể thay đổi nếu có cập nhật thêm.</p>
+            <p style="font-size: 0.78rem; opacity: 0.8; margin-top: 1.1rem; margin-bottom:0;" data-i18n="inv_profit_desc">Con số dự kiến dựa trên doanh thu và chi phí đã ghi nhận trong tháng — có thể thay đổi nếu có cập nhật thêm.</p>
           </div>
 
           <div class="cala-card">
@@ -472,6 +482,21 @@
 
           <div class="cala-card">
             <h3 style="margin-bottom: 1.25rem;"><i data-lucide="door-open" style="color: var(--cala-blue); vertical-align: middle; margin-right: 6px;"></i> <span data-i18n="inv_rooms_title">Chi Tiết Doanh Thu Theo Phòng</span></h3>
+            <!-- Same house/month state the top nav bar's own selectors
+                 already drive (select-house/select-month) — duplicated
+                 here, right next to the table they affect, since those
+                 two live all the way up in the header and are easy to
+                 miss are even there at all. -->
+            <div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1rem; align-items:center;">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <label style="font-size:0.85rem; font-weight:700;" data-i18n="lbl_select_house">🏢 Chọn Tòa Nhà:</label>
+                <select id="investor-rooms-filter-house" class="form-control" style="width:auto; min-width:160px;" onchange="handleHouseChange(this)"></select>
+              </div>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <label style="font-size:0.85rem; font-weight:700;" data-i18n="billing_period">Kỳ:</label>
+                <select id="investor-rooms-filter-month" class="form-control" style="width:auto; min-width:150px;" onchange="handleMonthChange(this)"></select>
+              </div>
+            </div>
             <div class="excel-table-wrapper">
               <table class="excel-table">
                 <thead>
