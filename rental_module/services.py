@@ -1430,24 +1430,28 @@ class RentalService:
         return True
 
     @staticmethod
-    def add_payment_proof_photo(invoice_id, data_url, assigned_to=None):
+    def add_payment_proof_photo(invoice_id, data_url, assigned_to=None, thumb=None):
         """Adds ONE proof-of-payment photo to an invoice, tagged with who
-        it belongs to — same {id, dataUrl, assignedTo, uploadedAt} shape
-        and add-one-at-a-time approach as save_room_document(), and for
-        the same reason: a KTX room's invoice is shared by every
+        it belongs to — same {id, dataUrl, thumb, assignedTo, uploadedAt}
+        shape and add-one-at-a-time approach as save_room_document(), and
+        for the same reason: a KTX room's invoice is shared by every
         occupant, so resending "the whole array" from one occupant's
         browser would silently wipe out photos their roommates already
         added. assigned_to is a specific tenant's user id (a KTX
         occupant should only ever see their own), or 'all' for a room
-        with a single tenant/no attribution needed. Locked read-modify-
-        write since this can race a concurrent admin action on the same
-        invoice (marking it paid, regenerating it) the same way
+        with a single tenant/no attribution needed. thumb is the small
+        low-quality preview copy shown in the 80px gallery grid (see
+        save_room_document()'s thumb field) — full dataUrl only loads
+        into the lightbox when a photo is actually tapped. Locked read-
+        modify-write since this can race a concurrent admin action on
+        the same invoice (marking it paid, regenerating it) the same way
         mark_invoice_paid() already has to account for."""
         if not invoice_id or not data_url:
             return None
         photo = {
             'id': f"pp_{uuid.uuid4().hex[:8]}",
             'dataUrl': data_url,
+            'thumb': thumb or data_url,
             'assignedTo': assigned_to or 'all',
             'uploadedAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
@@ -1810,7 +1814,7 @@ class RentalService:
     # -- Room Documents (contract & related images) --------------------------
 
     @staticmethod
-    def save_room_document(room_id, doc_id, label, data_url, assigned_to=None):
+    def save_room_document(room_id, doc_id, label, data_url, assigned_to=None, thumb=None):
         if not room_id or not data_url:
             return None
         d_id = doc_id or f"doc_{uuid.uuid4().hex[:8]}"
@@ -1818,6 +1822,13 @@ class RentalService:
             'id': d_id,
             'label': label or 'Tài liệu',
             'dataUrl': data_url,
+            # Small, low-quality copy the client generates alongside the
+            # full photo (see compressImageFile/THUMBNAIL_* in app.js) —
+            # rendered in the 56-90px list thumbnails instead of the full
+            # image, so opening a room's documents doesn't mean downloading
+            # every full-size scan just to shrink it with CSS. Falls back
+            # to dataUrl for anything uploaded before this field existed.
+            'thumb': thumb or data_url,
             'uploadedAt': datetime.now().strftime('%Y-%m-%d %H:%M'),
             # 'all' (default — every tenant account on this room sees it,
             # the only behavior that existed before this field) or one
@@ -1866,7 +1877,7 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_room_photo(room_id, photo_id, label, data_url):
+    def save_room_photo(room_id, photo_id, label, data_url, thumb=None):
         if not room_id or not data_url:
             return None
         p_id = photo_id or f"photo_{uuid.uuid4().hex[:8]}"
@@ -1874,6 +1885,9 @@ class RentalService:
             'id': p_id,
             'label': label or '',
             'dataUrl': data_url,
+            # See save_room_document()'s thumb field for why — same
+            # small/low-quality preview copy, same fallback.
+            'thumb': thumb or data_url,
             'uploadedAt': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
 

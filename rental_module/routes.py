@@ -565,7 +565,7 @@ def add_payment_proof():
     if not (is_staff or (user and invoice.get('roomId') == user.get('roomId'))):
         return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
     assigned_to = (data.get('assignedTo') or 'all') if is_staff else user.get('id')
-    photo = RentalService.add_payment_proof_photo(invoice_id, data.get('dataUrl'), assigned_to)
+    photo = RentalService.add_payment_proof_photo(invoice_id, data.get('dataUrl'), assigned_to, data.get('thumb'))
     return jsonify({'success': bool(photo), 'photo': {k: v for k, v in (photo or {}).items() if k != 'dataUrl'}})
 
 @rental_bp.route('/api/invoices/payment-proof/delete', methods=['POST'])
@@ -1029,7 +1029,8 @@ def upload_room_document():
         data.get('id'),
         data.get('label'),
         data.get('dataUrl'),
-        data.get('assignedTo')
+        data.get('assignedTo'),
+        data.get('thumb')
     )
     if not doc:
         return jsonify({'success': False, 'error': 'Thiếu roomId hoặc dữ liệu ảnh'}), 400
@@ -1064,7 +1065,8 @@ def upload_room_photo():
         data.get('roomId'),
         data.get('id'),
         data.get('label'),
-        data.get('dataUrl')
+        data.get('dataUrl'),
+        data.get('thumb')
     )
     if not photo:
         return jsonify({'success': False, 'error': 'Thiếu roomId hoặc dữ liệu ảnh'}), 400

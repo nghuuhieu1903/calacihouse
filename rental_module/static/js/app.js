@@ -4167,7 +4167,7 @@ async function handleMeterPhotoUpload(event, roomId, field) {
   event.target.value = '';
   if (!file) return;
   try {
-    const dataUrl = await compressImageFile(file);
+    const { dataUrl } = await compressImageFile(file);
     updateReadingApi(roomId, field, dataUrl);
   } catch (err) {
     showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
@@ -5105,7 +5105,7 @@ function handleExpensePhotoSelect(event) {
 
   toAdd.forEach(async file => {
     try {
-      const dataUrl = await compressImageFile(file);
+      const { dataUrl } = await compressImageFile(file);
       _pendingExpenseImages.push(dataUrl);
       renderExpensePhotoPreview();
     } catch (err) {
@@ -6036,7 +6036,7 @@ function renderPaymentProofSection(containerId) {
   if (!sec || !container) return;
   const photosHtml = sec.photos.map(p => `
     <div style="position:relative; display:inline-block;">
-      <img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:80px; height:80px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">
+      <img src="${p.thumb || p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:80px; height:80px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">
       ${sec.canEdit ? `<button type="button" onclick="removePaymentProofPhoto('${containerId}','${p.id}')" style="position:absolute; top:-6px; right:-6px; background:var(--color-danger); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>` : ''}
     </div>
   `).join('');
@@ -6059,8 +6059,8 @@ function handlePaymentProofSelect(event, containerId) {
 
   toAdd.forEach(async file => {
     try {
-      const dataUrl = await compressImageFile(file);
-      await addPaymentProofPhoto(containerId, dataUrl);
+      const { dataUrl, thumb } = await compressImageFile(file);
+      await addPaymentProofPhoto(containerId, dataUrl, thumb);
     } catch (err) {
       showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
     }
@@ -6072,14 +6072,14 @@ function handlePaymentProofSelect(event, containerId) {
   event.target.value = '';
 }
 
-async function addPaymentProofPhoto(containerId, dataUrl) {
+async function addPaymentProofPhoto(containerId, dataUrl, thumb) {
   const sec = _paymentProofSections[containerId];
   if (!sec) return;
-  const body = { invoiceId: sec.invoiceId, dataUrl };
+  const body = { invoiceId: sec.invoiceId, dataUrl, thumb };
   if (sec.assignedTo) body.assignedTo = sec.assignedTo;
   const data = await postAndVerify(`${API_BASE}/invoices/payment-proof/add`, body);
   if (!data || !data.photo) return;
-  sec.photos.push({ ...data.photo, dataUrl });
+  sec.photos.push({ ...data.photo, dataUrl, thumb });
   renderPaymentProofSection(containerId);
   syncInvoicePaymentProofCount(sec.invoiceId);
   showToast(t('toast_payment_proof_saved'), 'success');
@@ -6783,7 +6783,7 @@ async function handleElecPhotoUpload(event, roomId) {
   event.target.value = '';
   if (!file) return;
   try {
-    const dataUrl = await compressImageFile(file);
+    const { dataUrl } = await compressImageFile(file);
     await saveElecReadingField(roomId, 'elecNewPhoto', dataUrl);
     closeModal('modal-elec-photo');
   } catch (err) {
@@ -6928,7 +6928,7 @@ function renderSalerRoomPhotosStrip(roomId) {
   const photos = state.roomPhotos[roomId] || [];
   stripEl.innerHTML = photos.length ? `
     <div style="display:flex; gap:0.4rem; overflow-x:auto; margin:0.9rem 0 0.75rem;">
-      ${photos.map(p => `<img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:84px; height:84px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">`).join('')}
+      ${photos.map(p => `<img src="${p.thumb || p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:84px; height:84px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">`).join('')}
     </div>
   ` : '<div style="margin-top:0.9rem;"></div>';
 }
@@ -6959,6 +6959,7 @@ async function toggleSalerRoomDetail(roomId) {
 ===================================================================== */
 let _currentDocRoomId = null;
 let _pendingDocDataUrl = null;
+let _pendingDocThumb = null;
 
 // Replaces the light (no dataUrl) entries state.roomDocuments[roomId] came
 // with in the bulk /api/data payload with the real, full ones (including
@@ -6995,6 +6996,7 @@ function getRoomTenants(roomId) {
 async function openRoomDocumentsModal(roomId) {
   _currentDocRoomId = roomId;
   _pendingDocDataUrl = null;
+  _pendingDocThumb = null;
   const room = state.rooms.find(r => r.id === roomId);
   const titleEl = document.getElementById('room-documents-modal-title');
   if (titleEl) titleEl.innerText = room ? `${t('contract_photos_label')} - ${room.name}` : t('contract_photos_label');
@@ -7239,10 +7241,12 @@ async function handleRoomDocumentSelect(event) {
   event.target.value = '';
   if (!file) return;
   try {
-    _pendingDocDataUrl = await compressImageFile(file);
+    const { dataUrl, thumb } = await compressImageFile(file);
+    _pendingDocDataUrl = dataUrl;
+    _pendingDocThumb = thumb;
     const previewEl = document.getElementById('room-document-pending-preview');
     if (previewEl) {
-      previewEl.innerHTML = `<img src="${_pendingDocDataUrl}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--cala-blue);">`;
+      previewEl.innerHTML = `<img src="${thumb}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--cala-blue);">`;
     }
   } catch (err) {
     showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
@@ -7263,13 +7267,14 @@ async function uploadRoomDocument() {
     const res = await fetch(`${API_BASE}/rooms/documents/upload`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId: _currentDocRoomId, label, dataUrl: _pendingDocDataUrl, assignedTo })
+      body: JSON.stringify({ roomId: _currentDocRoomId, label, dataUrl: _pendingDocDataUrl, thumb: _pendingDocThumb, assignedTo })
     });
     const data = await res.json();
     if (data.success) {
       if (!state.roomDocuments[_currentDocRoomId]) state.roomDocuments[_currentDocRoomId] = [];
       state.roomDocuments[_currentDocRoomId].push(data.document);
       _pendingDocDataUrl = null;
+      _pendingDocThumb = null;
       if (labelInput) labelInput.value = '';
       const previewEl = document.getElementById('room-document-pending-preview');
       if (previewEl) previewEl.innerHTML = '';
@@ -7326,7 +7331,7 @@ function renderRoomDocumentsList() {
     const assignedUser = roomTenants.find(u => u.id === assignedTo);
     return `
     <div class="cala-card" style="padding:0.75rem; display:flex; align-items:center; gap:0.75rem; margin-bottom:0.6rem; flex-wrap:wrap;">
-      <img src="${d.dataUrl}" onclick="viewDocumentFullSize('${d.dataUrl}')" style="width:56px; height:56px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">
+      <img src="${d.thumb || d.dataUrl}" onclick="viewDocumentFullSize('${d.dataUrl}')" style="width:56px; height:56px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">
       <div style="flex:1; min-width:120px;">
         <div style="font-weight:700; font-size:0.9rem;">${d.label}</div>
         <div style="font-size:0.75rem; color:var(--text-muted);">${d.uploadedAt}</div>
@@ -7375,10 +7380,12 @@ function viewDocumentFullSize(dataUrl) {
 ===================================================================== */
 let _currentPhotoRoomId = null;
 let _pendingPhotoDataUrl = null;
+let _pendingPhotoThumb = null;
 
 async function openRoomPhotosModal(roomId) {
   _currentPhotoRoomId = roomId;
   _pendingPhotoDataUrl = null;
+  _pendingPhotoThumb = null;
   const room = state.rooms.find(r => r.id === roomId);
   const titleEl = document.getElementById('room-photos-modal-title');
   if (titleEl) titleEl.innerText = room ? `${t('btn_room_photos')} - ${room.name}` : t('btn_room_photos');
@@ -7401,10 +7408,12 @@ async function handleRoomPhotoSelect(event) {
   event.target.value = '';
   if (!file) return;
   try {
-    _pendingPhotoDataUrl = await compressImageFile(file);
+    const { dataUrl, thumb } = await compressImageFile(file);
+    _pendingPhotoDataUrl = dataUrl;
+    _pendingPhotoThumb = thumb;
     const previewEl = document.getElementById('room-photo-pending-preview');
     if (previewEl) {
-      previewEl.innerHTML = `<img src="${_pendingPhotoDataUrl}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--cala-blue);">`;
+      previewEl.innerHTML = `<img src="${thumb}" style="width:90px; height:90px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--cala-blue);">`;
     }
   } catch (err) {
     showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
@@ -7422,13 +7431,14 @@ async function uploadRoomPhoto() {
     const res = await fetch(`${API_BASE}/rooms/photos/upload`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ roomId: _currentPhotoRoomId, label, dataUrl: _pendingPhotoDataUrl })
+      body: JSON.stringify({ roomId: _currentPhotoRoomId, label, dataUrl: _pendingPhotoDataUrl, thumb: _pendingPhotoThumb })
     });
     const data = await res.json();
     if (data.success) {
       if (!state.roomPhotos[_currentPhotoRoomId]) state.roomPhotos[_currentPhotoRoomId] = [];
       state.roomPhotos[_currentPhotoRoomId].push(data.photo);
       _pendingPhotoDataUrl = null;
+      _pendingPhotoThumb = null;
       if (labelInput) labelInput.value = '';
       const previewEl = document.getElementById('room-photo-pending-preview');
       if (previewEl) previewEl.innerHTML = '';
@@ -7477,7 +7487,7 @@ function renderRoomPhotosList() {
 
   container.innerHTML = photos.map(p => `
     <div class="cala-card" style="padding:0.75rem; display:flex; align-items:center; gap:0.75rem; margin-bottom:0.6rem;">
-      <img src="${p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:56px; height:56px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">
+      <img src="${p.thumb || p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:56px; height:56px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; flex-shrink:0;">
       <div style="flex:1; min-width:0;">
         <div style="font-weight:700; font-size:0.9rem;">${p.label || t('btn_room_photos')}</div>
         <div style="font-size:0.75rem; color:var(--text-muted);">${p.uploadedAt}</div>
@@ -7714,7 +7724,7 @@ function handleAdminImageSelect(event) {
 
   toAdd.forEach(async file => {
     try {
-      const dataUrl = await compressImageFile(file);
+      const { dataUrl } = await compressImageFile(file);
       _adminImages.push(dataUrl);
       renderAdminImagePreviews();
     } catch (err) {
@@ -7960,7 +7970,7 @@ function handleTenantImageSelect(event) {
 
   toAdd.forEach(async file => {
     try {
-      const dataUrl = await compressImageFile(file);
+      const { dataUrl } = await compressImageFile(file);
       _tenantImages.push(dataUrl);
       renderTenantImagePreviews();
     } catch (err) {
@@ -8344,6 +8354,18 @@ const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const IMAGE_MAX_DIMENSION = 1600;
 const IMAGE_MIN_DIMENSION = 480;
 
+// A small, heavily-compressed copy generated alongside the full photo —
+// grids that only ever show a photo at 56-90px on screen (room photos/
+// documents lists, payment proof thumbnails) render this instead of the
+// full ~1600px/5MB image, which used to mean downloading every full photo
+// just to shrink it down with CSS. This is what was making the mobile UI
+// feel slow to load: several megabytes of image data pulled down to
+// display a handful of postage-stamp-sized previews. The full-quality
+// dataUrl is still generated and stored exactly as before — it's what
+// opens in the full-size lightbox when a photo is actually tapped.
+const THUMBNAIL_MAX_DIMENSION = 220;
+const THUMBNAIL_QUALITY = 0.5;
+
 function compressImageFile(file) {
   return new Promise((resolve, reject) => {
     if (!file.type || !file.type.startsWith('image/')) {
@@ -8388,7 +8410,18 @@ function compressImageFile(file) {
           reject(new Error('too-large'));
           return;
         }
-        resolve(dataUrl);
+
+        // Thumbnail, drawn fresh from the original decoded image (not the
+        // already-downscaled canvas above) so it stays reasonably sharp
+        // even when the full photo had to be shrunk hard in step 2.
+        const thumbScale = Math.min(1, THUMBNAIL_MAX_DIMENSION / Math.max(img.width, img.height));
+        const thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = Math.max(1, Math.round(img.width * thumbScale));
+        thumbCanvas.height = Math.max(1, Math.round(img.height * thumbScale));
+        thumbCanvas.getContext('2d').drawImage(img, 0, 0, thumbCanvas.width, thumbCanvas.height);
+        const thumb = thumbCanvas.toDataURL('image/jpeg', THUMBNAIL_QUALITY);
+
+        resolve({ dataUrl, thumb });
       };
       img.src = e.target.result;
     };
@@ -8777,7 +8810,7 @@ async function handleSiteSettingsImageSelect(event, targetInputId) {
   event.target.value = '';
   if (!file) return;
   try {
-    const dataUrl = await compressImageFile(file);
+    const { dataUrl } = await compressImageFile(file);
     document.getElementById(targetInputId).value = dataUrl;
     updateSiteSettingsImagePreview(targetInputId);
   } catch (err) {
