@@ -120,6 +120,25 @@ def get_data():
     data = RentalService.get_full_state(month, session.get('user'))
     return jsonify(data)
 
+@rental_bp.route('/api/investors/preview-state', methods=['GET'])
+@permission_required('investor_report', 'view')
+def preview_investor_state():
+    """Same audience as Báo Cáo Chủ Đầu Tư (whoever can already see that
+    admin-only payout math) — lets them review exactly what a specific
+    investor account's own dashboard looks like before that investor
+    ever sees it, by running get_full_state() AS that investor (the same
+    house/room/invoice scoping a real investor session gets) without
+    actually logging in as them. Read-only by nature: the investor's own
+    pages (renderInvestorDashboard et al.) have no edit controls at all,
+    so nothing here can be used to change data — it only ever looks."""
+    investor_id = request.args.get('investorId', '')
+    month = request.args.get('month') or datetime.now().strftime('%Y-%m')
+    investor = next((u for u in Storage.get_users() if u.get('id') == investor_id and u.get('role') == 'investor'), None)
+    if not investor:
+        return jsonify({'success': False, 'error': 'Không tìm thấy chủ đầu tư'}), 404
+    data = RentalService.get_full_state(month, investor)
+    return jsonify({'success': True, 'data': data, 'investor': {k: v for k, v in investor.items() if k != 'password'}})
+
 @rental_bp.route('/manifest.webmanifest')
 def web_manifest():
     # Lets Chrome (and other browsers) offer "Add to Home screen"/"Install

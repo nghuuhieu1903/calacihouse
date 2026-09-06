@@ -534,6 +534,14 @@ const I18N = {
     toast_override_amount_required: 'Vui lòng nhập số tiền ghi đè!',
     toast_override_saved: 'Đã lưu số tiền ghi đè!',
     toast_override_cleared: 'Đã bỏ ghi đè, quay lại số tự động tính!',
+    btn_preview_as_investor: 'Xem Trước Dạng Chủ Đầu Tư',
+    modal_preview_investor_title: 'Xem Trước Dạng Chủ Đầu Tư',
+    hint_preview_investor: 'Chọn 1 chủ đầu tư để xem đúng những gì tài khoản đó sẽ thấy — chỉ để xem, không sửa được gì từ đây.',
+    lbl_choose_investor: 'Chọn Chủ Đầu Tư',
+    btn_start_preview: 'Xem Trước',
+    btn_exit_investor_preview: 'Thoát Xem Trước',
+    lbl_previewing_as: 'Đang xem trước dưới quyền chủ đầu tư: {name}',
+    toast_no_investors_to_preview: 'Chưa có tài khoản chủ đầu tư nào để xem trước.',
     ir_summary_title: '📊 Tổng Hợp Theo Tòa Nhà',
     ir_select_house_hint: 'Chọn một tòa nhà cụ thể ở thanh trên để xem báo cáo chi tiết từng dòng.',
     ir_no_house_hint: 'Chưa có tòa nhà nào để lập báo cáo.',
@@ -1229,6 +1237,14 @@ const I18N = {
     toast_override_amount_required: 'Please enter an override amount!',
     toast_override_saved: 'Override saved!',
     toast_override_cleared: 'Override cleared, back to the auto-calculated amount!',
+    btn_preview_as_investor: 'Preview As Investor',
+    modal_preview_investor_title: 'Preview As Investor',
+    hint_preview_investor: "Pick one investor to see exactly what that account would see — view only, nothing can be edited from here.",
+    lbl_choose_investor: 'Choose Investor',
+    btn_start_preview: 'Preview',
+    btn_exit_investor_preview: 'Exit Preview',
+    lbl_previewing_as: 'Previewing as investor: {name}',
+    toast_no_investors_to_preview: 'No investor accounts to preview yet.',
     ir_summary_title: '📊 Summary By House',
     ir_select_house_hint: 'Pick a specific house in the top bar to see the line-by-line report.',
     ir_no_house_hint: 'No houses to report on yet.',
@@ -4870,12 +4886,102 @@ function renderInvestorReportSummaryTable(houses, month) {
   `;
 }
 
-// Which investor's own config Báo Cáo Chủ Đầu Tư is currently showing —
-// a house can have more than one investor (co-owners), each with their
-// OWN independent set of shared services, so this page always has to
-// operate on behalf of one specific investor at a time, never "the
-// house's investor" as if there could only be one.
-let _selectedReportInvestorId = null;
+// Lets admin see exactly what a specific investor account's own
+// dashboard looks like — without logging in as them — before that
+// investor ever sees it themselves. Read-only by construction: the
+// investor's own pages (renderInvestorDashboard/renderInvestorTrendChart/
+// viewInvestorInvoiceDetail) have no edit controls at all, so nothing
+// reachable while previewing can change data.
+// { realUser, realView } while active, so exitInvestorPreview() can put
+// everything back exactly as admin left it.
+let _investorPreview = null;
+
+function openInvestorPreviewPicker() {
+  const investors = state.users.filter(u => u.role === 'investor');
+  const select = document.getElementById('investor-preview-select');
+  if (!select) return;
+  if (!investors.length) {
+    showToast(t('toast_no_investors_to_preview'), 'error');
+    return;
+  }
+  select.innerHTML = investors.map(u => `<option value="${u.id}">${u.fullName || u.username}</option>`).join('');
+  document.getElementById('modal-investor-preview-picker').classList.add('active');
+}
+
+function confirmInvestorPreview() {
+  const select = document.getElementById('investor-preview-select');
+  if (!select || !select.value) return;
+  closeModal('modal-investor-preview-picker');
+  startInvestorPreview(select.value);
+}
+
+async function startInvestorPreview(investorId) {
+  try {
+    const res = await fetch(`${API_BASE}/investors/preview-state?investorId=${encodeURIComponent(investorId)}&month=${encodeURIComponent(state.currentMonth)}`);
+    const result = await res.json();
+    if (!result.success) {
+      showToast(result.error || t('toast_server_connection_error'), 'error');
+      return;
+    }
+    // Saved so exitInvestorPreview() can restore admin's own session
+    // state exactly — not reconstructed from scratch, since admin might
+    // have been mid-way through looking at a particular view/month.
+    _investorPreview = { realUser: state.currentUser, realView: state.currentView };
+
+    const d = result.data;
+    state.currentUser = result.investor;
+    state.houses = d.houses;
+    state.rooms = d.rooms;
+    state.services = d.services;
+    state.formulas = d.formulas;
+    state.readings = d.readings;
+    state.invoices = d.invoices;
+    state.tickets = d.tickets;
+    state.investorExpenses = d.investorExpenses;
+    state.investorReportOverrides = d.investorReportOverrides;
+    state.investorMonthlySnapshots = d.investorMonthlySnapshots;
+    state.currentHouseId = 'all';
+    state.currentRoomId = 'all';
+
+    document.querySelector('.admin-nav').style.display = 'none';
+    document.querySelector('.tenant-nav').style.display = 'none';
+    const investorNav = document.querySelector('.investor-nav');
+    if (investorNav) investorNav.style.display = 'flex';
+    const houseBox = document.getElementById('nav-house-box');
+    if (houseBox) houseBox.style.display = 'flex';
+    renderHouseSelector();
+    renderMonthSelector();
+
+    const banner = document.getElementById('investor-preview-banner');
+    const bannerText = document.getElementById('investor-preview-banner-text');
+    if (bannerText) bannerText.innerText = tFmt('lbl_previewing_as', { name: result.investor.fullName || result.investor.username });
+    if (banner) { banner.style.display = 'flex'; renderIcons(banner); }
+
+    switchView('investor-dashboard');
+  } catch (err) {
+    console.warn('Could not start investor preview:', err);
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+}
+
+async function exitInvestorPreview() {
+  if (!_investorPreview) return;
+  const realUser = _investorPreview.realUser;
+  const realView = _investorPreview.realView;
+  _investorPreview = null;
+
+  const banner = document.getElementById('investor-preview-banner');
+  if (banner) banner.style.display = 'none';
+
+  state.currentUser = realUser;
+  // Full resync from the server rather than trying to patch state back
+  // by hand — guarantees admin's own (unfiltered) houses/rooms/services/
+  // invoices/etc. are exactly what they were before previewing, not
+  // whatever's left over from the investor-scoped payload.
+  await fetchState(true);
+  setupUserRoleUI();
+  switchView(realView && document.getElementById(`view-${realView}`) ? realView : 'admin-investor-report');
+}
 
 function renderInvestorReport() {
   renderInvestorExpensesTable();
