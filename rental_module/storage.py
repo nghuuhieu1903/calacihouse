@@ -226,18 +226,32 @@ DEFAULT_SITE_SETTINGS = {
 DEFAULT_TAX_SETTINGS = {
     'businessName': '',
     'taxCode': '',
+    # --- Chính sách áp dụng cho kỳ tính thuế TỪ 2026 trở đi ---------------
     # Ngưỡng doanh thu/năm: từ mức này TRỞ XUỐNG thì không phải nộp GTGT &
-    # TNCN. Lưu ý nghiệp vụ: vượt ngưỡng thì tính thuế trên TOÀN BỘ doanh
-    # thu, không phải chỉ phần vượt — computeTax bên dưới làm đúng như vậy.
-    'revenueThreshold': 200000000,
-    # Cho thuê tài sản: GTGT 5% + TNCN 5% trên doanh thu (Thông tư
-    # 40/2021/TT-BTC, Phụ lục I).
+    # TNCN. Mốc 1.000.000.000 đ là mức của Nghị định 141/2026/NĐ-CP
+    # (ban hành 29/4/2026, sửa Nghị định 68/2026/NĐ-CP), áp dụng cho kỳ
+    # tính thuế từ 01/01/2026 — nâng từ 500 triệu của Luật Thuế TNCN
+    # 109/2025/QH15 & Luật Thuế GTGT sửa đổi, vốn đã nâng từ mức 100 triệu
+    # cũ. Năm ≤ 2025 KHÔNG dùng con số này: xem LEGACY_TAX_RULES_2025.
+    'revenueThreshold': 1000000000,
+    # Cho thuê tài sản: tỷ lệ 5% GTGT và 5% TNCN trên doanh thu.
     'vatRate': 5.0,
     'pitRate': 5.0,
-    # Lệ phí môn bài theo bậc doanh thu/năm (Nghị định 139/2016/NĐ-CP).
-    # `max` = None nghĩa là bậc cuối, không có trần. Đặt licenseFeeEnabled
-    # = False cho những năm hộ kinh doanh được miễn lệ phí môn bài.
-    'licenseFeeEnabled': True,
+    # Điểm khác biệt lớn nhất của luật mới, và là chỗ dễ tính sai nhất:
+    #   GTGT — vượt ngưỡng thì tính trên TOÀN BỘ doanh thu, không trừ gì.
+    #   TNCN — được TRỪ ngưỡng vào doanh thu trước khi nhân thuế suất.
+    # Nên cùng một doanh thu lại ra hai con số khác nhau cho hai sắc thuế.
+    'pitDeductsThreshold': True,
+    # Mức được trừ khi tính TNCN. Để None nghĩa là "bằng đúng ngưỡng đang
+    # cấu hình" — tách riêng vì với người có NHIỀU bất động sản cho thuê,
+    # mức trừ là tổng tối đa cho cả năm và được phân bổ theo hợp đồng tự
+    # chọn, nên có trường hợp phần trừ dành cho nhà trọ này nhỏ hơn ngưỡng.
+    'pitDeductionCap': None,
+    # Lệ phí môn bài đã được BÃI BỎ với hộ/cá nhân kinh doanh từ 01/01/2026
+    # (Điều 10 Nghị quyết 198/2025/QH15) — mặc định tắt. Bậc phí vẫn giữ
+    # nguyên bên dưới để tra cứu/đối chiếu các năm ≤ 2025 (Nghị định
+    # 139/2016/NĐ-CP), khi đó hệ thống tự bật lại theo năm.
+    'licenseFeeEnabled': False,
     'licenseFeeTiers': [
         {'min': 0,         'max': 100000000, 'fee': 0},
         {'min': 100000000, 'max': 300000000, 'fee': 300000},
@@ -252,7 +266,32 @@ DEFAULT_TAX_SETTINGS = {
     'revenueBasis': 'total',
     # 'invoiced'  — ghi nhận doanh thu theo hóa đơn đã phát hành
     # 'collected' — chỉ tính hóa đơn đã thu được tiền
-    'revenueRecognition': 'invoiced'
+    'revenueRecognition': 'invoiced',
+    # --- Thuế sử dụng đất phi nông nghiệp ---------------------------------
+    # Khoản thuế đất hàng năm của chính mảnh đất đang xây nhà trọ — không
+    # liên quan gì tới doanh thu cho thuê, nên không thể suy ra từ hóa đơn:
+    # phải nhập diện tích và giá đất của bảng giá đất địa phương. Thuế suất
+    # 0,03% là mức cho đất ở/đất sản xuất kinh doanh phi nông nghiệp trong
+    # hạn mức (Luật Thuế sử dụng đất phi nông nghiệp).
+    'landTaxEnabled': False,
+    'landArea': 0,
+    'landPricePerM2': 0,
+    'landTaxRate': 0.03
+}
+
+# Bộ quy tắc của các kỳ tính thuế TỪ 2025 TRỞ VỀ TRƯỚC. Chính sách thuế hộ
+# kinh doanh thay đổi hẳn về chất ở mốc 01/01/2026 (bỏ thuế khoán, bỏ lệ
+# phí môn bài, ngưỡng 100 triệu → 1 tỷ, TNCN được trừ ngưỡng), nên tra lại
+# số liệu năm cũ bằng tham số năm mới sẽ ra những con số chưa từng tồn tại.
+# Đây là lý do get_tax_overview() chọn bộ quy tắc THEO NĂM đang xem thay vì
+# dùng thẳng phần cấu hình ở trên cho mọi năm.
+LEGACY_TAX_RULES_2025 = {
+    'revenueThreshold': 100000000,
+    'vatRate': 5.0,
+    'pitRate': 5.0,
+    'pitDeductsThreshold': False,
+    'pitDeductionCap': None,
+    'licenseFeeEnabled': True
 }
 
 
@@ -1615,16 +1654,53 @@ class Storage:
 
     # -- Tham số tính thuế (một object toàn cục, xem DEFAULT_TAX_SETTINGS) --
 
+    # Các key thuộc về HOÀN CẢNH RIÊNG của hộ kinh doanh này (ai, kê khai
+    # doanh thu kiểu gì, mảnh đất nào) — khác hẳn nhóm key mô tả CHÍNH SÁCH
+    # THUẾ (ngưỡng, thuế suất, có lệ phí môn bài hay không). Phân biệt hai
+    # nhóm là điều kiện để _migrate_tax_settings() bên dưới làm được việc.
+    TAX_SETTINGS_OWN_KEYS = (
+        'businessName', 'taxCode', 'revenueBasis', 'revenueRecognition',
+        'landTaxEnabled', 'landArea', 'landPricePerM2', 'landTaxRate'
+    )
+
     @staticmethod
     def get_tax_settings():
         """Trộn với DEFAULT_TAX_SETTINGS thay vì trả thẳng giá trị đã lưu:
-        một tham số thêm vào sau này (ví dụ sau đây có thêm loại thuế mới)
-        sẽ vắng mặt trong bản ghi cũ, và thiếu key ở đây nghĩa là công
-        thức tính lăn ra 0 chứ không phải rơi về mặc định."""
-        stored = Storage._kv_get('tax_settings', {})
+        một tham số thêm vào sau này sẽ vắng mặt trong bản ghi cũ, và
+        thiếu key ở đây nghĩa là công thức tính lăn ra 0 chứ không phải
+        rơi về mặc định.
+
+        Bản ghi lưu từ TRƯỚC bản cập nhật luật 2026 còn được viết lại một
+        lần: xem _migrate_tax_settings()."""
+        stored = Storage._kv_get('tax_settings', {}) or {}
+        stored = Storage._migrate_tax_settings(stored)
         settings = copy.deepcopy(DEFAULT_TAX_SETTINGS)
-        settings.update(stored or {})
+        settings.update(stored)
         return settings
+
+    @staticmethod
+    def _migrate_tax_settings(stored):
+        """Một bản ghi tham số thuế lưu trước bản cập nhật luật 2026 mang
+        theo ngưỡng cũ (100/200 triệu) và lệ phí môn bài đang bật. Vì
+        get_tax_settings() cho giá trị đã lưu đè lên mặc định, những con số
+        lỗi thời đó sẽ lặng lẽ thắng bộ mặc định mới và trang thuế tính ra
+        số tiền theo chính sách không còn hiệu lực — không có lỗi nào hiện
+        ra, chỉ là số sai.
+
+        Nhận diện bản ghi cũ bằng sự vắng mặt của 'pitDeductsThreshold'
+        (key chỉ có từ luật 2026). Với bản ghi như vậy: giữ nguyên phần
+        thuộc về hộ kinh doanh (tên, MST, cách xác định doanh thu, mảnh
+        đất), còn toàn bộ phần CHÍNH SÁCH thì lấy lại theo mặc định mới.
+        Ghi đè một lần rồi thôi — sau đó admin sửa gì trong Tham Số Thuế
+        vẫn được tôn trọng như thường."""
+        if not stored or 'pitDeductsThreshold' in stored:
+            return stored
+        migrated = copy.deepcopy(DEFAULT_TAX_SETTINGS)
+        for key in Storage.TAX_SETTINGS_OWN_KEYS:
+            if key in stored:
+                migrated[key] = stored[key]
+        Storage._kv_set('tax_settings', migrated)
+        return migrated
 
     @staticmethod
     def save_tax_settings(settings):

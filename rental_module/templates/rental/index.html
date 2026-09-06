@@ -705,16 +705,16 @@
 
         <!-- BUSINESS-HOUSEHOLD TAX VIEW — ADMIN ONLY (see nav-tax above) -->
         <div id="view-admin-tax" class="view-panel" style="display: none;">
-          <div class="cala-card" style="display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; padding: 0.85rem 1.1rem;">
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <label style="font-size: 0.85rem; font-weight: 700;">📅 Năm tính thuế:</label>
-              <select id="tax-select-year" class="form-control" style="width: auto; min-width: 110px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 800;" onchange="handleTaxYearChange(this)"></select>
+          <div class="cala-card tax-filter-bar">
+            <div class="tax-filter-field">
+              <label>📅 Năm tính thuế:</label>
+              <select id="tax-select-year" class="form-control" onchange="handleTaxYearChange(this)"></select>
             </div>
-            <div style="display: flex; align-items: center; gap: 0.5rem;">
-              <label style="font-size: 0.85rem; font-weight: 700;">🏢 Tòa nhà:</label>
-              <select id="tax-select-house" class="form-control" style="width: auto; min-width: 160px; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="handleTaxHouseChange(this)"></select>
+            <div class="tax-filter-field">
+              <label>🏢 Tòa nhà:</label>
+              <select id="tax-select-house" class="form-control" onchange="handleTaxHouseChange(this)"></select>
             </div>
-            <div style="margin-left: auto; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            <div class="tax-filter-actions">
               <button class="btn btn-secondary btn-sm" onclick="openTaxSettingsModal()">
                 <i data-lucide="settings-2"></i> <span>Tham Số Thuế</span>
               </button>
@@ -774,11 +774,24 @@
                từng loại thuế ra con số đó bằng công thức nào. -->
           <div class="cala-card" id="tax-analysis-card"></div>
 
+          <!-- Phần "đọc để học": chính sách mới nhất, công thức, thời hạn,
+               căn cứ pháp lý. Nội dung do server trả về cùng số liệu (xem
+               tax_legal_notes) nên số và lời giải thích không bao giờ lệch
+               nhau. Mặc định thu gọn để không đẩy bảng số xuống quá sâu
+               trên điện thoại. -->
+          <div class="cala-card tax-legal-card">
+            <button type="button" class="tax-legal-toggle" onclick="toggleTaxLegalPanel()">
+              <span><i data-lucide="scroll-text"></i> Luật Thuế Mới Nhất Áp Dụng Cho Nhà Trọ</span>
+              <i data-lucide="chevron-down" id="tax-legal-chevron"></i>
+            </button>
+            <div id="tax-legal-body" style="display: none;"></div>
+          </div>
+
           <div class="cala-card">
             <h3 style="margin-bottom: 1rem;"><i data-lucide="bar-chart-3" style="color: var(--cala-blue); vertical-align: middle; margin-right: 6px;"></i> Doanh Thu & Thuế Ước Tính Theo Tháng</h3>
             <div id="tax-monthly-chart" style="display: flex; align-items: flex-end; gap: 0.4rem; height: 180px; overflow-x: auto; padding-bottom: 0.25rem;"></div>
             <div class="excel-table-wrapper" style="margin-top: 1rem;">
-              <table class="excel-table">
+              <table class="excel-table tax-table-monthly">
                 <thead>
                   <tr>
                     <th>Tháng</th>
@@ -817,7 +830,7 @@
           <div class="cala-card">
             <h3 style="margin-bottom: 1rem;"><i data-lucide="building-2" style="color: var(--cala-blue); vertical-align: middle; margin-right: 6px;"></i> Phân Bổ Theo Tòa Nhà</h3>
             <div class="excel-table-wrapper">
-              <table class="excel-table">
+              <table class="excel-table tax-table-house">
                 <thead>
                   <tr>
                     <th>Tòa nhà</th>
@@ -836,7 +849,12 @@
 
           <div class="cala-card">
             <h3 style="margin-bottom: 1rem;"><i data-lucide="book-open" style="color: var(--cala-emerald); vertical-align: middle; margin-right: 6px;"></i> Sổ Thuế Đã Ghi Nhận</h3>
-            <div class="excel-table-wrapper">
+            <!-- Trên điện thoại, bảng 9 cột này trượt ngang đến mức không
+                 đọc nổi — CSS ẩn nó đi dưới 576px và hiện danh sách thẻ
+                 #tax-records-mobile bên dưới thay thế (cùng dữ liệu, xếp
+                 dọc). Giữ cả hai thay vì làm bảng co lại: trên máy tính
+                 bảng vẫn là cách so sánh nhiều dòng nhanh nhất. -->
+            <div class="excel-table-wrapper tax-records-desktop">
               <table class="excel-table">
                 <thead>
                   <tr>
@@ -854,6 +872,7 @@
                 <tbody id="tax-records-table-body"></tbody>
               </table>
             </div>
+            <div id="tax-records-mobile" class="tax-records-mobile"></div>
           </div>
         </div>
 
@@ -1280,13 +1299,14 @@
       </div>
       <form id="form-tax-record" onsubmit="submitTaxRecord(event)">
         <input type="hidden" id="tx-id">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div class="tax-form-grid">
           <div>
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Loại Thuế</label>
             <select id="tx-tax-type" class="form-control" onchange="onTaxTypeChange()" required>
-              <option value="mon_bai">Lệ phí môn bài</option>
-              <option value="gtgt">Thuế GTGT (khoán)</option>
-              <option value="tncn">Thuế TNCN (khoán)</option>
+              <option value="gtgt">Thuế GTGT</option>
+              <option value="tncn">Thuế TNCN</option>
+              <option value="dat_pnn">Thuế sử dụng đất phi nông nghiệp</option>
+              <option value="mon_bai">Lệ phí môn bài (chỉ kỳ ≤ 2025)</option>
               <option value="khac">Khoản nộp khác</option>
             </select>
           </div>
@@ -1308,7 +1328,7 @@
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Phạm Vi</label>
           <select id="tx-house-id" class="form-control"></select>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div class="tax-form-grid">
           <div>
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Doanh Thu Căn Cứ (VNĐ)</label>
             <input type="number" id="tx-revenue-base" class="form-control" min="0" step="1000" oninput="recomputeTaxAmountFromRate()">
@@ -1323,7 +1343,7 @@
           <input type="number" id="tx-amount" class="form-control" min="0" step="1000" required>
           <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Tự tính = Doanh thu căn cứ × Thuế suất; vẫn sửa tay được để khớp đúng thông báo thuế.</div>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div class="tax-form-grid">
           <div>
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Trạng Thái</label>
             <select id="tx-status" class="form-control" onchange="onTaxStatusChange()">
@@ -1356,7 +1376,7 @@
         <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-tax-settings')"><i data-lucide="x"></i></button>
       </div>
       <form id="form-tax-settings" onsubmit="submitTaxSettings(event)">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div class="tax-form-grid">
           <div>
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Tên Hộ Kinh Doanh</label>
             <input type="text" id="ts-business-name" class="form-control">
@@ -1369,9 +1389,9 @@
         <div style="margin-bottom: 1rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Ngưỡng Doanh Thu Miễn Thuế / Năm (VNĐ)</label>
           <input type="number" id="ts-threshold" class="form-control" min="0" step="1000000" required>
-          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Doanh thu cả năm từ mức này trở xuống thì không phải nộp GTGT &amp; TNCN. Vượt ngưỡng thì tính thuế trên toàn bộ doanh thu, không chỉ phần vượt.</div>
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Doanh thu cả năm từ mức này trở xuống thì không phải nộp GTGT &amp; TNCN. Mức hiện hành 1.000.000.000 đ/năm (Nghị định 141/2026/NĐ-CP, áp dụng từ 01/01/2026); kỳ tính thuế ≤ 2025 hệ thống tự dùng mức 100 triệu của luật cũ.</div>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+        <div class="tax-form-grid">
           <div>
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Thuế Suất GTGT (%)</label>
             <input type="number" id="ts-vat-rate" class="form-control" min="0" step="0.1" required>
@@ -1380,6 +1400,20 @@
             <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Thuế Suất TNCN (%)</label>
             <input type="number" id="ts-pit-rate" class="form-control" min="0" step="0.1" required>
           </div>
+        </div>
+        <div style="margin-bottom: 1rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+          <input type="checkbox" id="ts-pit-deducts" style="width: 18px; height: 18px; margin-top: 2px;">
+          <label for="ts-pit-deducts" style="font-size: 0.85rem; font-weight: 700;">
+            Trừ ngưỡng vào doanh thu trước khi tính TNCN
+            <span style="display: block; font-weight: 500; color: var(--text-secondary); font-size: 0.75rem; margin-top: 2px;">
+              Đúng theo luật từ 2026: GTGT tính trên toàn bộ doanh thu, còn TNCN chỉ tính trên phần vượt mức được trừ.
+            </span>
+          </label>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Mức Được Trừ Khi Tính TNCN (VNĐ)</label>
+          <input type="number" id="ts-pit-deduction-cap" class="form-control" min="0" step="1000000" placeholder="Bỏ trống = bằng đúng ngưỡng">
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Chỉ điền khi bạn có nhiều bất động sản cho thuê và mức được trừ cả năm đã phân bổ bớt cho hợp đồng khác.</div>
         </div>
         <div style="margin-bottom: 1rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Doanh Thu Tính Thuế Lấy Theo</label>
@@ -1395,9 +1429,39 @@
             <option value="collected">Chỉ tính hóa đơn đã thu được tiền</option>
           </select>
         </div>
-        <div style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-          <input type="checkbox" id="ts-license-enabled" style="width: 18px; height: 18px;">
-          <label for="ts-license-enabled" style="font-size: 0.85rem; font-weight: 700;">Áp dụng lệ phí môn bài (bỏ chọn cho năm được miễn)</label>
+        <div style="margin-bottom: 1rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+          <input type="checkbox" id="ts-land-enabled" style="width: 18px; height: 18px; margin-top: 2px;">
+          <label for="ts-land-enabled" style="font-size: 0.85rem; font-weight: 700;">
+            Tính thuế sử dụng đất phi nông nghiệp
+            <span style="display: block; font-weight: 500; color: var(--text-secondary); font-size: 0.75rem; margin-top: 2px;">
+              Khoản thuế đất hằng năm của chính mảnh đất xây nhà trọ, không liên quan tới doanh thu cho thuê.
+            </span>
+          </label>
+        </div>
+        <div class="tax-form-grid">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Diện Tích Đất (m²)</label>
+            <input type="number" id="ts-land-area" class="form-control" min="0" step="0.1">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Giá Đất (VNĐ/m²)</label>
+            <input type="number" id="ts-land-price" class="form-control" min="0" step="100000">
+          </div>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Thuế Suất Đất (%)</label>
+          <input type="number" id="ts-land-rate" class="form-control" min="0" step="0.001">
+          <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">0,03% với đất ở / đất sản xuất kinh doanh phi nông nghiệp trong hạn mức. Giá đất lấy theo bảng giá đất địa phương.</div>
+        </div>
+
+        <div style="margin-bottom: 1rem; display: flex; align-items: flex-start; gap: 0.5rem;">
+          <input type="checkbox" id="ts-license-enabled" style="width: 18px; height: 18px; margin-top: 2px;">
+          <label for="ts-license-enabled" style="font-size: 0.85rem; font-weight: 700;">
+            Áp dụng lệ phí môn bài
+            <span style="display: block; font-weight: 500; color: var(--text-secondary); font-size: 0.75rem; margin-top: 2px;">
+              Đã bãi bỏ với hộ kinh doanh từ 01/01/2026 — để tắt. Kỳ tính thuế ≤ 2025 hệ thống tự bật lại theo bậc bên dưới.
+            </span>
+          </label>
         </div>
         <div style="margin-bottom: 1.5rem;">
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;">Bậc Lệ Phí Môn Bài Theo Doanh Thu / Năm</label>

@@ -8846,6 +8846,7 @@ async function renderTaxView() {
   renderTaxVarianceTable(overview);
   renderTaxByHouseTable(overview);
   renderTaxRecordsTable(overview);
+  renderTaxLegalPanel(overview);
   renderIcons(document.getElementById('view-admin-tax'));
 }
 
@@ -8903,8 +8904,9 @@ function renderTaxAnalysisCard(overview) {
   const box = document.getElementById('tax-analysis-card');
   if (!box) return;
   const est = overview.estimate;
-  const s = overview.settings;
+  const rules = overview.rules || overview.settings;
   const over = est.isOverThreshold;
+
   // Năm đang chạy dở thì doanh thu mới là một phần — nói thẳng con số
   // ngoại suy cả năm ra, vì đó mới là thứ quyết định có vượt ngưỡng hay
   // không khi chốt năm, chứ không phải doanh thu tới thời điểm này.
@@ -8916,11 +8918,54 @@ function renderTaxAnalysisCard(overview) {
         : '.'}
     </div>` : '';
 
+  // Năm ≤ 2025 chạy theo luật khoán cũ, không phải tham số admin đang cấu
+  // hình cho 2026+ — không nói rõ thì người xem sẽ tưởng phần Tham Số Thuế
+  // vừa chỉnh bị hệ thống bỏ qua.
+  const legacyBanner = est.isLegacyYear ? `
+    <div style="padding: 0.7rem 0.9rem; border-radius: 10px; background: #fff2ec; border: 1px solid #ffd4c2; margin-bottom: 1rem; font-size: 0.85rem;">
+      <b>Kỳ tính thuế ${overview.year} áp dụng LUẬT CŨ (thuế khoán).</b>
+      Hệ thống tự dùng ngưỡng ${taxMoney(est.threshold)}/năm và vẫn tính lệ phí môn bài,
+      thay cho tham số bạn cấu hình cho kỳ từ 2026 trở đi.
+    </div>` : '';
+
+  // Chỉ dựng thẻ cho khoản THỰC SỰ phát sinh: từ 2026 lệ phí môn bài đã bị
+  // bãi bỏ và thuế đất chỉ có khi admin khai báo mảnh đất — hiện thẻ 0 đồng
+  // cho chúng chỉ làm loãng đúng hai con số cần nhìn (GTGT và TNCN).
+  const cards = [
+    {
+      icon: '🧾', title: 'Thuế GTGT', amount: est.vat,
+      note: over
+        ? `${taxMoney(overview.revenue.taxable)} × ${est.vatRate}% — tính trên TOÀN BỘ doanh thu, không trừ ngưỡng`
+        : 'Miễn — doanh thu cả năm chưa vượt ngưỡng'
+    },
+    {
+      icon: '👤', title: 'Thuế TNCN', amount: est.pit,
+      note: over
+        ? (est.pitDeduction
+            ? `(${taxMoney(overview.revenue.taxable)} − ${taxMoney(est.pitDeductionApplied)} được trừ) × ${est.pitRate}%`
+            : `${taxMoney(overview.revenue.taxable)} × ${est.pitRate}% — luật cũ không cho trừ ngưỡng`)
+        : 'Miễn — doanh thu cả năm chưa vượt ngưỡng'
+    }
+  ];
+  if (est.licenseFee) {
+    cards.push({
+      icon: '🏷️', title: 'Lệ phí môn bài', amount: est.licenseFee,
+      note: `${est.licenseFeeTierLabel}. Khoản của cả hộ kinh doanh, nộp một lần cho cả năm.`
+    });
+  }
+  if (est.landTaxEnabled) {
+    cards.push({
+      icon: '🏞️', title: 'Thuế sử dụng đất phi nông nghiệp', amount: est.landTax,
+      note: `${est.landArea} m² × ${taxMoney(est.landPricePerM2)}/m² × ${est.landTaxRate}% — không liên quan doanh thu cho thuê.`
+    });
+  }
+
   box.innerHTML = `
     <h3 style="margin-bottom: 0.75rem;">
       <i data-lucide="${over ? 'alert-triangle' : 'shield-check'}" style="color: ${over ? 'var(--cala-orange)' : 'var(--cala-emerald)'}; vertical-align: middle; margin-right: 6px;"></i>
       Kết Luận Nghĩa Vụ Thuế Năm ${overview.year}
     </h3>
+    ${legacyBanner}
     <div style="padding: 0.85rem 1rem; border-radius: 10px; background: ${over ? '#fff2ec' : '#e6f9f2'}; margin-bottom: 1rem;">
       <div style="font-weight: 800;">
         ${over
@@ -8928,39 +8973,86 @@ function renderTaxAnalysisCard(overview) {
           : `Doanh thu cả hộ kinh doanh ${taxMoney(est.businessRevenue)} chưa vượt ngưỡng ${taxMoney(est.threshold)}/năm → được miễn thuế GTGT và TNCN.`}
       </div>
       <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.35rem;">
-        Lưu ý: khi đã vượt ngưỡng thì thuế tính trên <b>toàn bộ</b> doanh thu, không phải chỉ phần vượt.
+        ${est.pitDeduction
+          ? 'Vượt ngưỡng rồi thì GTGT tính trên <b>toàn bộ</b> doanh thu, còn TNCN được <b>trừ</b> mức miễn trước khi nhân thuế suất — cùng 5% nhưng ra hai số tiền khác nhau.'
+          : 'Lưu ý: khi đã vượt ngưỡng thì thuế tính trên <b>toàn bộ</b> doanh thu, không phải chỉ phần vượt.'}
       </div>
       ${projectionRow}
     </div>
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem;">
-      <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem 1rem;">
-        <div style="font-weight: 800; margin-bottom: 0.35rem;">🏷️ Lệ phí môn bài</div>
-        <div style="font-size: 1.15rem; font-weight: 800;">${taxMoney(est.licenseFee)}</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-          ${escapeTaxText(est.licenseFeeTierLabel)}. Khoản của cả hộ kinh doanh, nộp một lần cho cả năm.
-        </div>
-      </div>
-      <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem 1rem;">
-        <div style="font-weight: 800; margin-bottom: 0.35rem;">🧾 Thuế GTGT (khoán)</div>
-        <div style="font-size: 1.15rem; font-weight: 800;">${taxMoney(est.vat)}</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-          ${over ? `${taxMoney(overview.revenue.taxable)} × ${est.vatRate}%` : `Miễn — chưa vượt ngưỡng doanh thu`}
-        </div>
-      </div>
-      <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem 1rem;">
-        <div style="font-weight: 800; margin-bottom: 0.35rem;">👤 Thuế TNCN (khoán)</div>
-        <div style="font-size: 1.15rem; font-weight: 800;">${taxMoney(est.pit)}</div>
-        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-          ${over ? `${taxMoney(overview.revenue.taxable)} × ${est.pitRate}%` : `Miễn — chưa vượt ngưỡng doanh thu`}
-        </div>
-      </div>
+      ${cards.map(c => `
+        <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 0.85rem 1rem;">
+          <div style="font-weight: 800; margin-bottom: 0.35rem;">${c.icon} ${escapeTaxText(c.title)}</div>
+          <div style="font-size: 1.15rem; font-weight: 800;">${taxMoney(c.amount)}</div>
+          <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">${c.note}</div>
+        </div>`).join('')}
     </div>
     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 1rem;">
-      Số liệu mang tính tham khảo nội bộ, tính theo tham số đang cấu hình
-      (ngưỡng ${taxMoney(s.revenueThreshold)}, GTGT ${s.vatRate}%, TNCN ${s.pitRate}%) —
-      số phải nộp chính thức vẫn là số trên thông báo thuế của cơ quan thuế.
+      Ước tính nội bộ theo tham số đang áp dụng cho kỳ ${overview.year}
+      (ngưỡng ${taxMoney(est.threshold)}, GTGT ${est.vatRate}%, TNCN ${est.pitRate}%${est.pitDeduction ? `, được trừ ${taxMoney(est.pitDeduction)}` : ''}) —
+      số phải nộp chính thức vẫn là số trên thông báo/tờ khai đã được cơ quan thuế chấp nhận.
     </div>
   `;
+}
+
+/* ----- Phần đọc: luật mới nhất ------------------------------------------ */
+
+function toggleTaxLegalPanel() {
+  const card = document.querySelector('.tax-legal-card');
+  const body = document.getElementById('tax-legal-body');
+  if (!card || !body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  card.classList.toggle('open', open);
+}
+
+function renderTaxLegalPanel(overview) {
+  const body = document.getElementById('tax-legal-body');
+  const legal = overview.legal;
+  if (!body || !legal) return;
+  body.innerHTML = `
+    <div style="padding: 0.85rem 1rem; border-radius: 10px; background: var(--bg-base); margin: 1rem 0;">
+      <div style="font-weight: 800; margin-bottom: 0.35rem;">${escapeTaxText(legal.regime)} · kỳ tính thuế ${overview.year}</div>
+      <div style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.6;">${escapeTaxText(legal.headline)}</div>
+    </div>
+
+    <div class="tax-legal-section">
+      <h4>📌 Những thay đổi bạn cần nắm</h4>
+      ${legal.changes.map(c => `
+        <div class="tax-legal-item">
+          <b>${escapeTaxText(c.title)}</b>
+          <p>${escapeTaxText(c.detail)}</p>
+          <div class="tax-legal-source">Căn cứ: ${escapeTaxText(c.source)}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="tax-legal-section">
+      <h4>🧮 Công thức hệ thống đang dùng</h4>
+      ${legal.formulas.map(f => `<div class="tax-legal-formula">${escapeTaxText(f)}</div>`).join('')}
+    </div>
+
+    <div class="tax-legal-section">
+      <h4>⏰ Mốc thời hạn</h4>
+      <ul style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.7; padding-left: 1.1rem;">
+        ${legal.deadlines.map(d => `<li>${escapeTaxText(d)}</li>`).join('')}
+      </ul>
+    </div>
+
+    <div class="tax-legal-section">
+      <h4>🔗 Nguồn tra cứu</h4>
+      <ul style="font-size: 0.85rem; line-height: 1.8; padding-left: 1.1rem;">
+        ${legal.sources.map(src => `
+          <li><a href="${escapeTaxText(src.url)}" target="_blank" rel="noopener noreferrer"
+                 style="color: var(--cala-blue); font-weight: 600;">${escapeTaxText(src.label)}</a></li>`).join('')}
+      </ul>
+    </div>
+
+    <div style="margin-top: 1.1rem; padding: 0.8rem 0.95rem; border-radius: 10px; background: #fff2ec; font-size: 0.82rem; line-height: 1.6;">
+      ⚠️ ${escapeTaxText(legal.disclaimer)}
+      <div style="margin-top: 0.35rem; color: var(--text-secondary);">Nội dung cập nhật đến ${escapeTaxText(legal.updatedAt)}.</div>
+    </div>
+  `;
+  renderIcons(body);
 }
 
 function renderTaxMonthly(overview) {
@@ -9059,9 +9151,12 @@ function renderTaxByHouseTable(overview) {
 function renderTaxRecordsTable(overview) {
   const tbody = document.getElementById('tax-records-table-body');
   if (!tbody) return;
+  const mobile = document.getElementById('tax-records-mobile');
   const records = overview.records || [];
+  const emptyText = `Chưa ghi nhận khoản thuế nào cho năm ${overview.year}. Bấm "Tạo Sổ Từ Ước Tính" để tạo nhanh các dòng nháp.`;
   if (!records.length) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--text-secondary);">Chưa ghi nhận khoản thuế nào cho năm ${overview.year}. Bấm "Tạo Sổ Từ Ước Tính" để tạo nhanh 3 dòng nháp.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color: var(--text-secondary);">${emptyText}</td></tr>`;
+    if (mobile) mobile.innerHTML = `<div style="text-align:center; color: var(--text-secondary); font-size: 0.85rem; padding: 0.5rem 0;">${emptyText}</div>`;
     return;
   }
   tbody.innerHTML = records.map(r => {
@@ -9083,6 +9178,40 @@ function renderTaxRecordsTable(overview) {
           <button class="btn btn-secondary btn-sm" style="color: var(--cala-red);" onclick="deleteTaxRecordApi('${escapeTaxText(r.id)}')"><i data-lucide="trash-2"></i></button>
         </td>
       </tr>`;
+  }).join('');
+
+  // Cùng dữ liệu, xếp dọc thành thẻ cho khổ điện thoại — bảng 9 cột ở trên
+  // bị CSS ẩn dưới 576px (xem .tax-records-desktop / .tax-records-mobile).
+  // Dựng cả hai ở đây thay vì đo chiều rộng màn hình bằng JS: xoay ngang
+  // máy hay đổi cỡ cửa sổ thì CSS tự đổi, không cần render lại.
+  if (!mobile) return;
+  mobile.innerHTML = records.map(r => {
+    const paid = r.status === 'paid';
+    return `
+      <div class="tax-record-card">
+        <div class="tax-record-card-head">
+          <div>
+            <div class="tax-record-card-title">${escapeTaxText(r.taxTypeLabel)}</div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">Kỳ ${escapeTaxText(r.period)}</div>
+          </div>
+          <span class="badge ${paid ? 'badge-paid' : 'badge-pending'}">${paid ? 'Đã nộp' : 'Chưa nộp'}</span>
+        </div>
+        <div class="tax-record-card-amount">${taxMoney(r.amount)}</div>
+        <div class="tax-record-card-meta">
+          <div>Phạm vi: ${r.houseId ? escapeTaxText(r.houseName) : 'Cả hộ kinh doanh'}</div>
+          ${r.revenueBase ? `<div>Căn cứ: ${taxMoney(r.revenueBase)}${r.rate ? ` × ${r.rate}%` : ''}</div>` : ''}
+          ${paid && r.paidDate ? `<div>Ngày nộp: ${escapeTaxText(r.paidDate)}</div>` : ''}
+          ${r.note ? `<div>${escapeTaxText(r.note)}</div>` : ''}
+        </div>
+        <div class="tax-record-card-actions">
+          <button class="btn btn-secondary btn-sm" onclick="openTaxRecordModal('${escapeTaxText(r.id)}')">
+            <i data-lucide="edit-3"></i> Sửa
+          </button>
+          <button class="btn btn-secondary btn-sm" style="color: var(--cala-red);" onclick="deleteTaxRecordApi('${escapeTaxText(r.id)}')">
+            <i data-lucide="trash-2"></i> Xóa
+          </button>
+        </div>
+      </div>`;
   }).join('');
 }
 
@@ -9128,7 +9257,8 @@ function onTaxTypeChange() {
   // nghĩa.
   const type = document.getElementById('tx-tax-type').value;
   const modeSel = document.getElementById('tx-period-mode');
-  if (type === 'mon_bai') {
+  // Lệ phí môn bài và thuế đất phi nông nghiệp đều là khoản tính theo năm.
+  if (type === 'mon_bai' || type === 'dat_pnn') {
     modeSel.value = 'year';
     modeSel.disabled = true;
   } else {
@@ -9143,6 +9273,7 @@ function onTaxTypeChange() {
   if (!rateInput.value) {
     if (type === 'gtgt') rateInput.value = s.vatRate || '';
     else if (type === 'tncn') rateInput.value = s.pitRate || '';
+    else if (type === 'dat_pnn') rateInput.value = s.landTaxRate || '';
   }
 }
 
@@ -9210,7 +9341,7 @@ async function deleteTaxRecordApi(recordId) {
 }
 
 async function generateTaxEstimateRecords() {
-  if (!confirm(`Tạo/cập nhật 3 dòng sổ thuế ước tính (môn bài, GTGT, TNCN) cho năm ${_taxState.year}?\n\nCác khoản đã đánh dấu "đã nộp" chỉ được làm mới số tiền ước tính, trạng thái và ghi chú giữ nguyên.`)) return;
+  if (!confirm(`Tạo/cập nhật các dòng sổ thuế ước tính cho năm ${_taxState.year}?\n\nChỉ tạo dòng cho khoản thực sự phát sinh ở kỳ đó. Các khoản đã đánh dấu "đã nộp" chỉ được làm mới số tiền ước tính, trạng thái và ghi chú giữ nguyên.`)) return;
   const data = await postAndVerify(`${API_BASE}/tax/records/generate`, { year: _taxState.year });
   if (!data) return;
   showToast('Đã tạo sổ thuế từ số liệu ước tính!', 'success');
@@ -9229,6 +9360,15 @@ function openTaxSettingsModal() {
   document.getElementById('ts-pit-rate').value = s.pitRate || 0;
   document.getElementById('ts-revenue-basis').value = s.revenueBasis || 'total';
   document.getElementById('ts-revenue-recognition').value = s.revenueRecognition || 'invoiced';
+  document.getElementById('ts-pit-deducts').checked = !!s.pitDeductsThreshold;
+  // Để trống nghĩa là "bằng đúng ngưỡng" — điền sẵn số ngưỡng vào đây sẽ
+  // biến một mặc định tự động thành một con số cứng ngay lần lưu kế tiếp.
+  document.getElementById('ts-pit-deduction-cap').value =
+    (s.pitDeductionCap === null || s.pitDeductionCap === undefined) ? '' : s.pitDeductionCap;
+  document.getElementById('ts-land-enabled').checked = !!s.landTaxEnabled;
+  document.getElementById('ts-land-area').value = s.landArea || 0;
+  document.getElementById('ts-land-price').value = s.landPricePerM2 || 0;
+  document.getElementById('ts-land-rate').value = s.landTaxRate || 0;
   document.getElementById('ts-license-enabled').checked = !!s.licenseFeeEnabled;
   _taxState.editingTiers = JSON.parse(JSON.stringify(s.licenseFeeTiers || []));
   renderTaxLicenseTiers();
@@ -9289,6 +9429,14 @@ async function submitTaxSettings(event) {
     pitRate: parseFloat(document.getElementById('ts-pit-rate').value) || 0,
     revenueBasis: document.getElementById('ts-revenue-basis').value,
     revenueRecognition: document.getElementById('ts-revenue-recognition').value,
+    pitDeductsThreshold: document.getElementById('ts-pit-deducts').checked,
+    pitDeductionCap: document.getElementById('ts-pit-deduction-cap').value.trim() === ''
+      ? null
+      : (parseFloat(document.getElementById('ts-pit-deduction-cap').value) || 0),
+    landTaxEnabled: document.getElementById('ts-land-enabled').checked,
+    landArea: parseFloat(document.getElementById('ts-land-area').value) || 0,
+    landPricePerM2: parseFloat(document.getElementById('ts-land-price').value) || 0,
+    landTaxRate: parseFloat(document.getElementById('ts-land-rate').value) || 0,
     licenseFeeEnabled: document.getElementById('ts-license-enabled').checked,
     licenseFeeTiers: _taxState.editingTiers
       .slice()

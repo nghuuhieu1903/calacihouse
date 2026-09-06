@@ -1,4 +1,4 @@
-from .storage import Storage
+from .storage import Storage, LEGACY_TAX_RULES_2025
 from datetime import datetime, timedelta, date
 import calendar
 import math
@@ -1903,30 +1903,67 @@ class RentalService:
     # ======================================================================
     # THUẾ HỘ KINH DOANH — tổng hợp & phân tích (private, chỉ Admin)
     # ======================================================================
-    # Ba loại thuế cơ bản của một hộ kinh doanh cho thuê nhà:
-    #   mon_bai — Lệ phí môn bài, tính theo BẬC doanh thu cả năm, nộp 1 lần/năm
-    #   gtgt    — Thuế GTGT theo phương pháp khoán: 5% doanh thu (cho thuê tài sản)
-    #   tncn    — Thuế TNCN theo phương pháp khoán: 5% doanh thu (cho thuê tài sản)
-    # Cả GTGT lẫn TNCN chỉ phát sinh khi doanh thu cả năm VƯỢT ngưỡng miễn
-    # thuế, và khi đã vượt thì tính trên TOÀN BỘ doanh thu chứ không phải
-    # phần vượt — đây là chỗ dễ tính sai nhất, nên _tax_for_revenue() bên
-    # dưới là nơi duy nhất trong cả app quyết định điều đó.
+    # Các khoản một hộ kinh doanh nhà trọ phải theo dõi:
+    #   gtgt    — Thuế GTGT, tỷ lệ 5% trên doanh thu cho thuê tài sản
+    #   tncn    — Thuế TNCN, tỷ lệ 5%, nhưng được TRỪ ngưỡng trước khi nhân
+    #   mon_bai — Lệ phí môn bài: chỉ còn ý nghĩa với kỳ tính thuế ≤ 2025,
+    #             đã bãi bỏ từ 01/01/2026 (Điều 10 Nghị quyết 198/2025/QH15)
+    #   dat_pnn — Thuế sử dụng đất phi nông nghiệp của chính mảnh đất xây
+    #             nhà trọ: khoản duy nhất KHÔNG suy ra được từ doanh thu,
+    #             phải nhập diện tích + giá đất theo bảng giá địa phương
+    #   khac    — mọi khoản nộp khác admin muốn ghi vào sổ
+    #
+    # Hai chỗ dễ tính sai nhất, và cũng là lý do phần tính thuế nằm gọn
+    # trong _tax_for_revenue() thay vì rải khắp nơi:
+    #   1. Ngưỡng xét trên doanh thu CẢ HỘ KINH DOANH, không phải doanh thu
+    #      của riêng tòa nhà đang lọc xem.
+    #   2. Vượt ngưỡng rồi thì GTGT tính trên TOÀN BỘ doanh thu (không trừ
+    #      gì), còn TNCN thì được trừ ngưỡng ra rồi mới nhân thuế suất —
+    #      cùng một doanh thu nhưng hai sắc thuế ra hai con số khác nhau.
 
     TAX_TYPE_LABELS = {
-        'mon_bai': 'Lệ phí môn bài',
-        'gtgt': 'Thuế GTGT (khoán)',
-        'tncn': 'Thuế TNCN (khoán)',
+        'gtgt': 'Thuế GTGT',
+        'tncn': 'Thuế TNCN',
+        'mon_bai': 'Lệ phí môn bài (≤2025)',
+        'dat_pnn': 'Thuế sử dụng đất phi nông nghiệp',
         'khac': 'Khoản nộp khác'
     }
 
+    # Năm đầu tiên áp dụng bộ quy tắc mới (bỏ thuế khoán, bỏ lệ phí môn
+    # bài, ngưỡng 1 tỷ, TNCN được trừ ngưỡng). Tách thành hằng số vì cả
+    # phần tính toán lẫn phần chú giải pháp lý gửi ra giao diện đều phải
+    # dựa trên đúng một mốc.
+    TAX_LAW_NEW_REGIME_YEAR = 2026
+
     @staticmethod
-    def _license_fee_for_revenue(annual_revenue, settings):
+    def _rules_for_year(year, settings):
+        """Bộ tham số ÁP DỤNG CHO ĐÚNG NĂM đang xem. Chính sách thuế hộ
+        kinh doanh đổi hẳn về chất từ 01/01/2026, nên lấy cấu hình hiện
+        hành áp cho năm 2024/2025 sẽ dựng lại một quá khứ chưa từng có
+        (miễn thuế tới 1 tỷ, không có lệ phí môn bài). Năm ≤ 2025 dùng
+        LEGACY_TAX_RULES_2025; năm ≥ 2026 dùng đúng phần admin cấu hình.
+
+        Trả về (rules, is_legacy) — is_legacy để giao diện nói rõ nó đang
+        hiển thị theo luật cũ, thay vì để người đọc tưởng tham số mình vừa
+        chỉnh không có tác dụng."""
+        rules = dict(settings)
+        try:
+            year_num = int(str(year)[:4])
+        except (TypeError, ValueError):
+            year_num = RentalService.TAX_LAW_NEW_REGIME_YEAR
+        if year_num >= RentalService.TAX_LAW_NEW_REGIME_YEAR:
+            return rules, False
+        rules.update(LEGACY_TAX_RULES_2025)
+        return rules, True
+
+    @staticmethod
+    def _license_fee_for_revenue(annual_revenue, rules):
         """Bậc lệ phí môn bài tương ứng doanh thu cả năm. Trả về
         (số tiền, nhãn bậc) — nhãn để trang phân tích giải thích ĐƯỢC vì
         sao ra con số đó thay vì chỉ hiện một số trần trụi."""
-        if not settings.get('licenseFeeEnabled'):
-            return 0, 'Được miễn lệ phí môn bài (đã tắt trong tham số)'
-        tiers = settings.get('licenseFeeTiers') or []
+        if not rules.get('licenseFeeEnabled'):
+            return 0, 'Không phát sinh — lệ phí môn bài đã bãi bỏ với hộ kinh doanh từ 01/01/2026'
+        tiers = rules.get('licenseFeeTiers') or []
         for tier in tiers:
             low = tier.get('min') or 0
             high = tier.get('max')
@@ -1940,19 +1977,42 @@ class RentalService:
         return 0, 'Doanh thu chưa tới bậc chịu lệ phí môn bài'
 
     @staticmethod
-    def _tax_for_revenue(taxable_revenue, business_revenue, settings):
-        """GTGT & TNCN khoán trên `taxable_revenue`, nhưng việc CÓ chịu
-        thuế hay không lại xét trên `business_revenue` — tổng doanh thu cả
-        hộ kinh doanh. Hai tham số riêng biệt vì khi admin lọc theo một
-        tòa nhà, phần thuế phân bổ cho tòa đó vẫn phải phát sinh nếu cả hộ
-        đã vượt ngưỡng; xét ngưỡng trên riêng doanh thu tòa đang lọc sẽ
-        cho ra "được miễn" một cách sai lệch."""
-        threshold = settings.get('revenueThreshold') or 0
+    def _pit_deduction(rules):
+        """Mức được trừ vào doanh thu trước khi tính TNCN. Mặc định bằng
+        đúng ngưỡng chịu thuế; tách riêng vì người có nhiều bất động sản
+        cho thuê chỉ được trừ TỔNG tối đa một mức cho cả năm, phân bổ theo
+        hợp đồng tự chọn — nên phần dành cho riêng nhà trọ này có thể nhỏ
+        hơn ngưỡng."""
+        if not rules.get('pitDeductsThreshold'):
+            return 0.0
+        cap = rules.get('pitDeductionCap')
+        if cap is None:
+            cap = rules.get('revenueThreshold') or 0
+        return float(cap or 0)
+
+    @staticmethod
+    def _tax_for_revenue(taxable_revenue, business_revenue, rules):
+        """GTGT & TNCN trên `taxable_revenue`, nhưng việc CÓ chịu thuế hay
+        không lại xét trên `business_revenue` — tổng doanh thu cả hộ kinh
+        doanh. Hai tham số riêng biệt vì khi admin lọc theo một tòa nhà,
+        phần thuế phân bổ cho tòa đó vẫn phải phát sinh nếu cả hộ đã vượt
+        ngưỡng; xét ngưỡng trên riêng doanh thu tòa đang lọc sẽ cho ra
+        "được miễn" một cách sai lệch.
+
+        GTGT tính trên toàn bộ doanh thu, TNCN tính sau khi trừ ngưỡng —
+        xem chú thích ở đầu khối này."""
+        threshold = rules.get('revenueThreshold') or 0
         over = business_revenue > threshold
         if not over:
             return 0.0, 0.0, False
-        vat = taxable_revenue * (settings.get('vatRate') or 0) / 100.0
-        pit = taxable_revenue * (settings.get('pitRate') or 0) / 100.0
+        vat = taxable_revenue * (rules.get('vatRate') or 0) / 100.0
+        # Phần trừ được phân bổ theo tỷ trọng doanh thu khi đang lọc một
+        # tòa nhà: mức trừ là của cả hộ kinh doanh, chia đều nguyên mức cho
+        # từng tòa sẽ trừ nhiều lần cùng một khoản và cho ra tổng TNCN nhỏ
+        # hơn thực tế.
+        share = (taxable_revenue / business_revenue) if business_revenue else 0
+        deduction = RentalService._pit_deduction(rules) * share
+        pit = max(0.0, taxable_revenue - deduction) * (rules.get('pitRate') or 0) / 100.0
         return vat, pit, True
 
     @staticmethod
@@ -2004,25 +2064,28 @@ class RentalService:
         all_years = sorted(set(all_years), reverse=True)
 
         year = str(year or current_year)
+        # Luật áp cho ĐÚNG năm đang xem, không phải luật hiện hành áp cho
+        # mọi năm — xem _rules_for_year().
+        rules, is_legacy_year = RentalService._rules_for_year(year, settings)
         year_invoices = [i for i in invoices if (i.get('month') or '').startswith(year + '-')]
 
         # Ngưỡng miễn thuế xét trên doanh thu CẢ HỘ KINH DOANH, không phụ
         # thuộc bộ lọc tòa nhà đang xem — xem _tax_for_revenue().
-        _, _, _, business_taxable = RentalService._revenue_of(year_invoices, settings)
+        _, _, _, business_taxable = RentalService._revenue_of(year_invoices, rules)
 
         scoped = year_invoices if house_id in ('all', '', None) else [
             i for i in year_invoices if i.get('houseId') == house_id
         ]
         total_revenue, rent_revenue, collected_revenue, taxable_revenue = \
-            RentalService._revenue_of(scoped, settings)
+            RentalService._revenue_of(scoped, rules)
 
         # -- Doanh thu & thuế ước tính theo từng tháng ----------------------
         months = []
         for m in range(1, 13):
             month_key = f'{year}-{m:02d}'
             month_invoices = [i for i in scoped if i.get('month') == month_key]
-            m_total, m_rent, m_collected, m_taxable = RentalService._revenue_of(month_invoices, settings)
-            m_vat, m_pit, _ = RentalService._tax_for_revenue(m_taxable, business_taxable, settings)
+            m_total, m_rent, m_collected, m_taxable = RentalService._revenue_of(month_invoices, rules)
+            m_vat, m_pit, _ = RentalService._tax_for_revenue(m_taxable, business_taxable, rules)
             months.append({
                 'month': month_key,
                 'invoiceCount': len(month_invoices),
@@ -2036,36 +2099,59 @@ class RentalService:
             })
 
         # -- Ước tính cả năm ------------------------------------------------
-        vat, pit, over_threshold = RentalService._tax_for_revenue(taxable_revenue, business_taxable, settings)
-        license_fee, license_label = RentalService._license_fee_for_revenue(business_taxable, settings)
-        # Lệ phí môn bài là nghĩa vụ của cả hộ kinh doanh — khi đang lọc
-        # một tòa, hiển thị nguyên khoản đó nhưng đánh dấu businessWide để
-        # front-end nói rõ "khoản này tính cho cả hộ, không riêng tòa đang
-        # xem" thay vì để người đọc tưởng mỗi tòa phải nộp một lần.
-        estimated_total = license_fee + vat + pit
+        vat, pit, over_threshold = RentalService._tax_for_revenue(taxable_revenue, business_taxable, rules)
+        license_fee, license_label = RentalService._license_fee_for_revenue(business_taxable, rules)
+        # Thuế sử dụng đất phi nông nghiệp: khoản duy nhất không dính dáng
+        # gì tới doanh thu cho thuê — ước tính từ diện tích × giá đất ×
+        # thuế suất, và chỉ khi admin đã khai báo mảnh đất trong tham số.
+        land_tax = 0.0
+        if settings.get('landTaxEnabled'):
+            land_tax = (settings.get('landArea') or 0) * (settings.get('landPricePerM2') or 0) \
+                * (settings.get('landTaxRate') or 0) / 100.0
+        # Lệ phí môn bài (và thuế đất) là nghĩa vụ của cả hộ kinh doanh —
+        # khi đang lọc một tòa, hiển thị nguyên khoản đó nhưng đánh dấu
+        # businessWide để front-end nói rõ "khoản này tính cho cả hộ, không
+        # riêng tòa đang xem" thay vì để người đọc tưởng mỗi tòa nộp một lần.
+        estimated_total = license_fee + vat + pit + land_tax
 
         active_months = len([mo for mo in months if mo['invoiceCount'] > 0])
         projected_annual = (business_taxable / active_months * 12) if (
             year == current_year and active_months and active_months < 12
         ) else business_taxable
 
+        pit_deduction = RentalService._pit_deduction(rules)
         estimate = {
             'licenseFee': license_fee,
             'licenseFeeTierLabel': license_label,
             'licenseFeeIsBusinessWide': True,
+            'landTax': land_tax,
+            'landTaxEnabled': bool(settings.get('landTaxEnabled')),
+            'landArea': settings.get('landArea') or 0,
+            'landPricePerM2': settings.get('landPricePerM2') or 0,
+            'landTaxRate': settings.get('landTaxRate') or 0,
             'vat': vat,
             'pit': pit,
-            'vatRate': settings.get('vatRate') or 0,
-            'pitRate': settings.get('pitRate') or 0,
+            'vatRate': rules.get('vatRate') or 0,
+            'pitRate': rules.get('pitRate') or 0,
+            # Mức trừ khi tính TNCN — 0 với các năm ≤ 2025 (luật cũ không
+            # cho trừ), nên giao diện dùng chính con số này để giải thích
+            # vì sao GTGT và TNCN lệch nhau dù cùng thuế suất 5%.
+            'pitDeduction': pit_deduction,
+            'pitDeductionApplied': pit_deduction * ((taxable_revenue / business_taxable) if business_taxable else 0),
+            'pitTaxableBase': max(0.0, taxable_revenue - pit_deduction * ((taxable_revenue / business_taxable) if business_taxable else 0)),
             'totalTax': estimated_total,
-            'threshold': settings.get('revenueThreshold') or 0,
+            'threshold': rules.get('revenueThreshold') or 0,
             'isOverThreshold': over_threshold,
             'businessRevenue': business_taxable,
             'projectedAnnualRevenue': projected_annual,
             'activeMonths': active_months,
             # Thuế / doanh thu — con số dùng để so sánh giữa các năm và
             # thấy ngay tác động của việc đổi cách xác định doanh thu.
-            'effectiveRate': (estimated_total / taxable_revenue * 100) if taxable_revenue else 0
+            'effectiveRate': (estimated_total / taxable_revenue * 100) if taxable_revenue else 0,
+            # Năm đang xem có đang chạy theo bộ quy tắc cũ (≤2025) không —
+            # giao diện phải nói rõ, nếu không admin sẽ tưởng tham số vừa
+            # chỉnh bị bỏ qua.
+            'isLegacyYear': is_legacy_year
         }
 
         # -- Thuế đã ghi nhận trong sổ (thực tế đã kê khai/đã nộp) ----------
@@ -2076,7 +2162,7 @@ class RentalService:
             year_records = [r for r in year_records if r.get('houseId') in (house_id, '')]
 
         recorded = {}
-        for tax_type in ('mon_bai', 'gtgt', 'tncn', 'khac'):
+        for tax_type in ('gtgt', 'tncn', 'mon_bai', 'dat_pnn', 'khac'):
             type_records = [r for r in year_records if r.get('taxType') == tax_type]
             amount = sum(r.get('amount', 0) or 0 for r in type_records)
             paid = sum(r.get('amount', 0) or 0 for r in type_records if r.get('status') == 'paid')
@@ -2087,12 +2173,13 @@ class RentalService:
                 'paid': paid,
                 'unpaid': amount - paid
             }
-        recorded['totalAmount'] = sum(recorded[t]['amount'] for t in ('mon_bai', 'gtgt', 'tncn', 'khac'))
-        recorded['totalPaid'] = sum(recorded[t]['paid'] for t in ('mon_bai', 'gtgt', 'tncn', 'khac'))
+        _all_types = ('gtgt', 'tncn', 'mon_bai', 'dat_pnn', 'khac')
+        recorded['totalAmount'] = sum(recorded[t]['amount'] for t in _all_types)
+        recorded['totalPaid'] = sum(recorded[t]['paid'] for t in _all_types)
         recorded['totalUnpaid'] = recorded['totalAmount'] - recorded['totalPaid']
 
         # -- Chênh lệch ước tính ↔ đã ghi nhận ------------------------------
-        estimated_by_type = {'mon_bai': license_fee, 'gtgt': vat, 'tncn': pit}
+        estimated_by_type = {'gtgt': vat, 'tncn': pit, 'mon_bai': license_fee, 'dat_pnn': land_tax}
         variance = [
             {
                 'taxType': tax_type,
@@ -2102,7 +2189,11 @@ class RentalService:
                 'paid': recorded[tax_type]['paid'],
                 'diff': recorded[tax_type]['amount'] - estimated_by_type[tax_type]
             }
-            for tax_type in ('mon_bai', 'gtgt', 'tncn')
+            for tax_type in ('gtgt', 'tncn', 'mon_bai', 'dat_pnn')
+            # Lệ phí môn bài đã bãi bỏ từ 2026 và thuế đất chỉ có khi admin
+            # khai báo mảnh đất — không có gì để đối chiếu thì thêm một
+            # dòng toàn số 0 vào bảng chỉ làm loãng đúng thứ cần nhìn.
+            if estimated_by_type[tax_type] or recorded[tax_type]['amount']
         ]
 
         # -- Phân bổ theo tòa nhà (luôn tính trên TOÀN BỘ tòa, kể cả khi
@@ -2110,8 +2201,8 @@ class RentalService:
         by_house = []
         for h in houses:
             h_invoices = [i for i in year_invoices if i.get('houseId') == h['id']]
-            h_total, h_rent, h_collected, h_taxable = RentalService._revenue_of(h_invoices, settings)
-            h_vat, h_pit, _ = RentalService._tax_for_revenue(h_taxable, business_taxable, settings)
+            h_total, h_rent, h_collected, h_taxable = RentalService._revenue_of(h_invoices, rules)
+            h_vat, h_pit, _ = RentalService._tax_for_revenue(h_taxable, business_taxable, rules)
             by_house.append({
                 'houseId': h['id'],
                 'houseName': h.get('name') or h['id'],
@@ -2136,6 +2227,11 @@ class RentalService:
             'houseId': house_id or 'all',
             'availableYears': all_years,
             'settings': settings,
+            # Tham số THỰC SỰ dùng để tính năm này (đã áp bộ quy tắc theo
+            # năm), tách khỏi `settings` là thứ admin cấu hình cho 2026+.
+            'rules': rules,
+            'isLegacyYear': is_legacy_year,
+            'legal': RentalService.tax_legal_notes(year),
             'revenue': {
                 'total': total_revenue,
                 'rent': rent_revenue,
@@ -2151,6 +2247,115 @@ class RentalService:
             'variance': variance,
             'byHouse': by_house,
             'records': year_records
+        }
+
+    @staticmethod
+    def tax_legal_notes(year=None):
+        """Phần "đọc để học" của trang thuế: chính sách đang áp dụng, công
+        thức, mốc thời hạn và căn cứ pháp lý — trả từ server cùng số liệu
+        thay vì viết cứng trong HTML, để chỗ nào tính ra con số thì chỗ đó
+        cũng giải thích được vì sao, và mỗi lần luật đổi chỉ phải sửa một
+        file.
+
+        Nội dung cập nhật đến 09/2026. Đây là tài liệu tham khảo nội bộ,
+        KHÔNG thay thế văn bản gốc hay ý kiến của cơ quan thuế."""
+        try:
+            year_num = int(str(year or datetime.now().year)[:4])
+        except (TypeError, ValueError):
+            year_num = datetime.now().year
+        is_legacy = year_num < RentalService.TAX_LAW_NEW_REGIME_YEAR
+
+        return {
+            'updatedAt': '2026-09',
+            'regime': 'Luật cũ (thuế khoán)' if is_legacy else 'Luật mới (kê khai, từ 01/01/2026)',
+            'isLegacy': is_legacy,
+            'headline': (
+                'Kỳ tính thuế ≤ 2025 vẫn theo chế độ THUẾ KHOÁN: ngưỡng miễn thuế 100 triệu đồng/năm '
+                'và vẫn phải nộp lệ phí môn bài.'
+                if is_legacy else
+                'Từ 01/01/2026, hộ kinh doanh cho thuê nhà trọ chỉ còn nộp 2 sắc thuế: GTGT và TNCN. '
+                'Thuế khoán và lệ phí môn bài đều đã bị bãi bỏ, chuyển sang tự kê khai.'
+            ),
+            'changes': [
+                {
+                    'title': 'Bỏ thuế khoán, chuyển sang tự kê khai',
+                    'detail': 'Từ 01/01/2026 hộ kinh doanh không còn nộp thuế theo mức khoán do cơ quan '
+                              'thuế ấn định mà tự kê khai doanh thu thực tế và tự nộp. Doanh thu ghi nhận '
+                              'trên hóa đơn của phần mềm này chính là căn cứ kê khai đó.',
+                    'source': 'Nghị quyết 198/2025/QH15; Nghị định 68/2026/NĐ-CP'
+                },
+                {
+                    'title': 'Bỏ lệ phí môn bài',
+                    'detail': 'Lệ phí môn bài với hộ kinh doanh, cá nhân kinh doanh được xóa bỏ từ '
+                              '01/01/2026. Các năm ≤ 2025 vẫn tính theo bậc doanh thu của Nghị định '
+                              '139/2016/NĐ-CP (300.000 / 500.000 / 1.000.000 đ/năm).',
+                    'source': 'Điều 10 Nghị quyết 198/2025/QH15'
+                },
+                {
+                    'title': 'Ngưỡng doanh thu không chịu thuế: 1 tỷ đồng/năm',
+                    'detail': 'Mốc miễn thuế GTGT & TNCN đi từ 100 triệu (luật cũ) lên 500 triệu theo '
+                              'Luật Thuế TNCN 109/2025/QH15 và Luật Thuế GTGT sửa đổi, rồi lên 1 tỷ '
+                              'đồng/năm theo Nghị định 141/2026/NĐ-CP (ban hành 29/4/2026, sửa Nghị định '
+                              '68/2026/NĐ-CP), áp dụng cho kỳ tính thuế từ 01/01/2026.',
+                    'source': 'Nghị định 141/2026/NĐ-CP sửa Nghị định 68/2026/NĐ-CP'
+                },
+                {
+                    'title': 'GTGT tính trên toàn bộ doanh thu, TNCN được trừ ngưỡng',
+                    'detail': 'Vượt ngưỡng thì: Thuế GTGT = 5% × toàn bộ doanh thu (không trừ gì); '
+                              'Thuế TNCN = 5% × (doanh thu − mức được trừ). Đây là lý do hai sắc thuế '
+                              'cùng thuế suất 5% nhưng ra hai số tiền khác nhau.',
+                    'source': 'Nghị định 68/2026/NĐ-CP; Luật Thuế TNCN 109/2025/QH15'
+                },
+                {
+                    'title': 'Nhiều bất động sản cho thuê: mức trừ là tổng cho cả năm',
+                    'detail': 'Cá nhân có nhiều bất động sản cho thuê ở nhiều nơi được chọn hợp đồng để '
+                              'trừ, nhưng TỔNG mức trừ không vượt quá một lần mức quy định cho cả năm. '
+                              'Nếu nhà trọ này chỉ được phân bổ một phần, hãy nhập đúng phần đó vào ô '
+                              '"Mức được trừ khi tính TNCN" trong Tham Số Thuế.',
+                    'source': 'Nghị định 68/2026/NĐ-CP'
+                },
+                {
+                    'title': 'Hóa đơn điện tử',
+                    'detail': 'Doanh thu trên 1 tỷ đồng/năm thì phải dùng hóa đơn điện tử có mã của cơ '
+                              'quan thuế hoặc hóa đơn khởi tạo từ máy tính tiền có kết nối dữ liệu với '
+                              'cơ quan thuế. Dưới ngưỡng thì đăng ký dùng nếu có nhu cầu.',
+                    'source': 'Luật Quản lý thuế 2025; Nghị định 141/2026/NĐ-CP'
+                },
+                {
+                    'title': 'Thuế sử dụng đất phi nông nghiệp vẫn phải nộp riêng',
+                    'detail': 'Đây là khoản của chính mảnh đất đang xây nhà trọ, hoàn toàn độc lập với '
+                              'doanh thu cho thuê: Thuế = Diện tích × Giá 1m² đất (bảng giá đất địa '
+                              'phương) × thuế suất (0,03% với đất trong hạn mức). Bật và khai báo trong '
+                              'Tham Số Thuế để hệ thống ước tính giúp.',
+                    'source': 'Luật Thuế sử dụng đất phi nông nghiệp'
+                }
+            ],
+            'formulas': [
+                'Thuế GTGT = Doanh thu tính thuế × 5%   (chỉ khi doanh thu cả năm vượt ngưỡng)',
+                'Thuế TNCN = (Doanh thu tính thuế − Mức được trừ) × 5%',
+                'Thuế đất phi nông nghiệp = Diện tích (m²) × Giá đất (đ/m²) × 0,03%',
+                'Lệ phí môn bài (chỉ kỳ ≤ 2025) = tra bậc theo doanh thu cả năm'
+            ],
+            'deadlines': [
+                'Hộ khai theo quý: nộp hồ sơ khai thuế chậm nhất ngày cuối cùng của tháng đầu quý sau.',
+                'Hộ thuộc diện thông báo doanh thu (doanh thu ≤ ngưỡng): thông báo trước 31/7 và trước '
+                '31/01 năm sau, tùy thời điểm bắt đầu kinh doanh trong năm.',
+                'Doanh thu vượt ngưỡng giữa năm: chuyển sang kê khai theo quý ngay từ quý phát sinh.'
+            ],
+            'disclaimer': 'Số liệu trên trang này là ước tính nội bộ theo tham số bạn cấu hình, phục vụ '
+                          'theo dõi và học hiểu cách tính. Số phải nộp chính thức là số trên thông báo/'
+                          'tờ khai đã được cơ quan thuế chấp nhận. Chính sách thuế thay đổi liên tục — '
+                          'hãy đối chiếu lại văn bản gốc trước mỗi kỳ kê khai.',
+            'sources': [
+                {'label': 'Nghị định 68/2026/NĐ-CP (toàn văn — Cổng TTĐT Chính phủ)',
+                 'url': 'https://vanban.chinhphu.vn/?pageid=27160&docid=217111'},
+                {'label': 'Hướng dẫn nghĩa vụ thuế hộ kinh doanh (Cổng Xây dựng chính sách — Chính phủ)',
+                 'url': 'https://xaydungchinhsach.chinhphu.vn/huong-dan-thuc-hien-nghia-vu-thue-voi-ho-kinh-doanh-co-doanh-thu-nam-tren-500-trieu-dong-den-3-ty-dong-nop-thue-tncn-tren-doanh-thu-119260408100250796.htm'},
+                {'label': 'Đề xuất/điều chỉnh ngưỡng chịu thuế lên 1 tỷ đồng/năm (Báo Chính phủ)',
+                 'url': 'https://baochinhphu.vn/de-xuat-nang-nguong-chiu-thue-voi-ho-kinh-doanh-len-01-ty-dong-nam-102260422175516103.htm'},
+                {'label': 'Cách tính thuế cho thuê tài sản thay đổi từ 2026',
+                 'url': 'https://faonline.vn/cach-tinh-thue-cho-thue-tai-san-thay-doi-tu-nam-2026/'}
+            ]
         }
 
     @staticmethod
@@ -2204,13 +2409,21 @@ class RentalService:
         existing = {r['id']: r for r in Storage.get_tax_records()}
 
         planned = [
-            ('mon_bai', estimate['licenseFee'], 0,
-             f"Ước tính tự động — {estimate['licenseFeeTierLabel']}"),
-            ('gtgt', estimate['vat'], settings.get('vatRate') or 0,
-             'Ước tính tự động từ doanh thu hóa đơn'),
-            ('tncn', estimate['pit'], settings.get('pitRate') or 0,
-             'Ước tính tự động từ doanh thu hóa đơn')
+            ('gtgt', estimate['vat'], estimate['vatRate'],
+             'Ước tính tự động: 5% trên toàn bộ doanh thu tính thuế'),
+            ('tncn', estimate['pit'], estimate['pitRate'],
+             'Ước tính tự động: 5% trên doanh thu sau khi trừ mức được trừ')
         ]
+        # Chỉ tạo dòng cho khoản THỰC SỰ phát sinh ở năm đó: lệ phí môn bài
+        # đã bãi bỏ từ 2026, thuế đất chỉ có khi admin đã khai mảnh đất.
+        # Tạo sẵn dòng 0 đồng cho hai khoản này chỉ làm sổ thuế nhiễu.
+        if estimate['licenseFee']:
+            planned.append(('mon_bai', estimate['licenseFee'], 0,
+                            f"Ước tính tự động — {estimate['licenseFeeTierLabel']}"))
+        if estimate['landTax']:
+            planned.append(('dat_pnn', estimate['landTax'], estimate['landTaxRate'],
+                            f"Ước tính tự động: {estimate['landArea']} m² × "
+                            f"{estimate['landPricePerM2']:,.0f} đ/m² × {estimate['landTaxRate']}%".replace(',', '.')))
 
         saved = []
         for tax_type, amount, rate, note in planned:
@@ -2242,14 +2455,23 @@ class RentalService:
         current = Storage.get_tax_settings()
         allowed = (
             'businessName', 'taxCode', 'revenueThreshold', 'vatRate', 'pitRate',
-            'licenseFeeEnabled', 'licenseFeeTiers', 'revenueBasis', 'revenueRecognition'
+            'pitDeductsThreshold', 'pitDeductionCap',
+            'licenseFeeEnabled', 'licenseFeeTiers', 'revenueBasis', 'revenueRecognition',
+            'landTaxEnabled', 'landArea', 'landPricePerM2', 'landTaxRate'
         )
         for key in allowed:
             if key in (settings or {}):
                 current[key] = settings[key]
-        for numeric in ('revenueThreshold', 'vatRate', 'pitRate'):
+        for numeric in ('revenueThreshold', 'vatRate', 'pitRate',
+                        'landArea', 'landPricePerM2', 'landTaxRate'):
             current[numeric] = float(current.get(numeric) or 0)
+        # pitDeductionCap giữ được None ("bằng đúng ngưỡng") — ép về 0 như
+        # các số khác sẽ âm thầm biến thành "không được trừ đồng nào".
+        cap = current.get('pitDeductionCap')
+        current['pitDeductionCap'] = None if cap in (None, '') else float(cap or 0)
         current['licenseFeeEnabled'] = bool(current.get('licenseFeeEnabled'))
+        current['pitDeductsThreshold'] = bool(current.get('pitDeductsThreshold'))
+        current['landTaxEnabled'] = bool(current.get('landTaxEnabled'))
         if current.get('revenueBasis') not in ('total', 'rent_only'):
             current['revenueBasis'] = 'total'
         if current.get('revenueRecognition') not in ('invoiced', 'collected'):
