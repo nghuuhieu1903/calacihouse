@@ -42,8 +42,52 @@
   <!-- External Stylesheet (single source of truth — do not duplicate rules inline,
        an inline copy would win the cascade over this file's @media rules) -->
   <link rel="stylesheet" href="{{ url_for('rental.static', filename='css/styles.css') }}?v={{ asset_version_css }}">
+
+  <!-- Boot splash critical CSS — inlined (not in styles.css) so it paints
+       immediately on the very first frame, with zero dependency on the
+       external stylesheet finishing its own network round trip. See
+       hideBootSplash() in app.js: the screen behind this (login form or
+       still-placeholder app shell) was what actually made the site feel
+       slow to open — a login card flashing empty, then real data popping
+       in a beat later. This masks that whole sequence behind one steady
+       branded screen for a fixed short moment instead. -->
+  <style>
+    #boot-splash {
+      position: fixed; inset: 0; z-index: 999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 0.9rem;
+      background: linear-gradient(160deg, #0194f3 0%, #0169ad 100%);
+      transition: opacity 0.35s ease;
+    }
+    #boot-splash img {
+      width: 76px; height: 76px; border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      animation: boot-splash-pulse 1.1s ease-in-out infinite;
+    }
+    #boot-splash .boot-splash-name {
+      color: #fff; font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+      font-weight: 800; font-size: 1.25rem; letter-spacing: 0.02em;
+    }
+    #boot-splash .boot-splash-spinner {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.35); border-top-color: #fff;
+      animation: boot-splash-spin 0.8s linear infinite;
+    }
+    @keyframes boot-splash-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    @keyframes boot-splash-spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
+
+  <!-- BOOT SPLASH — shown instantly on first paint (plain HTML/CSS, no JS
+       or app data needed), removed by hideBootSplash() in app.js once the
+       real screen (login or app) is actually ready, with a short minimum
+       display time so it never flashes by too fast to register. -->
+  <div id="boot-splash">
+    <img src="{{ url_for('rental.static', filename='img/icon-192.png') }}" alt="">
+    <div class="boot-splash-name">{{ site_name }}</div>
+    <div class="boot-splash-spinner"></div>
+  </div>
 
   <!-- AUTH / LOGIN OVERLAY SCREEN -->
   <div id="auth-screen" class="auth-screen">

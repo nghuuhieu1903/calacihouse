@@ -1749,6 +1749,25 @@ async function fetchPublicSiteSettings() {
   }
 }
 
+// Boot splash (the branded full-screen logo screen defined inline in
+// index.html's <head>, not app-loading-overlay above) stays up for at
+// least this long even if restoreSession() resolves almost instantly —
+// without a floor, a fast reply made it flash by in well under 100ms,
+// invisible enough that it read as no fix at all. Answers "cho 1 logo kèm
+// màn hình chờ cỡ 0.5s-1s" directly.
+const BOOT_SPLASH_MIN_MS = 700;
+const _bootSplashStartedAt = Date.now();
+
+function hideBootSplash() {
+  const el = document.getElementById('boot-splash');
+  if (!el) return;
+  const remaining = BOOT_SPLASH_MIN_MS - (Date.now() - _bootSplashStartedAt);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 350); // matches the CSS opacity transition
+  }, Math.max(0, remaining));
+}
+
 function showAppLoadingOverlay() {
   const el = document.getElementById('app-loading-overlay');
   if (el) el.style.display = 'flex';
@@ -1780,6 +1799,11 @@ async function restoreSession() {
     }
   } catch (err) {
     console.warn('No active session, showing login screen:', err);
+  } finally {
+    // Whichever screen this landed on (a restored session's real app view,
+    // or — no session, or the fetch itself failed — the plain login
+    // screen underneath), the boot splash's job is done either way.
+    hideBootSplash();
   }
 }
 
