@@ -212,7 +212,16 @@ DEFAULT_SITE_SETTINGS = {
     'description': 'Hệ thống Quản lý Phòng trọ & Hóa đơn Tự động',
     'keywords': '',
     'shareImage': '',
-    'favicon': ''
+    'favicon': '',
+    # Separate from favicon (which only ever touched the browser tab icon,
+    # and deliberately never fed the PWA manifest — see web_manifest() in
+    # routes.py for why an arbitrary/non-square upload was too risky
+    # there). logo is the one image meant to represent the brand
+    # everywhere else that needs a real, properly-sized icon: Chrome's
+    # "Cài đặt ứng dụng"/"Thêm vào màn hình chính" shortcut icon, and the
+    # boot splash screen. Empty means fall back to the bundled default
+    # icon-192.png everywhere.
+    'logo': ''
 }
 
 

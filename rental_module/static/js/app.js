@@ -454,6 +454,9 @@ const I18N = {
     lbl_page_keywords: 'Từ Khoá Về Trang',
     lbl_share_image: 'Hình Ảnh Khi Chia Sẻ',
     lbl_favicon: 'Hình Ảnh Favicon',
+    lbl_logo: 'Logo Ứng Dụng',
+    hint_logo: 'Dùng cho biểu tượng khi thêm vào màn hình chính/cài đặt ứng dụng trên Chrome, và cho màn hình chờ lúc mở trang. Nên chọn ảnh vuông, rõ nét.',
+    toast_logo_saved_reloading: 'Đã lưu logo mới, đang tải lại trang để áp dụng...',
     btn_choose_image: 'Chọn ảnh',
     btn_save_site_settings: 'Lưu Thiết Lập',
     toast_site_settings_saved: 'Đã lưu thiết lập trang!',
@@ -1157,6 +1160,9 @@ const I18N = {
     lbl_page_keywords: 'Page Keywords',
     lbl_share_image: 'Share Image',
     lbl_favicon: 'Favicon Image',
+    lbl_logo: 'App Logo',
+    hint_logo: 'Used for the Chrome "Install app"/home screen shortcut icon, and for the loading splash screen. Use a clear, square image.',
+    toast_logo_saved_reloading: 'New logo saved, reloading the page to apply it...',
     btn_choose_image: 'Choose image',
     btn_save_site_settings: 'Save Settings',
     toast_site_settings_saved: 'Page settings saved!',
@@ -8793,6 +8799,12 @@ async function savePermissionsMatrix() {
   }
 }
 
+// Set right before the settings modal opens (see openSiteSettingsModal) —
+// lets saveSiteSettings() tell whether logo actually changed, since a
+// change there needs a page reload (unlike every other field on this
+// form) to take effect everywhere it's used server-side.
+let _siteSettingsLogoAtOpen = '';
+
 async function openSiteSettingsModal() {
   // state.siteSettings only ever carries a boolean placeholder for
   // shareImage now (see get_full_state) — fetch the real stored value
@@ -8812,8 +8824,14 @@ async function openSiteSettingsModal() {
   document.getElementById('site-settings-keywords').value = s.keywords || '';
   document.getElementById('site-settings-share-image').value = s.shareImage || '';
   document.getElementById('site-settings-favicon').value = s.favicon || '';
+  // s.logo here is the real stored value (this came from /api/settings/full,
+  // not the boolean-collapsed bulk state) — safe to prefill directly.
+  document.getElementById('site-settings-logo').value = s.logo || '';
+  // Snapshot to detect an actual change on save — see saveSiteSettings().
+  _siteSettingsLogoAtOpen = s.logo || '';
   updateSiteSettingsImagePreview('site-settings-share-image');
   updateSiteSettingsImagePreview('site-settings-favicon');
+  updateSiteSettingsImagePreview('site-settings-logo');
   document.getElementById('modal-site-settings').classList.add('active');
 }
 
@@ -8849,7 +8867,8 @@ async function saveSiteSettings() {
     description: document.getElementById('site-settings-description').value.trim(),
     keywords: document.getElementById('site-settings-keywords').value.trim(),
     shareImage: document.getElementById('site-settings-share-image').value.trim(),
-    favicon: document.getElementById('site-settings-favicon').value.trim()
+    favicon: document.getElementById('site-settings-favicon').value.trim(),
+    logo: document.getElementById('site-settings-logo').value.trim()
   };
 
   try {
@@ -8865,6 +8884,15 @@ async function saveSiteSettings() {
     }
     applySiteSettings(data.settings);
     showToast(t('toast_site_settings_saved'), 'success');
+    // A changed logo drives things that only apply themselves once at
+    // page load (the boot splash, apple-touch-icon, manifest icons — all
+    // rendered server-side in index()/web_manifest(), not re-read from
+    // state on every settings change) — a reload is the only way this
+    // browser tab actually sees the new one everywhere it's used.
+    if (payload.logo !== _siteSettingsLogoAtOpen) {
+      showToast(t('toast_logo_saved_reloading'), 'info');
+      setTimeout(() => location.reload(), 900);
+    }
     closeModal('modal-site-settings');
   } catch (err) {
     showToast(t('toast_server_connection_error'), 'error');

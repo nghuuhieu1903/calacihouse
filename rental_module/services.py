@@ -743,6 +743,14 @@ class RentalService:
         site_settings = dict(site_settings)
         if site_settings.get('shareImage'):
             site_settings['shareImage'] = True
+        # Same reasoning as shareImage just above — logo can be a full
+        # photo too, but every live use of it (boot splash, apple-touch-
+        # icon, manifest icons) already goes through /logo-image as a real
+        # URL rendered server-side in index()/web_manifest(), never this
+        # bulk payload. Only Thiết Lập Trang's own prefill (/api/settings/
+        # full) and a truthiness check need the real value here.
+        if site_settings.get('logo'):
+            site_settings['logo'] = True
 
         return {
             'houses': houses,
@@ -1607,14 +1615,17 @@ class RentalService:
         return True
 
     @staticmethod
-    def save_site_settings(site_name, title, description, keywords, share_image, favicon):
+    def save_site_settings(site_name, title, description, keywords, share_image, favicon, logo=None):
         settings = {
             'siteName': site_name or 'CalaciHouse',
             'title': title or 'CalaciHouse',
             'description': description or '',
             'keywords': keywords or '',
             'shareImage': share_image or '',
-            'favicon': favicon or ''
+            'favicon': favicon or '',
+            # See DEFAULT_SITE_SETTINGS in storage.py — the shortcut/home-
+            # screen icon and boot splash logo, kept separate from favicon.
+            'logo': logo or ''
         }
         Storage.save_site_settings(settings)
         return settings

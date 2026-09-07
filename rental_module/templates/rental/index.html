@@ -20,7 +20,10 @@
        custom one in Thiết Lập Trang; without a baseline here the tab/
        home-screen icon would be blank until then. -->
   <link id="favicon-link-tag" rel="icon" href="{{ url_for('rental.static', filename='img/icon-192.png') }}">
-  <link rel="apple-touch-icon" href="{{ url_for('rental.static', filename='img/apple-touch-icon.png') }}">
+  <!-- iOS's home-screen icon — uses the admin's uploaded logo (Thiết Lập
+       Trang) when set, same as the manifest icons below; falls back to
+       the bundled default otherwise. -->
+  <link id="apple-touch-icon-tag" rel="apple-touch-icon" href="{{ logo_url }}">
   <link rel="manifest" href="{{ url_for('rental.web_manifest') }}">
   <meta name="theme-color" content="#0194f3">
   <meta name="mobile-web-app-capable" content="yes">
@@ -60,7 +63,8 @@
       transition: opacity 0.35s ease;
     }
     #boot-splash img {
-      width: 76px; height: 76px; border-radius: 20px;
+      width: 76px; height: 76px; border-radius: 20px; object-fit: contain;
+      background: #fff; padding: 8px; box-sizing: border-box;
       box-shadow: 0 8px 24px rgba(0,0,0,0.25);
       animation: boot-splash-pulse 1.1s ease-in-out infinite;
     }
@@ -84,7 +88,7 @@
        real screen (login or app) is actually ready, with a short minimum
        display time so it never flashes by too fast to register. -->
   <div id="boot-splash">
-    <img src="{{ url_for('rental.static', filename='img/icon-192.png') }}" alt="">
+    <img src="{{ logo_url }}" alt="">
     <div class="boot-splash-name">{{ site_name }}</div>
     <div class="boot-splash-spinner"></div>
   </div>
@@ -2240,13 +2244,24 @@
         <img id="site-settings-share-image-preview" src="" style="display:none; max-width: 220px; max-height: 90px; margin-top: 0.6rem; border-radius: var(--radius-md); border: 1px solid var(--border-color); object-fit: contain;">
       </div>
 
-      <div style="margin-bottom: 0.5rem;">
+      <div style="margin-bottom: 1rem;">
         <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_favicon">Hình Ảnh Favicon</label>
         <div style="display: flex; gap: 0.5rem; align-items: center;">
           <img id="site-settings-favicon-preview" src="" style="display:none; width: 36px; height: 36px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: cover; flex-shrink: 0;">
           <input type="text" id="site-settings-favicon" class="form-control" placeholder="https://..." oninput="updateSiteSettingsImagePreview('site-settings-favicon')">
           <input type="file" id="site-settings-favicon-input" accept="image/*" style="display:none;" onchange="handleSiteSettingsImageSelect(event, 'site-settings-favicon')">
           <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="document.getElementById('site-settings-favicon-input').click()"><span data-i18n="btn_choose_image">Chọn ảnh</span></button>
+        </div>
+      </div>
+
+      <div style="margin-bottom: 0.5rem;">
+        <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_logo">Logo Ứng Dụng</label>
+        <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.4rem;" data-i18n="hint_logo">Dùng cho biểu tượng khi thêm vào màn hình chính/cài đặt ứng dụng trên Chrome, và cho màn hình chờ lúc mở trang. Nên chọn ảnh vuông, rõ nét.</div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <img id="site-settings-logo-preview" src="" style="display:none; width: 48px; height: 48px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); object-fit: contain; background: #fff; flex-shrink: 0;">
+          <input type="text" id="site-settings-logo" class="form-control" placeholder="https://..." oninput="updateSiteSettingsImagePreview('site-settings-logo')">
+          <input type="file" id="site-settings-logo-input" accept="image/*" style="display:none;" onchange="handleSiteSettingsImageSelect(event, 'site-settings-logo')">
+          <button type="button" class="btn btn-secondary btn-sm" style="flex-shrink:0;" onclick="document.getElementById('site-settings-logo-input').click()"><span data-i18n="btn_choose_image">Chọn ảnh</span></button>
         </div>
       </div>
 

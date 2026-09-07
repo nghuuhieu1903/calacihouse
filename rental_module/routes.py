@@ -63,6 +63,25 @@ def og_image():
         return '', 404
     return Response(raw, mimetype=mime_type or 'image/jpeg')
 
+@rental_bp.route('/logo-image')
+def logo_image():
+    # Same idea as og_image() above — the admin's uploaded logo is stored
+    # as a data: URI (see save_site_settings), but the PWA manifest and
+    # <link rel="apple-touch-icon"> both need a real, independently
+    # fetchable URL, not an inline data: URI. Whoever's asking (Chrome
+    # building the "Cài đặt ứng dụng" shortcut icon, iOS Safari's "Thêm
+    # vào Màn Hình Chính", or index()'s own boot-splash <img>) gets
+    # re-served the exact bytes the admin uploaded. Cached for a day since
+    # this is fetched by the browser/OS itself, not on every page view —
+    # unlike shareImage's og_image, which crawlers only fetch once anyway.
+    settings = Storage.get_site_settings()
+    mime_type, raw = _decode_data_uri(settings.get('logo'))
+    if not raw:
+        return '', 404
+    resp = Response(raw, mimetype=mime_type or 'image/png')
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
+    return resp
+
 @rental_bp.route('/')
 def index():
     # og:title/description/image used to only ever get set client-side (see
@@ -80,6 +99,10 @@ def index():
     # Absolute URL required — crawlers don't reliably resolve a relative
     # one against the page they fetched it from.
     og_image_url = f"{request.url_root.rstrip('/')}{url_for('rental.og_image')}" if settings.get('shareImage') else ''
+    # Server-rendered (not left to applySiteSettings() to swap in after JS
+    # runs) so the boot splash's very first frame already shows the real
+    # logo instead of the bundled default flashing briefly first.
+    logo_url = url_for('rental.logo_image') if settings.get('logo') else url_for('rental.static', filename='img/icon-192.png')
     return render_template(
         'rental/index.html',
         asset_version_js=_static_file_version('js/app.js'),
@@ -89,7 +112,8 @@ def index():
         page_title=page_title,
         page_description=page_description,
         page_keywords=page_keywords,
-        og_image_url=og_image_url
+        og_image_url=og_image_url,
+        logo_url=logo_url
     )
 
 @rental_bp.before_request
@@ -144,12 +168,29 @@ def web_manifest():
     # Lets Chrome (and other browsers) offer "Add to Home screen"/"Install
     # app" as a real installable icon that opens standalone (no address
     # bar) instead of just a bookmark. Name stays in sync with whatever the
-    # admin has set in Thiết Lập Trang; the icon set is our own static
-    # asset rather than the admin-uploaded favicon (which can be an
-    # arbitrary data: URL / non-square image) so the home-screen icon is
-    # always guaranteed to render well at every required size.
+    # admin has set in Thiết Lập Trang. The "any"-purpose icons use the
+    # admin's uploaded logo (via /logo-image, see save_site_settings) when
+    # one is set — same raw image at both declared sizes; the browser
+    # scales it itself, same as it always has to for any site that only
+    # ships one real icon size. "maskable" always stays the bundled static
+    # asset regardless: that purpose gets center-cropped into a circle/
+    # squircle by the OS, and an arbitrary uploaded logo not designed with
+    # that safe zone in mind could get its edges clipped off badly — the
+    # one icon role deliberately never follows the custom logo.
     settings = Storage.get_site_settings()
     site_name = settings.get('siteName') or 'CalaciHouse'
+    if settings.get('logo'):
+        logo_mime, _ = _decode_data_uri(settings.get('logo'))
+        logo_src = url_for('rental.logo_image')
+        any_icons = [
+            {'src': logo_src, 'sizes': '192x192', 'type': logo_mime or 'image/png', 'purpose': 'any'},
+            {'src': logo_src, 'sizes': '512x512', 'type': logo_mime or 'image/png', 'purpose': 'any'}
+        ]
+    else:
+        any_icons = [
+            {'src': url_for('rental.static', filename='img/icon-192.png'), 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+            {'src': url_for('rental.static', filename='img/icon-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'}
+        ]
     manifest = {
         'name': site_name,
         'short_name': site_name,
@@ -159,9 +200,7 @@ def web_manifest():
         'display': 'standalone',
         'background_color': '#f2f4f7',
         'theme_color': '#0194f3',
-        'icons': [
-            {'src': url_for('rental.static', filename='img/icon-192.png'), 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
-            {'src': url_for('rental.static', filename='img/icon-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+        'icons': any_icons + [
             {'src': url_for('rental.static', filename='img/icon-512-maskable.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}
         ]
     }
@@ -172,7 +211,17 @@ def get_public_site_settings():
     # No login_required — the login screen itself needs the site name/
     # title/favicon before anyone has authenticated. Nothing here (name,
     # title, description, keywords, share image, favicon) is sensitive.
-    return jsonify({'success': True, 'settings': Storage.get_site_settings()})
+    # logo is left out of this one, though: unlike favicon it's never read
+    # directly client-side (applySiteSettings has nothing to do with it) —
+    # every real use (boot splash, apple-touch-icon, manifest icons) is
+    # already server-rendered via /logo-image before this fetch even
+    # fires, so shipping the actual bytes here on every single page load
+    # would just be needless weight, same reasoning as get_full_state()
+    # collapsing it to a boolean for the bulk payload.
+    settings = dict(Storage.get_site_settings())
+    if settings.get('logo'):
+        settings['logo'] = True
+    return jsonify({'success': True, 'settings': settings})
 
 @rental_bp.route('/api/auth/login', methods=['POST'])
 def login():
@@ -797,7 +846,8 @@ def save_site_settings():
         data.get('description'),
         data.get('keywords'),
         data.get('shareImage'),
-        data.get('favicon')
+        data.get('favicon'),
+        data.get('logo')
     )
     return jsonify({'success': True, 'settings': settings})
 
