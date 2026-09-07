@@ -191,15 +191,18 @@ def web_manifest():
     # Lets Chrome (and other browsers) offer "Add to Home screen"/"Install
     # app" as a real installable icon that opens standalone (no address
     # bar) instead of just a bookmark. Name stays in sync with whatever the
-    # admin has set in Thiết Lập Trang. The "any"-purpose icons use the
+    # admin has set in Thiết Lập Trang. Both "any" AND "maskable" use the
     # admin's uploaded logo (via /logo-image, see save_site_settings) when
-    # one is set — same raw image at both declared sizes; the browser
-    # scales it itself, same as it always has to for any site that only
-    # ships one real icon size. "maskable" always stays the bundled static
-    # asset regardless: that purpose gets center-cropped into a circle/
-    # squircle by the OS, and an arbitrary uploaded logo not designed with
-    # that safe zone in mind could get its edges clipped off badly — the
-    # one icon role deliberately never follows the custom logo.
+    # one is set — same raw image at every declared size/purpose; the
+    # browser scales/masks it itself, same as it always has to for any
+    # site that only ships one real icon. maskable USED to always stay the
+    # bundled default regardless (to avoid an arbitrary logo's edges
+    # getting clipped by the OS's circle/squircle safe zone) — but Android
+    # specifically prefers the maskable entry for the actual "Cài đặt ứng
+    # dụng"/home-screen icon whenever one exists, so keeping it on the old
+    # default meant the install icon never matched the logo no matter what
+    # the "any" entries said. Full sync everywhere wins over that safe-zone
+    # risk.
     settings = Storage.get_site_settings()
     site_name = settings.get('siteName') or 'CalaciHouse'
     if settings.get('logo'):
@@ -210,14 +213,16 @@ def web_manifest():
         # URL never changes, so a day-old cached copy of the OLD logo
         # kept winning even after the stored bytes were already correct.
         logo_src = f"{url_for('rental.logo_image')}?v={_logo_version(settings)}"
-        any_icons = [
+        icons = [
             {'src': logo_src, 'sizes': '192x192', 'type': logo_mime or 'image/png', 'purpose': 'any'},
-            {'src': logo_src, 'sizes': '512x512', 'type': logo_mime or 'image/png', 'purpose': 'any'}
+            {'src': logo_src, 'sizes': '512x512', 'type': logo_mime or 'image/png', 'purpose': 'any'},
+            {'src': logo_src, 'sizes': '512x512', 'type': logo_mime or 'image/png', 'purpose': 'maskable'}
         ]
     else:
-        any_icons = [
+        icons = [
             {'src': url_for('rental.static', filename='img/icon-192.png'), 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
-            {'src': url_for('rental.static', filename='img/icon-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'}
+            {'src': url_for('rental.static', filename='img/icon-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+            {'src': url_for('rental.static', filename='img/icon-512-maskable.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}
         ]
     manifest = {
         'name': site_name,
@@ -228,9 +233,7 @@ def web_manifest():
         'display': 'standalone',
         'background_color': '#f2f4f7',
         'theme_color': '#0194f3',
-        'icons': any_icons + [
-            {'src': url_for('rental.static', filename='img/icon-512-maskable.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'}
-        ]
+        'icons': icons
     }
     return jsonify(manifest), 200, {'Content-Type': 'application/manifest+json'}
 
