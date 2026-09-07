@@ -2,6 +2,7 @@ import os
 import re
 import json
 import base64
+import hashlib
 from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, url_for, Response
 from .services import RentalService
@@ -63,6 +64,22 @@ def og_image():
         return '', 404
     return Response(raw, mimetype=mime_type or 'image/jpeg')
 
+def _logo_version(settings):
+    """Short hash of the stored logo's own bytes — appended as a ?v=
+    query string everywhere /logo-image is referenced (index(),
+    web_manifest()). /logo-image is cached hard (a day) because it's
+    fetched by the browser/OS itself, not on every page view — but the
+    URL never changed on its own when an admin uploaded a NEW logo, so
+    that caching kept serving the OLD image for up to a day after a
+    change (worse still for Android's own "Cài đặt ứng dụng" icon-minting
+    cache, which doesn't respect a plain 'clear site data' at all — only
+    a URL that actually changes forces it to refetch). Empty when there's
+    no logo set, so index()/web_manifest() can tell not to bother."""
+    logo = settings.get('logo')
+    if not logo:
+        return ''
+    return hashlib.md5(logo.encode('utf-8')).hexdigest()[:10]
+
 @rental_bp.route('/logo-image')
 def logo_image():
     # Same idea as og_image() above — the admin's uploaded logo is stored
@@ -73,7 +90,10 @@ def logo_image():
     # vào Màn Hình Chính", or index()'s own boot-splash <img>) gets
     # re-served the exact bytes the admin uploaded. Cached for a day since
     # this is fetched by the browser/OS itself, not on every page view —
-    # unlike shareImage's og_image, which crawlers only fetch once anyway.
+    # unlike shareImage's og_image, which crawlers only fetch once anyway;
+    # safe to cache this hard now that every caller appends _logo_version()
+    # as a ?v=, so a changed logo is a genuinely different URL instead of
+    # the same one with stale cached bytes behind it.
     settings = Storage.get_site_settings()
     mime_type, raw = _decode_data_uri(settings.get('logo'))
     if not raw:
@@ -101,8 +121,11 @@ def index():
     og_image_url = f"{request.url_root.rstrip('/')}{url_for('rental.og_image')}" if settings.get('shareImage') else ''
     # Server-rendered (not left to applySiteSettings() to swap in after JS
     # runs) so the boot splash's very first frame already shows the real
-    # logo instead of the bundled default flashing briefly first.
-    logo_url = url_for('rental.logo_image') if settings.get('logo') else url_for('rental.static', filename='img/icon-192.png')
+    # logo instead of the bundled default flashing briefly first. ?v=
+    # (see _logo_version) busts the day-long cache on /logo-image the
+    # moment the logo actually changes.
+    logo_ver = _logo_version(settings)
+    logo_url = f"{url_for('rental.logo_image')}?v={logo_ver}" if logo_ver else url_for('rental.static', filename='img/icon-192.png')
     return render_template(
         'rental/index.html',
         asset_version_js=_static_file_version('js/app.js'),
@@ -181,7 +204,12 @@ def web_manifest():
     site_name = settings.get('siteName') or 'CalaciHouse'
     if settings.get('logo'):
         logo_mime, _ = _decode_data_uri(settings.get('logo'))
-        logo_src = url_for('rental.logo_image')
+        # ?v= (see _logo_version) is what actually forces Android's
+        # install-icon minting (and Chrome's own manifest/icon cache) to
+        # refetch after the admin uploads a NEW logo — without it this
+        # URL never changes, so a day-old cached copy of the OLD logo
+        # kept winning even after the stored bytes were already correct.
+        logo_src = f"{url_for('rental.logo_image')}?v={_logo_version(settings)}"
         any_icons = [
             {'src': logo_src, 'sizes': '192x192', 'type': logo_mime or 'image/png', 'purpose': 'any'},
             {'src': logo_src, 'sizes': '512x512', 'type': logo_mime or 'image/png', 'purpose': 'any'}
