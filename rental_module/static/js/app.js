@@ -8498,6 +8498,61 @@ function compressImageFile(file) {
   });
 }
 
+// App logo upload (Thiết Lập Trang) — deliberately separate from
+// compressImageFile above, which always re-encodes to JPEG. Chrome/
+// Android's "Add to Home Screen"/install-app icon picker requires a
+// PNG (or WebP) icon to actually use a manifest icon; fed a JPEG one
+// (image/logo-image's old mimetype, inherited from compressImageFile),
+// it silently fails that check and falls back to the bundled default
+// icon instead — the exact "logo không đổi trên icon lối tắt" bug this
+// exists to fix. PNG also keeps transparency, which most uploaded logos
+// actually have (JPEG would flatten it to black). 512px matches the
+// manifest's largest declared icon size — no benefit storing bigger.
+const LOGO_MAX_DIMENSION = 512;
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+
+function compressLogoImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type || !file.type.startsWith('image/')) {
+      reject(new Error('not-an-image'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read-failed'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('load-failed'));
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const scale = Math.min(1, LOGO_MAX_DIMENSION / Math.max(img.width, img.height));
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        let dataUrl = canvas.toDataURL('image/png');
+
+        // PNG has no quality knob to fall back on like JPEG does — an
+        // unusually detailed source (a real photo used as a "logo",
+        // say) can only be brought under the cap by shrinking further.
+        while (dataUrl.length > LOGO_MAX_BYTES && Math.min(canvas.width, canvas.height) > 96) {
+          canvas.width = Math.round(canvas.width * 0.85);
+          canvas.height = Math.round(canvas.height * 0.85);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          dataUrl = canvas.toDataURL('image/png');
+        }
+
+        if (dataUrl.length > LOGO_MAX_BYTES) {
+          reject(new Error('too-large'));
+          return;
+        }
+        resolve(dataUrl);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function formatMoney(num) {
   return new Intl.NumberFormat('vi-VN').format(Math.round(num || 0));
 }
@@ -8891,7 +8946,11 @@ async function handleSiteSettingsImageSelect(event, targetInputId) {
   event.target.value = '';
   if (!file) return;
   try {
-    const { dataUrl } = await compressImageFile(file);
+    // The logo field needs PNG (see compressLogoImage) — favicon/share
+    // image stay on the general JPEG compressor, unchanged.
+    const dataUrl = targetInputId === 'site-settings-logo'
+      ? await compressLogoImage(file)
+      : (await compressImageFile(file)).dataUrl;
     document.getElementById(targetInputId).value = dataUrl;
     updateSiteSettingsImagePreview(targetInputId);
   } catch (err) {
