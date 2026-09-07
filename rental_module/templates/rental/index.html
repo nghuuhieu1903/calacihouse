@@ -685,6 +685,14 @@
                 <!-- Populated dynamically by renderMonthSelector() -->
               </select>
             </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <label style="font-size: 0.85rem; font-weight: 700;" data-i18n="lbl_pay_status_filter">💳 Thanh Toán:</label>
+              <select id="invoices-select-pay-status" class="form-control" style="width: auto; min-width: 170px; max-width: 100%; padding: 0.4rem 2.1rem 0.4rem 0.6rem; font-weight: 700;" onchange="renderAdminInvoices()">
+                <option value="all" data-i18n="opt_pay_status_all">Tất cả</option>
+                <option value="unpaid" data-i18n="opt_pay_status_unpaid">Chưa thanh toán</option>
+                <option value="paid" data-i18n="opt_pay_status_paid">Đã thanh toán</option>
+              </select>
+            </div>
           </div>
 
           <div class="excel-table-wrapper">
@@ -703,6 +711,7 @@
                 </tr>
               </thead>
               <tbody id="admin-invoices-tbody"></tbody>
+              <tfoot id="admin-invoices-tfoot"></tfoot>
             </table>
           </div>
         </div>

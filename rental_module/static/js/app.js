@@ -263,6 +263,11 @@ const I18N = {
     btn_edit_price: 'Sửa Giá',
     title_view_invoice: 'Xem hóa đơn',
     invoices_empty_state: 'Chưa có hóa đơn tháng này. Nhấn "Cập Nhật Hóa Đơn" để sinh tự động.',
+    lbl_pay_status_filter: '💳 Thanh Toán:',
+    opt_pay_status_all: 'Tất cả',
+    opt_pay_status_unpaid: 'Chưa thanh toán',
+    opt_pay_status_paid: 'Đã thanh toán',
+    lbl_invoices_total_row: 'Tổng Cộng',
     btn_mark_collected: 'Đã Thu',
     toast_invoices_issued_prefix: 'Đã phát hành hóa đơn cho tháng ',
     toast_invoice_marked_paid_prefix: 'Đã xác nhận thu tiền ',
@@ -969,6 +974,11 @@ const I18N = {
     btn_edit_price: 'Edit Price',
     title_view_invoice: 'View invoice',
     invoices_empty_state: 'No invoices for this month yet. Click "Refresh Invoices" to generate automatically.',
+    lbl_pay_status_filter: '💳 Payment:',
+    opt_pay_status_all: 'All',
+    opt_pay_status_unpaid: 'Unpaid',
+    opt_pay_status_paid: 'Paid',
+    lbl_invoices_total_row: 'Total',
     btn_mark_collected: 'Collected',
     toast_invoices_issued_prefix: 'Invoices issued for ',
     toast_invoice_marked_paid_prefix: 'Payment confirmed for ',
@@ -4417,7 +4427,9 @@ async function generateAndSendAllInvoices() {
 
 function renderAdminInvoices() {
   const tbody = document.getElementById('admin-invoices-tbody');
+  const tfoot = document.getElementById('admin-invoices-tfoot');
   tbody.innerHTML = '';
+  if (tfoot) tfoot.innerHTML = '';
   // generate_all_invoices() still creates one invoice for EVERY room
   // every month, vacant or not (see room_rent_for_month) — Báo Cáo Chủ
   // Đầu Tư and the investor's own dashboard already exclude these,
@@ -4427,7 +4439,20 @@ function renderAdminInvoices() {
   // the real move-in date but isn't occupied THIS month yet
   // (roomOccupiedThisMonth) — it reads as "chưa thuê", same as vacant.
   const occupiedRoomIds = occupiedRoomIdSet(state.currentMonth);
-  const monthInvoices = state.invoices.filter(i => i.month === state.currentMonth && (state.currentHouseId === 'all' || i.houseId === state.currentHouseId) && occupiedRoomIds.has(i.roomId));
+  let monthInvoices = state.invoices.filter(i => i.month === state.currentMonth && (state.currentHouseId === 'all' || i.houseId === state.currentHouseId) && occupiedRoomIds.has(i.roomId));
+
+  // Thanh Toán filter — lets admin isolate exactly who still owes money
+  // this period instead of scanning the whole list by eye for the
+  // "Chưa thanh toán" badge. Purely client-side (state.invoices for this
+  // month/house is already loaded in full), same pattern as every other
+  // filter select on this page.
+  const payStatusEl = document.getElementById('invoices-select-pay-status');
+  const payStatusFilter = payStatusEl ? payStatusEl.value : 'all';
+  if (payStatusFilter === 'unpaid') {
+    monthInvoices = monthInvoices.filter(i => i.status !== 'Đã thanh toán');
+  } else if (payStatusFilter === 'paid') {
+    monthInvoices = monthInvoices.filter(i => i.status === 'Đã thanh toán');
+  }
 
   // Invoices accumulate over time in whatever order they happened to get
   // (re)generated in — an existing room's invoice gets updated in place
@@ -4472,6 +4497,20 @@ function renderAdminInvoices() {
     `;
     tbody.appendChild(tr);
   });
+
+  // Total row — sums exactly what's currently on screen, so it tracks the
+  // Thanh Toán filter above (e.g. "Chưa thanh toán" shows how much is
+  // still outstanding, not the whole month's billing).
+  if (tfoot) {
+    const totalSum = monthInvoices.reduce((s, inv) => s + (inv.totalAmount || 0), 0);
+    tfoot.innerHTML = `
+      <tr style="font-weight: 800; background: var(--bg-base);">
+        <td colspan="4" style="text-align:right;">${t('lbl_invoices_total_row')} (${monthInvoices.length})</td>
+        <td style="color: var(--cala-orange);">${formatMoney(totalSum)} đ</td>
+        <td colspan="4"></td>
+      </tr>
+    `;
+  }
   renderIcons(tbody);
 }
 
