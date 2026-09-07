@@ -572,6 +572,25 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
     display: table-cell;
   }
   #btn-toggle-invoice-detail { display: inline-flex !important; }
+
+  /* The base .excel-table rule (white-space: nowrap, for spreadsheet-style
+     aligned columns elsewhere) is wrong here — on an invoice, a longer
+     service name or formula/meter-reading explanation just pushed the
+     whole table wider than the phone screen, forcing a horizontal scroll
+     to read even the item name. Let those cells wrap onto a second line
+     like a normal printed invoice would; only the amount column (always
+     last — a short "1.234.567 đ" that looks broken split across two
+     lines) keeps its single line. */
+  .invoice-paper table.excel-table th,
+  .invoice-paper table.excel-table td {
+    white-space: normal;
+    word-break: break-word;
+  }
+  .invoice-paper table.excel-table th:last-child,
+  .invoice-paper table.excel-table td:last-child {
+    white-space: nowrap;
+    padding-left: 0.5rem;
+  }
 }
 
 /* ---------- SMALL PHONE (iPhone SE / budget Android widths, ~360-400px) —
