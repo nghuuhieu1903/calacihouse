@@ -108,8 +108,14 @@
       </div>
 
       <div style="text-align: center; margin-bottom: 1.75rem;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: var(--cala-blue-light); border-radius: 50%; color: var(--cala-blue); margin-bottom: 1rem;">
-          <i data-lucide="plane-takeoff" style="width: 36px; height: 36px;"></i>
+        <!-- Same logo_url as the boot splash/apple-touch-icon (see index()
+             in routes.py) — this was a generic decorative plane icon
+             before, unrelated to the actual app branding; now it's the
+             admin's own uploaded logo everywhere at once, including here,
+             falling back to the same bundled default icon when none is
+             set. -->
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: var(--cala-blue-light); border-radius: 50%; margin-bottom: 1rem; overflow: hidden;">
+          <img src="{{ logo_url }}" alt="" style="width: 100%; height: 100%; object-fit: cover;">
         </div>
         <h2 id="auth-site-name" style="font-size: 1.75rem; font-weight: 800; color: var(--text-primary);">CalaciHouse</h2>
         <p style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 0.25rem;" data-i18n="auth_subtitle">
