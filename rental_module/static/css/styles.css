@@ -231,6 +231,34 @@ select.form-control { padding-right: 2.25rem; }
 .excel-table td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border-color); white-space: nowrap; }
 .excel-input { width: 95px; padding: 0.45rem; background: var(--bg-base); border: 1px solid var(--border-color); border-radius: var(--radius-sm); text-align: right; font-weight: 700; color: var(--text-primary); }
 
+/* QUẢN LÝ HÓA ĐƠN — with "Tất Cả Tòa Nhà" selected the row count can run
+   well past a screen's height, and the Tổng Cộng row (renderAdminInvoices)
+   at the very bottom used to mean scrolling all the way down the whole
+   page just to see it. Capped height + internal scroll instead: the
+   column header and the total row both stay pinned in view while only
+   the invoice rows between them scroll. Kept out of the ≤820px tablet-
+   portrait/mobile breakpoint below, where this table becomes stacked
+   cards instead (position: sticky on a display:block row doesn't mean
+   the same thing there, and a phone's own page-scroll is the more
+   natural gesture at that size anyway). */
+@media (min-width: 821px) {
+  .invoices-table-wrapper {
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+  .invoices-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  .invoices-table tfoot td {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--bg-base);
+  }
+}
+
 /* METER/ELECTRICITY PHOTO TOGGLE BUTTON — the small camera icon next to a
    reading cell (Bảng Tính Điện Nước, Cập Nhật Ảnh Số Điện) that opens the
    upload picker when there's no photo yet, or views the photo once there
