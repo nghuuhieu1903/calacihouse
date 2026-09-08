@@ -761,6 +761,26 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
   #page-title, #page-subtitle, #tenant-invoice-header, .invoice-print-toolbar {
     display: none !important;
   }
+  /* body, .app-container and .main-content all force something close to
+     a full VIEWPORT height (body/.app-container's own min-height, plus
+     .main-content's 2rem padding on every side) regardless of how little
+     is actually left inside them once the sidebar/navbar/etc. above are
+     hidden — a one-screen-tall invoice was printing as a near-empty
+     page 1 (that reserved height) followed by page 2 (the invoice itself
+     pushed past the first page's break). Letting all three collapse to
+     their real (now much shorter) content height is what actually gets
+     this down to a single page. */
+  body {
+    min-height: 0 !important;
+  }
+  .app-container {
+    min-height: 0 !important;
+    display: block !important;
+  }
+  .main-content {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
   .invoice-paper {
     box-shadow: none !important; border: none !important; margin: 0;
   }
