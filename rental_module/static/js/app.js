@@ -1800,18 +1800,26 @@ function hideAppLoadingOverlay() {
 
 async function restoreSession() {
   try {
-    const res = await fetch(`${API_BASE}/auth/me`);
+    // A single GET /api/data instead of /auth/me followed by a separate
+    // /api/data — /api/data's own @login_required already answers "is
+    // there a session at all" via its status code, and now also returns
+    // currentUser (see get_data() in routes.py) so this doesn't need its
+    // own round trip just to learn who's logged in. On a slow/high-
+    // latency mobile connection that second full request (DNS/TLS reuse
+    // aside, still a full RTT) was real, measurable time added to every
+    // single page load before anything could even start rendering.
+    const res = await fetch(`${API_BASE}/data?month=${state.currentMonth}`);
     if (res.ok) {
       const data = await res.json();
-      if (data.success) {
-        state.currentUser = data.user;
+      if (data.currentUser) {
+        state.currentUser = data.currentUser;
         document.getElementById('auth-screen').style.display = 'none';
         document.getElementById('cala-navbar').style.display = 'flex';
         document.getElementById('app-container').style.display = 'flex';
         // Same reasoning as handleLogin() — show a loading overlay instead
         // of rendering a view against the still-placeholder state.
         showAppLoadingOverlay();
-        await fetchState(true);
+        applyStateData(data);
         hideAppLoadingOverlay();
         setupUserRoleUI();
         checkDataRetention();
@@ -2221,6 +2229,31 @@ function setLanguage(lang) {
   }
 }
 
+// Copies one /api/data response onto state.* — split out of fetchState()
+// so restoreSession() can apply a response it already fetched itself
+// (see there) instead of fetchState() always doing its own separate
+// fetch of the exact same endpoint right after.
+function applyStateData(data) {
+  state.houses = data.houses || state.houses;
+  state.users = data.users || state.users;
+  state.rooms = data.rooms || state.rooms;
+  state.services = data.services || state.services;
+  state.formulas = data.formulas || state.formulas;
+  state.readings = data.readings || state.readings;
+  state.invoices = data.invoices || state.invoices;
+  state.tickets = data.tickets || state.tickets;
+  state.permissions = data.permissions || state.permissions;
+  state.roomDocuments = data.roomDocuments || state.roomDocuments;
+  state.roomPhotos = data.roomPhotos || state.roomPhotos;
+  state.salerCommissionPercent = data.salerCommissionPercent || 0;
+  state.investorExpenses = data.investorExpenses || state.investorExpenses;
+  state.investorReportOverrides = data.investorReportOverrides || state.investorReportOverrides;
+  state.investorMonthlySnapshots = data.investorMonthlySnapshots || state.investorMonthlySnapshots;
+  state.customIcons = data.customIcons || state.customIcons;
+  if (data.siteSettings) applySiteSettings(data.siteSettings);
+  renderHouseSelector();
+}
+
 async function fetchState(skipRender) {
   // skipRender: used only by the very first fetch after login/session-
   // restore (see handleLogin/restoreSession) — at that point
@@ -2248,24 +2281,7 @@ async function fetchState(skipRender) {
     }
     if (res.ok) {
       const data = await res.json();
-      state.houses = data.houses || state.houses;
-      state.users = data.users || state.users;
-      state.rooms = data.rooms || state.rooms;
-      state.services = data.services || state.services;
-      state.formulas = data.formulas || state.formulas;
-      state.readings = data.readings || state.readings;
-      state.invoices = data.invoices || state.invoices;
-      state.tickets = data.tickets || state.tickets;
-      state.permissions = data.permissions || state.permissions;
-      state.roomDocuments = data.roomDocuments || state.roomDocuments;
-      state.roomPhotos = data.roomPhotos || state.roomPhotos;
-      state.salerCommissionPercent = data.salerCommissionPercent || 0;
-      state.investorExpenses = data.investorExpenses || state.investorExpenses;
-      state.investorReportOverrides = data.investorReportOverrides || state.investorReportOverrides;
-      state.investorMonthlySnapshots = data.investorMonthlySnapshots || state.investorMonthlySnapshots;
-      state.customIcons = data.customIcons || state.customIcons;
-      if (data.siteSettings) applySiteSettings(data.siteSettings);
-      renderHouseSelector();
+      applyStateData(data);
       if (!skipRender) renderCurrentView();
     }
   } catch (err) {

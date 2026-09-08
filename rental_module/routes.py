@@ -165,6 +165,11 @@ def _revalidate_session():
 def get_data():
     month = request.args.get('month') or datetime.now().strftime('%Y-%m')
     data = RentalService.get_full_state(month, session.get('user'))
+    # Lets restoreSession() (app.js) learn who's logged in from this same
+    # response instead of a separate /api/auth/me round trip beforehand —
+    # session['user'] is already password-stripped at login time (see
+    # authenticate_user()), same value /api/auth/me itself returns.
+    data['currentUser'] = session.get('user')
     return jsonify(data)
 
 @rental_bp.route('/api/investors/preview-state', methods=['GET'])
