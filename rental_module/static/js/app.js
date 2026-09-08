@@ -416,6 +416,13 @@ const I18N = {
     btn_house_short: 'Tòa Nhà',
     title_toggle_theme: 'Đổi giao diện Sáng/Tối',
     title_logout: 'Đăng Xuất',
+    title_change_password: 'Đổi Mật Khẩu',
+    lbl_current_password: 'Mật Khẩu Hiện Tại',
+    lbl_new_password: 'Mật Khẩu Mới',
+    lbl_confirm_new_password: 'Nhập Lại Mật Khẩu Mới',
+    btn_save_new_password: 'Lưu Mật Khẩu Mới',
+    toast_password_mismatch: 'Mật khẩu mới nhập lại không khớp.',
+    toast_password_changed: 'Đã đổi mật khẩu thành công!',
     nav_houses: 'Quản Lý Tòa Nhà',
     nav_rooms: 'Quản Lý Phòng',
     nav_meter_photos: 'Cập Nhật Ảnh Số Điện',
@@ -1129,6 +1136,13 @@ const I18N = {
     btn_house_short: 'House',
     title_toggle_theme: 'Toggle Light/Dark Mode',
     title_logout: 'Log Out',
+    title_change_password: 'Change Password',
+    lbl_current_password: 'Current Password',
+    lbl_new_password: 'New Password',
+    lbl_confirm_new_password: 'Confirm New Password',
+    btn_save_new_password: 'Save New Password',
+    toast_password_mismatch: "New passwords don't match.",
+    toast_password_changed: 'Password changed successfully!',
     nav_houses: 'Building Management',
     nav_rooms: 'Room Management',
     nav_meter_photos: 'Electricity Meter Photo Updates',
@@ -1710,6 +1724,48 @@ async function handleLogout() {
   // before finally leaving the site, instead of leaving on the first one.
   if (history.state && history.state.calaciView) {
     history.replaceState(null, '', location.pathname + location.search);
+  }
+}
+
+// Self-service password change — same modal/flow for every role (opened
+// from the sidebar footer's key icon, a block shared across all of them,
+// not duplicated per role). Unlike an admin resetting someone else's
+// password from the user-edit form, this requires the CURRENT password
+// as proof, checked server-side (see change_own_password() in
+// services.py).
+function openChangePasswordModal() {
+  document.getElementById('change-password-current').value = '';
+  document.getElementById('change-password-new').value = '';
+  document.getElementById('change-password-confirm').value = '';
+  document.getElementById('modal-change-password').classList.add('active');
+}
+
+async function submitChangePassword(event) {
+  event.preventDefault();
+  const currentPassword = document.getElementById('change-password-current').value;
+  const newPassword = document.getElementById('change-password-new').value;
+  const confirmPassword = document.getElementById('change-password-confirm').value;
+
+  if (newPassword !== confirmPassword) {
+    showToast(t('toast_password_mismatch'), 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/change-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      showToast(data.error || t('toast_server_connection_error'), 'error');
+      return;
+    }
+    showToast(t('toast_password_changed'), 'success');
+    closeModal('modal-change-password');
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
   }
 }
 

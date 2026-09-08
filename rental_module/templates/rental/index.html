@@ -316,14 +316,20 @@
       </div>
 
       <div style="padding: 1.25rem; border-top: 1px solid var(--border-color); background: var(--bg-base); display: flex; align-items: center; gap: 0.75rem;">
-        <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--cala-blue); display: flex; align-items: center; justify-content: center; font-weight: 800; color: white;">
+        <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--cala-blue); display: flex; align-items: center; justify-content: center; font-weight: 800; color: white; flex-shrink: 0;">
           <span id="user-avatar-text">AD</span>
         </div>
-        <div style="min-width: 0;">
+        <div style="min-width: 0; flex: 1;">
           <div id="user-display-name" style="font-size: 0.9rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Admin</div>
           <div id="user-display-role" style="font-size: 0.75rem; color: var(--text-secondary);">Quản trị viên</div>
           <div id="user-display-username" style="font-size: 0.72rem; color: var(--text-muted);"></div>
         </div>
+        <!-- Self-service password change — same block for every role
+             (this sidebar footer is shared, not duplicated per role), so
+             this one button covers "tất cả các giao diện" at once. -->
+        <button type="button" class="btn btn-secondary btn-sm" style="padding: 0.4rem; flex-shrink: 0;" title="Đổi Mật Khẩu" data-i18n-title="title_change_password" onclick="openChangePasswordModal()">
+          <i data-lucide="key-round"></i>
+        </button>
       </div>
     </aside>
 
@@ -2224,6 +2230,36 @@
   <!-- Modal: Site Settings (Thiết Lập Trang — title/description/keywords/
        share image/favicon, applied live to <title>, meta tags, favicon and
        the in-app site name shown in the navbar/login screen) -->
+  <!-- SELF-SERVICE PASSWORD CHANGE — same modal for every role, opened
+       from the sidebar footer's key icon (shared block, not duplicated
+       per role). -->
+  <div class="modal-backdrop" id="modal-change-password">
+    <div class="modal-card" style="max-width: 420px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="key-round" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="title_change_password">Đổi Mật Khẩu</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-change-password')"><i data-lucide="x"></i></button>
+      </div>
+
+      <form id="form-change-password" onsubmit="submitChangePassword(event)">
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_current_password">Mật Khẩu Hiện Tại</label>
+          <input type="password" id="change-password-current" class="form-control" required autocomplete="current-password">
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_new_password">Mật Khẩu Mới</label>
+          <input type="password" id="change-password-new" class="form-control" required autocomplete="new-password">
+        </div>
+        <div style="margin-bottom: 1.25rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.4rem;" data-i18n="lbl_confirm_new_password">Nhập Lại Mật Khẩu Mới</label>
+          <input type="password" id="change-password-confirm" class="form-control" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-orange" style="width: 100%; justify-content: center;">
+          <i data-lucide="save"></i> <span data-i18n="btn_save_new_password">Lưu Mật Khẩu Mới</span>
+        </button>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="modal-site-settings">
     <div class="modal-card">
       <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">

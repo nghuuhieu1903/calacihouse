@@ -1086,6 +1086,27 @@ class RentalService:
         return user
 
     @staticmethod
+    def change_own_password(user_id, current_password, new_password):
+        """Self-service password change, available to every role (unlike
+        update_user_by_admin's newPassword field, which is an admin
+        resetting someone ELSE's — or their own, from the admin user-edit
+        form — password without proving they know the current one). A
+        tenant/saler/investor has no access to that admin form at all, so
+        this is the only way any of them can ever change their own
+        password themselves."""
+        new_password = (new_password or '').strip()
+        if not new_password:
+            return False, 'Vui lòng nhập mật khẩu mới'
+        user = next((u for u in Storage.get_users() if u['id'] == user_id), None)
+        if not user:
+            return False, 'Không tìm thấy tài khoản'
+        if user.get('password') != current_password:
+            return False, 'Mật khẩu hiện tại không đúng'
+        user['password'] = new_password
+        Storage.save_user(user)
+        return True, None
+
+    @staticmethod
     def _deactivate_other_tenants_in_room(room_id, keep_user_id):
         """When a SINGLE room gets a (re-)approved tenant, any OTHER
         tenant account still marked approved for that same room is

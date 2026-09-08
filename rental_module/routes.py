@@ -291,6 +291,26 @@ def logout():
     session.clear()
     return jsonify({'success': True})
 
+@rental_bp.route('/api/auth/change-password', methods=['POST'])
+@login_required
+def change_own_password():
+    # Self-service — every role gets this (see change_own_password() in
+    # services.py for why it's separate from update_user_by_admin's
+    # newPassword field). login_required only, no permission_required: a
+    # tenant/saler/investor changing their OWN password isn't gated by the
+    # admin permission matrix at all.
+    data = request.json or {}
+    user_id = session.get('user', {}).get('id')
+    success, error = RentalService.change_own_password(user_id, data.get('currentPassword'), data.get('newPassword'))
+    if not success:
+        return jsonify({'success': False, 'error': error}), 400
+    # Same reasoning as save_user()'s own-password-reset branch — without
+    # this, the very next request reads a session fingerprint that no
+    # longer matches the password just changed and bounces this account
+    # straight back to the login screen.
+    restamp_session_password(data.get('newPassword'))
+    return jsonify({'success': True})
+
 @rental_bp.route('/api/houses/save', methods=['POST'])
 @permission_required('houses', lambda body: 'edit' if body.get('id') else 'create')
 def save_house():
