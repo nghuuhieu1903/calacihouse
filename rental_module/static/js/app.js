@@ -488,6 +488,8 @@ const I18N = {
     lbl_expense_photo: 'Ảnh minh chứng',
     lbl_payment_proof: 'Ảnh Minh Chứng Đã Đóng Tiền',
     hint_payment_proof: 'Chụp lại màn hình chuyển khoản hoặc biên lai — tối đa 5 ảnh. Chủ nhà sẽ xem để xác nhận.',
+    title_quick_view_proof: 'Xem nhanh ảnh minh chứng',
+    toast_no_payment_proof: 'Chưa có ảnh minh chứng cho hóa đơn này.',
     hint_payment_proof_admin: 'Nếu khách đưa tiền/chuyển khoản trực tiếp mà chưa dùng hệ thống, bạn có thể tự thêm ảnh minh chứng ở đây — tối đa 5 ảnh.',
     hint_payment_proof_per_occupant: 'Phòng KTX có nhiều người — mỗi người có mục ảnh riêng, chỉ người đó thấy được ảnh của mình.',
     lbl_payment_proof_shared: 'Chung (chưa gán người)',
@@ -1199,6 +1201,8 @@ const I18N = {
     lbl_expense_photo: 'Proof photo',
     lbl_payment_proof: 'Payment Proof Photos',
     hint_payment_proof: 'Attach a screenshot of the bank transfer or a receipt — up to 5 photos. The landlord will check these to confirm payment.',
+    title_quick_view_proof: 'Quick view proof photo',
+    toast_no_payment_proof: 'No payment proof photo for this invoice yet.',
     hint_payment_proof_admin: 'If a tenant paid in person or by transfer before using the system, you can add proof photos yourself here — up to 5 photos.',
     hint_payment_proof_per_occupant: 'This is a dorm room with multiple people — each occupant has their own photo gallery, only visible to them.',
     lbl_payment_proof_shared: 'Shared (unassigned)',
@@ -4485,7 +4489,7 @@ function renderAdminInvoices() {
       <td data-label="${t('col_send_status')}"><span class="badge badge-resolved">${statusLabel(inv.sendStatus)}</span></td>
       <td data-label="${t('col_pay_status')}">
         <span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>
-        ${(inv.paymentProofPhotos || []).length ? `<i data-lucide="camera" title="${t('lbl_payment_proof')}" style="width:14px; height:14px; margin-left:0.3rem; vertical-align:middle; color:var(--cala-blue);"></i>` : ''}
+        ${(inv.paymentProofPhotos || []).length ? `<i data-lucide="camera" title="${t('title_quick_view_proof')}" onclick="quickViewInvoiceProof('${inv.id}')" style="width:14px; height:14px; margin-left:0.3rem; vertical-align:middle; color:var(--cala-blue); cursor:pointer;"></i>` : ''}
       </td>
       <td data-label="${t('col_sent_time')}"><small style="color: var(--text-muted);">${inv.sentAt ? statusLabel(inv.sentAt) : t('just_now_label')}</small></td>
       <td data-label="${t('col_actions')}">
@@ -6097,6 +6101,22 @@ async function fetchInvoicePaymentProofs(invoiceId) {
     console.warn('Could not load payment proof photos:', err);
     return [];
   }
+}
+
+// The small camera icon next to a paid invoice's badge in Quản Lý Hóa Đơn
+// (renderAdminInvoices) — a one-click peek at the proof photo without
+// having to open the full invoice detail modal first. Opens the first
+// photo straight into the shared lightbox; a room with more than one
+// (a KTX room, several occupants each uploading their own) still only
+// shows the first here — the eye button/invoice detail is where the full
+// set (split per occupant) is meant to be reviewed.
+async function quickViewInvoiceProof(invoiceId) {
+  const photos = await fetchInvoicePaymentProofs(invoiceId);
+  if (!photos.length) {
+    showToast(t('toast_no_payment_proof'), 'error');
+    return;
+  }
+  openImageLightbox(photos[0].dataUrl);
 }
 
 function renderPaymentProofSection(containerId) {
