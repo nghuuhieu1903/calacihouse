@@ -982,10 +982,24 @@ class RentalService:
             'baseRent': float(base_rent or 0),
             'headcount': int(headcount or 1),
             'roomType': room_type or 'single',
-            'elecFormula': elec_formula or 'elec_flat_3500',
-            'waterFormula': water_formula or 'water_flat_18000',
+            # Same reasoning as contractStart/contractEnd below — "Sửa
+            # Phòng" doesn't have elec/water formula fields at all (those
+            # are set from Cấu Hình Dịch Vụ & Điện Nước instead), so a
+            # plain edit here used to silently reset both back to the flat
+            # default on every save, discarding whichever real by-meter
+            # formula was actually configured for the room.
+            'elecFormula': elec_formula or existing.get('elecFormula') or 'elec_flat_3500',
+            'waterFormula': water_formula or existing.get('waterFormula') or 'water_flat_18000',
             'contractStart': existing.get('contractStart', ''),
             'contractEnd': existing.get('contractEnd', ''),
+            # Same reasoning as contractStart/contractEnd just above — this
+            # form (Sửa Phòng) doesn't carry this checkbox at all (it's set
+            # separately from "Ảnh Hợp Đồng"), and Storage.save_room()'s
+            # UPSERT writes whatever key is missing here as 0/off. Without
+            # this fallback, every single unrelated room edit silently
+            # turned proration back off even when the admin had explicitly
+            # turned it on.
+            'useContractProration': existing.get('useContractProration', False),
             'area': float(area) if area not in (None, '') else existing.get('area', 0),
             'description': description if description is not None else existing.get('description', ''),
             # Total bed capacity — informational only (see storage._room()),

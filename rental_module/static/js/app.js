@@ -8343,9 +8343,18 @@ async function saveRoomConfig(event) {
   const data = await postAndVerify(`${API_BASE}/rooms/save`, rObj);
   if (!data) return;
 
-  const idx = state.rooms.findIndex(r => r.id === rObj.id);
-  if (idx >= 0) state.rooms[idx] = rObj;
-  else state.rooms.push(rObj);
+  // This form doesn't carry contract dates/proration (set separately via
+  // "Ảnh Hợp Đồng") — the server fills those back in from whatever's
+  // already stored (see save_room() in services.py) and returns the real,
+  // complete room in data.room. Using the client's own rObj here instead
+  // used to overwrite state.rooms with a copy missing those fields,
+  // making the contract term look wiped the moment ANY unrelated field
+  // (rent, headcount, ...) was edited — even though the database itself
+  // still had it right.
+  const savedRoom = data.room || rObj;
+  const idx = state.rooms.findIndex(r => r.id === savedRoom.id);
+  if (idx >= 0) state.rooms[idx] = savedRoom;
+  else state.rooms.push(savedRoom);
 
   showToast(`${t('toast_room_saved_prefix')}"${name}"${t('toast_room_saved_suffix')}`, 'success');
   closeModal('modal-room-config');
