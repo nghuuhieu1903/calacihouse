@@ -6046,12 +6046,12 @@ function renderTenantInvoiceView() {
       </table>
       </div>
 
-      <div style="background:#f7f9fa; padding:1.25rem; border-radius:12px; text-align:right; border:1px solid #e5e9f0; margin-top:1.5rem;">
+      <div class="invoice-total-block" style="background:#f7f9fa; padding:1.25rem; border-radius:12px; text-align:right; border:1px solid #e5e9f0; margin-top:1.5rem;">
         <div style="font-size: 0.85rem; color: #687176;">${t('grand_total_label')}</div>
         <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f;">${formatMoney(personalTotal)} VNĐ</div>
       </div>
 
-      <div class="cala-card" style="margin-top:1.5rem;">
+      <div class="cala-card invoice-proof-card" style="margin-top:1.5rem;">
         <h4 style="margin-bottom:0.5rem; color:var(--cala-blue);"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
         <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.75rem;">${t('hint_payment_proof')}</p>
         <div id="payment-proof-preview" style="display:flex; flex-wrap:wrap; gap:0.5rem;"></div>

@@ -790,4 +790,30 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
   .modal-backdrop:not(:has(.invoice-paper)) {
     display: none !important;
   }
+
+  /* The proof-of-payment card is for the tenant/admin's own record-
+     keeping inside the app, not something that needs to be on the printed
+     invoice itself. */
+  .invoice-proof-card {
+    display: none !important;
+  }
+
+  /* Tenant's own invoice view keeps the grand total in its own separate
+     boxed card below the items table (renderTenantInvoiceView) rather
+     than as a row inside the table like admin's invoice detail already
+     does — visually merge the two here: drop the gap and let the total
+     block's top edge sit flush against the table wrapper's bottom edge,
+     sharing one continuous border/corner radius instead of two separate
+     boxes. */
+  .invoice-paper .excel-table-wrapper {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom: none;
+  }
+  .invoice-total-block {
+    margin-top: 0 !important;
+    border-top: none !important;
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 0 !important;
+  }
 }
