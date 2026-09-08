@@ -745,3 +745,49 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
   .tax-legal-toggle { font-size: 0.95rem; }
   .tax-legal-item { padding: 0.6rem 0.7rem; }
 }
+
+/* PRINT / "IN, TẢI HÓA ĐƠN PDF" — window.print() (btn_print_invoice) used
+   to print the entire page verbatim: sidebar, navbar (house/month/
+   language/theme controls), the view's own title bar (duplicating the
+   invoice paper's own header), the "Xem Chi Tiết/In" button row — not
+   just the invoice paper itself. Hiding each of those with display:none
+   (rather than the usual visibility-trick "hide everything, reveal one
+   element") removes them from layout entirely instead of leaving their
+   full on-screen height as blank reserved space, which would otherwise
+   push the invoice paper down and could spill it onto a needless second
+   printed page. */
+@media print {
+  .sidebar, .sidebar-overlay, .cala-navbar, .toast-container,
+  #page-title, #page-subtitle, #tenant-invoice-header, .invoice-print-toolbar {
+    display: none !important;
+  }
+  .invoice-paper {
+    box-shadow: none !important; border: none !important; margin: 0;
+  }
+  /* Upload/delete controls have no place on a printed page — the paper's
+     own content (amounts, formulas, payment-proof photos already
+     attached) is what's meant to print. */
+  .invoice-paper button, .invoice-paper input {
+    display: none !important;
+  }
+  /* Admin's invoice detail modal (viewInvoiceDetail) wraps the same
+     .invoice-paper in a fixed, centered, dimmed overlay with its own
+     title bar/close button — reset that chrome back to a plain block so
+     printing straight from the modal (Ctrl+P, no dedicated print button
+     there today) doesn't clip the paper to the modal's own scroll box or
+     print the dimmed backdrop. Any OTHER modal that happens to be open at
+     print time (one with no .invoice-paper inside it) is hidden outright
+     instead — nothing in it would make sense on a printed invoice page. */
+  .modal-backdrop:has(.invoice-paper) {
+    position: static; background: none; padding: 0; display: block;
+  }
+  .modal-backdrop:has(.invoice-paper) .modal-card {
+    box-shadow: none; max-width: 100%; max-height: none; padding: 0; overflow: visible;
+  }
+  .modal-backdrop:has(.invoice-paper) .modal-card > div:first-child {
+    display: none;
+  }
+  .modal-backdrop:not(:has(.invoice-paper)) {
+    display: none !important;
+  }
+}

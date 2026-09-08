@@ -5969,7 +5969,7 @@ function renderTenantInvoiceView() {
   });
 
   container.innerHTML = `
-    <div style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap;">
+    <div class="invoice-print-toolbar" style="display: flex; justify-content: flex-end; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap;">
       <button class="btn btn-secondary" id="btn-toggle-invoice-detail" style="display:none;" onclick="toggleInvoiceDetailView()">
         <i data-lucide="eye"></i> <span>${t('btn_view_calc_detail')}</span>
       </button>
