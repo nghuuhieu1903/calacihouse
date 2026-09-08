@@ -5056,6 +5056,14 @@ async function exitInvestorPreview() {
   switchView(realView && document.getElementById(`view-${realView}`) ? realView : 'admin-investor-report');
 }
 
+// Which investor's own card is shown when a house has more than one —
+// undeclared until now, which threw a ReferenceError (and broke the
+// entire Báo Cáo Chủ Đầu Tư page — an uncaught exception here aborts
+// switchView()'s render) the moment a specific house (not "Tất Cả") was
+// selected, since renderInvestorReport() reads this before
+// changeReportInvestor() ever gets a chance to assign it first.
+let _selectedReportInvestorId = null;
+
 function renderInvestorReport() {
   renderInvestorExpensesTable();
 
@@ -5118,6 +5126,8 @@ function changeReportInvestor(investorId) {
 function renderInvestorExpensesTable() {
   const tbody = document.getElementById('investor-expenses-table-body');
   if (!tbody) return;
+  const tfoot = document.getElementById('investor-expenses-table-tfoot');
+  if (tfoot) tfoot.innerHTML = '';
 
   const month = state.currentMonth;
   const houseId = state.currentHouseId;
@@ -5144,6 +5154,20 @@ function renderInvestorExpensesTable() {
       </tr>
     `;
   }).join('');
+
+  // Total row — sums exactly what's currently on screen (already scoped
+  // to the selected Tòa Nhà/Kỳ hóa đơn above), same pattern as the total
+  // row on Quản Lý Hóa Đơn.
+  if (tfoot) {
+    const totalSum = rows.reduce((s, e) => s + (e.amount || 0), 0);
+    tfoot.innerHTML = `
+      <tr style="font-weight: 800; background: var(--bg-base);">
+        <td colspan="2" style="text-align:right;">${t('lbl_invoices_total_row')} (${rows.length})</td>
+        <td style="text-align:right; color:var(--cala-red);">${formatMoney(totalSum)} đ</td>
+        <td></td>
+      </tr>
+    `;
+  }
 
   renderIcons(tbody);
 }
