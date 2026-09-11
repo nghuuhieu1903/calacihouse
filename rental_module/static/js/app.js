@@ -6557,7 +6557,19 @@ function perPersonBreakdownHtml(rows, invoiceId) {
 // account, e.g. vacant).
 function paymentProofSections(inv, room) {
   const isDorm = !!(room && room.roomType === 'dorm');
-  const occupants = isDorm ? getRoomTenants(room.id) : [];
+  // Was dorm-only (`isDorm ? getRoomTenants(room.id) : []`), which forced
+  // a single room's section to always look for assignedTo:'all' — but a
+  // single room's tenant account uploads their own proof tagged with
+  // their OWN user id (add_payment_proof_photo in services.py: a non-
+  // staff caller is never allowed to tag as 'all'), never 'all'. That
+  // mismatch meant the admin's section filtered for exactly the one
+  // assignedTo value the photo was never actually stored under, so it
+  // always came up empty even though the photo existed and the server
+  // was already returning it correctly — the tenant's own upload was
+  // effectively invisible to admin. Resolving occupants for every room
+  // type is what the fallback line below (`occupants[0] ? ... : 'all'`)
+  // already assumed it could do.
+  const occupants = room ? getRoomTenants(room.id) : [];
   const countFor = (assignedTo) => (inv.paymentProofPhotos || []).filter(p => (p.assignedTo || 'all') === assignedTo).length;
   if (isDorm && occupants.length > 1) {
     const sections = occupants.map(u => ({
