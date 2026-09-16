@@ -6346,11 +6346,11 @@ function elecUsageHistoryHtml(history) {
     <div class="cala-card" style="margin-top:1.25rem;">
       <h4 style="color:var(--cala-blue); margin-bottom:0.4rem; font-size:0.95rem;"><i data-lucide="bar-chart-3" style="vertical-align:middle;"></i> ${t('lbl_elec_usage_history')}</h4>
       <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.85rem;">${t('hint_elec_usage_history')}</p>
-      <div style="display:flex; align-items:flex-end; gap:0.6rem; height:110px;">
+      <div style="display:flex; align-items:flex-end; gap:0.6rem; height:110px; overflow-x:auto; padding-bottom:2px;">
         ${history.map(h => {
           const barHeight = h.usage !== null ? Math.max(4, Math.round((h.usage / maxUsage) * 85)) : 3;
           return `
-            <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;">
+            <div style="flex:1 0 auto; min-width:42px; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%;">
               <div style="font-size:0.7rem; color:var(--text-secondary); margin-bottom:3px;">${h.usage !== null ? h.usage : '—'}</div>
               <div style="width:65%; max-width:32px; background:${h.usage !== null ? 'var(--cala-amber)' : 'var(--border-color)'}; height:${barHeight}px; border-radius:4px 4px 0 0;"></div>
               <div style="font-size:0.68rem; color:var(--text-muted); margin-top:4px; white-space:nowrap;">${formatMonthLabel(h.month)}</div>
@@ -6520,7 +6520,7 @@ function perPersonBreakdownHtml(rows, invoiceId) {
       <h4 style="color:var(--cala-blue); margin-bottom:0.4rem; font-size:0.95rem;">${t('lbl_ktx_per_person_breakdown')}</h4>
       <p style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.6rem;">${t('hint_ktx_per_person_breakdown')}</p>
       <div class="excel-table-wrapper">
-        <table class="excel-table" style="color:#03121a;">
+        <table class="excel-table ktx-breakdown-table" style="color:#03121a;">
           <thead>
             <tr style="background:#f7f9fa; color:#43494d;">
               <th>${t('col_tenant')}</th>

@@ -591,12 +591,12 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
      adds .show-detail back to reveal the calculation column for anyone who
      wants to double-check the math. Desktop/tablet always show it — there's
      room, and it's the more useful default when reviewing on a bigger screen. */
-  .invoice-paper table.excel-table th:nth-child(2),
-  .invoice-paper table.excel-table td:nth-child(2) {
+  .invoice-paper table.excel-table:not(.ktx-breakdown-table) th:nth-child(2),
+  .invoice-paper table.excel-table:not(.ktx-breakdown-table) td:nth-child(2) {
     display: none;
   }
-  .invoice-paper.show-detail table.excel-table th:nth-child(2),
-  .invoice-paper.show-detail table.excel-table td:nth-child(2) {
+  .invoice-paper.show-detail table.excel-table:not(.ktx-breakdown-table) th:nth-child(2),
+  .invoice-paper.show-detail table.excel-table:not(.ktx-breakdown-table) td:nth-child(2) {
     display: table-cell;
   }
   #btn-toggle-invoice-detail { display: inline-flex !important; }
@@ -608,14 +608,21 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
      to read even the item name. Let those cells wrap onto a second line
      like a normal printed invoice would; only the amount column (always
      last — a short "1.234.567 đ" that looks broken split across two
-     lines) keeps its single line. */
-  .invoice-paper table.excel-table th,
-  .invoice-paper table.excel-table td {
+     lines) keeps its single line.
+     Excludes .ktx-breakdown-table: that one has 7 columns (tenant, rent,
+     elec-share checkbox, elec amount, services, vehicle, total) — it was
+     already built for excel-table-wrapper's horizontal scroll (nowrap +
+     scroll-shadow hint), same as every other wide table in the app. Forcing
+     word-wrap on it here squeezed 7 columns into phone width instead of
+     letting it scroll, and the nth-child(2) rule above hid its rent column
+     outright. */
+  .invoice-paper table.excel-table:not(.ktx-breakdown-table) th,
+  .invoice-paper table.excel-table:not(.ktx-breakdown-table) td {
     white-space: normal;
     word-break: break-word;
   }
-  .invoice-paper table.excel-table th:last-child,
-  .invoice-paper table.excel-table td:last-child {
+  .invoice-paper table.excel-table:not(.ktx-breakdown-table) th:last-child,
+  .invoice-paper table.excel-table:not(.ktx-breakdown-table) td:last-child {
     white-space: nowrap;
     padding-left: 0.5rem;
   }

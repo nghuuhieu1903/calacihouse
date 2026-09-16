@@ -19,3 +19,6 @@ backups/
 
 # Local Claude Code tool config
 .claude/
+
+# graphify knowledge-graph output (generated, not source code)
+graphify-out/
