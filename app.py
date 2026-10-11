@@ -33,7 +33,8 @@ app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 # turned on, since that's config on the VPS this repo doesn't control.
 app.config['COMPRESS_MIMETYPES'] = [
     'text/html', 'text/css', 'text/xml', 'application/json',
-    'application/javascript', 'text/javascript', 'application/manifest+json'
+    'application/javascript', 'text/javascript', 'application/manifest+json',
+    'image/svg+xml'
 ]
 Compress(app)
 

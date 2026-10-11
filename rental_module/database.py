@@ -1,5 +1,7 @@
+import hashlib
 import json
 import os
+from datetime import datetime
 import re
 import pymysql
 import pymysql.cursors
@@ -114,6 +116,25 @@ SCHEMA_STATEMENTS = [
         apply_rooms  TEXT,
         investor_share TEXT,
         apply_headcount_single TINYINT(1) DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS qr_profiles (
+        id           VARCHAR(191) PRIMARY KEY,
+        name         TEXT NOT NULL,
+        bank_bin     VARCHAR(16) DEFAULT '',
+        account_no   VARCHAR(64) DEFAULT '',
+        account_name TEXT,
+        note_prefix  VARCHAR(64) DEFAULT '',
+        caption      TEXT,
+        color        VARCHAR(16) DEFAULT '',
+        qr_color     VARCHAR(16) DEFAULT '',
+        dot_style    VARCHAR(16) DEFAULT '',
+        show_logo    TINYINT(1) DEFAULT 1,
+        logo         LONGTEXT,
+        description  TEXT,
+        sort_order   INT DEFAULT 0,
+        created_at   VARCHAR(32) DEFAULT ''
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
     """
@@ -398,6 +419,39 @@ def _promote_admins_to_superadmin(cur):
     cur.execute("UPDATE users SET role = 'superadmin' WHERE role = 'admin'")
 
 
+def _migrate_house_bank_to_qr_profiles(cur):
+    """Houses briefly stored their bank account directly on the house row.
+    Turn each distinct account into a Mã QR, point every house that used it
+    at that Mã QR, then blank the old columns so this never runs twice for
+    the same house — even if an admin later deliberately unlinks it."""
+    cur.execute(
+        "SELECT id, name, bank_bin, bank_account_no, bank_account_name FROM houses "
+        "WHERE bank_bin != '' AND bank_account_no != '' AND (qr_profile_id IS NULL OR qr_profile_id = '') "
+        "ORDER BY sort_order ASC, id ASC"
+    )
+    rows = cur.fetchall()
+    if not rows:
+        return
+    cur.execute("SELECT COALESCE(MAX(sort_order), -1) AS m FROM qr_profiles")
+    next_order = cur.fetchone()['m'] + 1
+    created_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+    for row in rows:
+        profile_id = 'qr_' + hashlib.md5(f"{row['bank_bin']}|{row['bank_account_no']}".encode('utf-8')).hexdigest()[:10]
+        cur.execute("SELECT id FROM qr_profiles WHERE id=%s", (profile_id,))
+        if not cur.fetchone():
+            cur.execute(
+                "INSERT INTO qr_profiles (id, name, bank_bin, account_no, account_name, show_logo, sort_order, created_at) "
+                "VALUES (%s,%s,%s,%s,%s,1,%s,%s)",
+                (profile_id, f"QR {row['name']}", row['bank_bin'], row['bank_account_no'],
+                 row['bank_account_name'] or '', next_order, created_at)
+            )
+            next_order += 1
+        cur.execute(
+            "UPDATE houses SET qr_profile_id=%s, bank_bin='', bank_account_no='', bank_account_name='' WHERE id=%s",
+            (profile_id, row['id'])
+        )
+
+
 def init_db():
     """Create the database and all tables if they don't already exist.
     Called once on app startup. Safe to run every time (IF NOT EXISTS)."""
@@ -435,6 +489,14 @@ def init_db():
             _ensure_column(cur, 'houses', 'bank_bin', "VARCHAR(16) DEFAULT ''")
             _ensure_column(cur, 'houses', 'bank_account_no', "VARCHAR(64) DEFAULT ''")
             _ensure_column(cur, 'houses', 'bank_account_name', "TEXT")
+            # The bank account now lives in its own Mã QR (qr_profiles,
+            # managed from the Tạo Mã QR menu); a house just points at one.
+            # The three bank_* columns above stay only so
+            # _migrate_house_bank_to_qr_profiles() can read what was saved
+            # before this existed.
+            _ensure_column(cur, 'houses', 'qr_profile_id', "VARCHAR(191) DEFAULT ''")
+            _ensure_column(cur, 'qr_profiles', 'qr_color', "VARCHAR(16) DEFAULT ''")
+            _ensure_column(cur, 'qr_profiles', 'dot_style', "VARCHAR(16) DEFAULT ''")
             _ensure_column(cur, 'rooms', 'sort_order', "INT DEFAULT 0")
             _ensure_column(cur, 'services', 'sort_order', "INT DEFAULT 0")
             # A "Theo đầu người" service used to always multiply by
@@ -470,6 +532,7 @@ def init_db():
             _backfill_service_sort_order(cur)
             _backfill_reading_carryover(cur)
             _migrate_investor_share_to_map(cur)
+            _migrate_house_bank_to_qr_profiles(cur)
         conn.commit()
     finally:
         conn.close()

@@ -634,13 +634,64 @@ const I18N = {
     lbl_address: 'Địa chỉ',
     lbl_description_note: 'Ghi chú mô tả',
     btn_save_house: 'Lưu Tòa Nhà',
-    lbl_house_bank_section: 'QR Chuyển Khoản Của Tòa Nhà',
-    hint_house_bank_section: 'Khách thuê sẽ thấy mã QR chuyển vào tài khoản này trên hóa đơn của mình, có sẵn số tiền và nội dung. Để trống nếu không dùng.',
+    nav_qr: 'Tạo Mã QR',
+    house_no_transfer_qr: 'Chưa chọn mã QR chuyển khoản',
+    lbl_house_qr_profile: 'Mã QR chuyển khoản',
+    hint_house_qr_profile: 'Khách thuê thấy mã này trên hóa đơn của mình. Thêm/sửa mã QR ở menu "Tạo Mã QR".',
+    opt_no_qr_profile: '— Không dùng QR —',
+    qr_profiles_title: 'Danh Sách Mã QR',
+    qr_profiles_desc: 'Mỗi mã QR là một tài khoản nhận tiền. Vào Quản Lý Tòa Nhà để chọn mã cho từng tòa.',
+    qr_profiles_empty: 'Chưa có mã QR nào. Bấm "Thêm Mã QR Mới" để tạo.',
+    btn_add_qr_profile: 'Thêm Mã QR Mới',
+    qr_used_by: 'Đang dùng cho:',
+    qr_used_by_none: 'Chưa gán cho tòa nhà nào',
+    btn_qr_use_profile: 'Tạo Ảnh Kèm Số Tiền',
+    qr_generator_title: 'Tạo Ảnh QR Kèm Số Tiền',
+    qr_generator_desc: 'Chọn mã QR, nhập số tiền và nội dung (không bắt buộc) rồi tải ảnh về gửi cho khách.',
+    lbl_qr_profile: 'Mã QR',
+    qr_no_profiles_option: '— Chưa có mã QR —',
+    qr_no_profiles_hint: 'Chưa có mã QR nào. Bấm "Thêm Mã QR Mới" ở trên để tạo.',
+    modal_add_qr_profile_title: 'Thêm Mã QR Mới',
+    modal_edit_qr_profile_title: 'Sửa Mã QR',
+    qrp_section_account: 'Tài khoản nhận tiền',
+    qrp_section_content: 'Nội dung chuyển khoản',
+    qrp_section_look: 'Trình bày',
+    qrp_section_internal: 'Nội bộ',
+    lbl_qrp_name: 'Tên mã QR',
+    opt_choose_bank: '— Chọn ngân hàng —',
+    lbl_qrp_note_prefix: 'Tiền tố nội dung',
+    hint_qrp_note_prefix: 'Tự thêm vào đầu mọi nội dung chuyển khoản của mã này, VD "CALACI P101 T1026" — dễ lọc trong sao kê.',
+    lbl_qrp_caption: 'Dòng chữ dưới mã',
+    lbl_qrp_color: 'Màu thương hiệu',
+    lbl_qrp_dot_style: 'Kiểu điểm mã',
+    opt_qrp_dot_rounded: 'Bo liền mạch',
+    opt_qrp_dot_dots: 'Chấm tròn',
+    opt_qrp_dot_square: 'Vuông cổ điển',
+    hint_qrp_dot_style: '"Chấm tròn" đẹp nhưng một số app ngân hàng cũ có thể quét chậm hơn.',
+    lbl_qrp_qr_color: 'Màu mã',
+    lbl_qrp_logo_mode: 'Logo giữa mã',
+    opt_qrp_logo_site: 'Logo của trang',
+    opt_qrp_logo_custom: 'Logo riêng cho mã này',
+    opt_qrp_logo_none: 'Không dùng logo',
+    btn_qrp_choose_logo: 'Chọn ảnh logo',
+    lbl_qrp_description: 'Ghi chú',
+    lbl_qrp_preview: 'Xem trước',
+    qrp_preview_hint: 'Chọn ngân hàng và nhập số tài khoản để xem trước mã QR.',
+    btn_save_qr_profile: 'Lưu Mã QR',
+    toast_qrp_added: 'Đã thêm mã QR!',
+    toast_qrp_updated: 'Đã cập nhật mã QR!',
+    toast_qrp_deleted: 'Đã xoá mã QR.',
+    toast_qrp_logo_missing: 'Vui lòng chọn ảnh logo (hoặc đổi sang "Logo của trang").',
+    toast_qrp_logo_invalid: 'Không đọc được ảnh logo này.',
+    toast_qrp_logo_too_large: 'Ảnh logo quá lớn.',
+    confirm_delete_qr_profile: 'Xoá mã QR "{name}"? Không thể hoàn tác.',
+    lbl_qr_amount: 'Số tiền (VNĐ) — để trống để khách tự nhập',
+    lbl_qr_note: 'Nội dung chuyển khoản',
+    view_admin_qr_subtitle: 'Quản lý mã QR chuyển khoản — mỗi tòa nhà chọn một mã riêng',
+    btn_qr_download: 'Tải Ảnh QR',
     lbl_bank: 'Ngân hàng',
     lbl_bank_account_no: 'Số tài khoản',
     lbl_bank_account_name: 'Chủ tài khoản',
-    opt_no_bank: '— Không dùng QR —',
-    house_no_transfer_qr: 'Chưa cấu hình QR chuyển khoản',
     lbl_transfer_qr: 'Quét Mã QR Để Chuyển Khoản',
     hint_transfer_qr: 'Mở app ngân hàng bất kỳ, quét mã — số tiền và nội dung đã điền sẵn. Chuyển xong nhớ gửi ảnh minh chứng bên dưới.',
     hint_transfer_qr_admin: 'Có thể chụp lại mã này gửi cho khách — số tiền và nội dung đã điền sẵn.',
@@ -1367,13 +1418,64 @@ const I18N = {
     lbl_address: 'Address',
     lbl_description_note: 'Description note',
     btn_save_house: 'Save House',
-    lbl_house_bank_section: 'Building Transfer QR',
-    hint_house_bank_section: 'Tenants will see a QR code for this account on their invoice, with the amount and note filled in. Leave blank to disable.',
+    nav_qr: 'QR Codes',
+    house_no_transfer_qr: 'No transfer QR selected',
+    lbl_house_qr_profile: 'Transfer QR code',
+    hint_house_qr_profile: 'Tenants see this code on their invoice. Add/edit QR codes from the "QR Codes" menu.',
+    opt_no_qr_profile: '— No QR —',
+    qr_profiles_title: 'QR Codes',
+    qr_profiles_desc: 'Each QR code is one receiving bank account. Pick one per building in Building Management.',
+    qr_profiles_empty: 'No QR codes yet. Click "Add QR Code" to create one.',
+    btn_add_qr_profile: 'Add QR Code',
+    qr_used_by: 'Used by:',
+    qr_used_by_none: 'Not assigned to any building',
+    btn_qr_use_profile: 'Create With Amount',
+    qr_generator_title: 'Create A QR Image With Amount',
+    qr_generator_desc: 'Pick a QR code, optionally enter an amount and note, then download the image to send to a tenant.',
+    lbl_qr_profile: 'QR code',
+    qr_no_profiles_option: '— No QR codes yet —',
+    qr_no_profiles_hint: 'No QR codes yet. Click "Add QR Code" above to create one.',
+    modal_add_qr_profile_title: 'Add QR Code',
+    modal_edit_qr_profile_title: 'Edit QR Code',
+    qrp_section_account: 'Receiving account',
+    qrp_section_content: 'Transfer note',
+    qrp_section_look: 'Appearance',
+    qrp_section_internal: 'Internal',
+    lbl_qrp_name: 'QR code name',
+    opt_choose_bank: '— Choose a bank —',
+    lbl_qrp_note_prefix: 'Note prefix',
+    hint_qrp_note_prefix: 'Added to the start of every transfer note from this code, e.g. "CALACI P101 T1026" — easy to filter in statements.',
+    lbl_qrp_caption: 'Caption under the code',
+    lbl_qrp_color: 'Brand colour',
+    lbl_qrp_dot_style: 'Module style',
+    opt_qrp_dot_rounded: 'Smooth',
+    opt_qrp_dot_dots: 'Dots',
+    opt_qrp_dot_square: 'Classic square',
+    hint_qrp_dot_style: '"Dots" looks nice, but some older banking apps may take longer to scan it.',
+    lbl_qrp_qr_color: 'Code colour',
+    lbl_qrp_logo_mode: 'Centre logo',
+    opt_qrp_logo_site: 'Site logo',
+    opt_qrp_logo_custom: 'Custom logo for this code',
+    opt_qrp_logo_none: 'No logo',
+    btn_qrp_choose_logo: 'Choose logo image',
+    lbl_qrp_description: 'Note',
+    lbl_qrp_preview: 'Preview',
+    qrp_preview_hint: 'Choose a bank and enter an account number to preview the code.',
+    btn_save_qr_profile: 'Save QR Code',
+    toast_qrp_added: 'QR code added!',
+    toast_qrp_updated: 'QR code updated!',
+    toast_qrp_deleted: 'QR code deleted.',
+    toast_qrp_logo_missing: 'Please choose a logo image (or switch to "Site logo").',
+    toast_qrp_logo_invalid: 'Could not read this logo image.',
+    toast_qrp_logo_too_large: 'The logo image is too large.',
+    confirm_delete_qr_profile: 'Delete QR code "{name}"? This cannot be undone.',
+    lbl_qr_amount: 'Amount (VND) — leave blank to let the payer enter it',
+    lbl_qr_note: 'Transfer note',
+    view_admin_qr_subtitle: 'Manage bank-transfer QR codes — each building picks its own',
+    btn_qr_download: 'Download QR',
     lbl_bank: 'Bank',
     lbl_bank_account_no: 'Account number',
     lbl_bank_account_name: 'Account holder',
-    opt_no_bank: '— No QR —',
-    house_no_transfer_qr: 'No transfer QR set up',
     lbl_transfer_qr: 'Scan To Pay By Bank Transfer',
     hint_transfer_qr: 'Open any banking app and scan — the amount and note are pre-filled. Afterwards, attach a proof photo below.',
     hint_transfer_qr_admin: 'You can screenshot this code and send it to the tenant — the amount and note are pre-filled.',
@@ -1953,6 +2055,7 @@ function hasPermission(role, featureKey, action) {
 const ADMIN_TAB_PERMISSIONS = {
   'admin-dashboard': null,
   'admin-houses': ['houses', 'view'],
+  'admin-qr': ['houses', 'view'],
   'admin-services': ['services', 'view'],
   'admin-spreadsheet': ['services', 'edit'],
   'admin-invoices': ['invoices', 'view'],
@@ -2317,6 +2420,8 @@ function setLanguage(lang) {
 // fetch of the exact same endpoint right after.
 function applyStateData(data) {
   state.houses = data.houses || state.houses;
+  state.qrProfiles = data.qrProfiles || state.qrProfiles || [];
+  if (data.vietqrBanks) VIETQR_BANKS = data.vietqrBanks;
   state.users = data.users || state.users;
   state.rooms = data.rooms || state.rooms;
   state.services = data.services || state.services;
@@ -2441,6 +2546,11 @@ function switchView(viewId) {
       titleEl.innerText = dict.view_admin_houses_title;
       subtitleEl.innerText = dict.view_admin_houses_subtitle;
       renderHousesManagement();
+      break;
+    case 'admin-qr':
+      titleEl.innerText = dict.nav_qr;
+      subtitleEl.innerText = dict.view_admin_qr_subtitle;
+      renderQrProfilesView();
       break;
     case 'admin-rooms':
       titleEl.innerText = dict.view_admin_rooms_title;
@@ -2885,46 +2995,15 @@ async function deleteCustomIcon() {
 }
 
 /* =====================================================================
-   VIETQR — each house collects into its own bank account. The QR itself
-   is built server-side (vietqr.py, /api/houses/<id>/transfer-qr.svg);
-   this side only picks the bank and supplies each invoice's amount/note.
-   BIN = the bank's NAPAS id, what VietQR actually routes on.
+   VIETQR — bank accounts live in Mã QR profiles (state.qrProfiles,
+   managed from the Tạo Mã QR menu); each house just points at one
+   (house.qrProfileId). The QR itself is built server-side (vietqr.py,
+   routes.py's _render_transfer_qr); this side supplies each invoice's
+   amount/note. BIN = the bank's NAPAS id, what VietQR actually routes on.
 ===================================================================== */
-const VIETQR_BANKS = [
-  { bin: '970436', name: 'Vietcombank' },
-  { bin: '970415', name: 'VietinBank' },
-  { bin: '970418', name: 'BIDV' },
-  { bin: '970405', name: 'Agribank' },
-  { bin: '970407', name: 'Techcombank' },
-  { bin: '970422', name: 'MB Bank' },
-  { bin: '970416', name: 'ACB' },
-  { bin: '970432', name: 'VPBank' },
-  { bin: '970423', name: 'TPBank' },
-  { bin: '970403', name: 'Sacombank' },
-  { bin: '970437', name: 'HDBank' },
-  { bin: '970441', name: 'VIB' },
-  { bin: '970443', name: 'SHB' },
-  { bin: '970431', name: 'Eximbank' },
-  { bin: '970426', name: 'MSB' },
-  { bin: '970448', name: 'OCB' },
-  { bin: '970440', name: 'SeABank' },
-  { bin: '970449', name: 'LPBank' },
-  { bin: '970428', name: 'Nam A Bank' },
-  { bin: '970409', name: 'Bac A Bank' },
-  { bin: '970425', name: 'ABBANK' },
-  { bin: '970452', name: 'KienlongBank' },
-  { bin: '970427', name: 'VietABank' },
-  { bin: '970412', name: 'PVcomBank' },
-  { bin: '970438', name: 'BaoViet Bank' },
-  { bin: '970419', name: 'NCB' },
-  { bin: '970400', name: 'Saigonbank' },
-  { bin: '970430', name: 'PGBank' },
-  { bin: '970433', name: 'VietBank' },
-  { bin: '970424', name: 'Shinhan Bank' },
-  { bin: '970457', name: 'Woori Bank' },
-  { bin: '546034', name: 'CAKE by VPBank' },
-  { bin: '546035', name: 'Ubank by VPBank' },
-];
+// Filled from /api/data (vietqrBanks) — the list lives in vietqr.py,
+// which also needs the names to draw them onto the payment card.
+let VIETQR_BANKS = [];
 
 // Same as escapeTaxText() — account name/number and the transfer note
 // are free text typed by an admin or derived from a room name.
@@ -2937,24 +3016,36 @@ function bankNameForBin(bin) {
   return bank ? bank.name : bin;
 }
 
-function houseHasTransferQr(house) {
-  const bank = house && house.bankInfo;
+function qrProfileById(profileId) {
+  return (state.qrProfiles || []).find(q => q.id === profileId) || null;
+}
+
+function qrProfileForHouse(house) {
+  return house ? qrProfileById(house.qrProfileId) : null;
+}
+
+function qrProfileHasBank(profile) {
+  const bank = profile && profile.bankInfo;
   return !!(bank && bank.bin && bank.accountNo);
 }
 
-function fillHouseBankFields(bankInfo) {
-  const bank = bankInfo || {};
-  const select = document.getElementById('house-bank-bin');
-  // A BIN saved before it was in VIETQR_BANKS still gets an option so
-  // opening the form doesn't silently blank it out.
-  const banks = (bank.bin && !VIETQR_BANKS.some(b => b.bin === bank.bin))
-    ? [...VIETQR_BANKS, { bin: bank.bin, name: bank.bin }]
-    : VIETQR_BANKS;
-  select.innerHTML = `<option value="">${t('opt_no_bank')}</option>` +
-    banks.map(b => `<option value="${b.bin}">${b.name}</option>`).join('');
-  select.value = bank.bin || '';
-  document.getElementById('house-bank-account-no').value = bank.accountNo || '';
-  document.getElementById('house-bank-account-name').value = bank.accountName || '';
+function houseHasTransferQr(house) {
+  return qrProfileHasBank(qrProfileForHouse(house));
+}
+
+// Creating/editing a Mã QR decides which account tenants pay into, so it
+// is admin-only on the server (/api/qr-profiles/save) — the permission
+// matrix's 'houses' edit only lets a manager PICK one for a house.
+function canManageQrProfiles() {
+  const role = state.currentUser && state.currentUser.role;
+  return role === 'superadmin' || role === 'admin';
+}
+
+function fillHouseQrProfileSelect(selectedId) {
+  const select = document.getElementById('house-qr-profile');
+  select.innerHTML = `<option value="">${t('opt_no_qr_profile')}</option>` +
+    (state.qrProfiles || []).map(q => `<option value="${q.id}">${escapeHtml(q.name)} — ${escapeHtml(bankNameForBin(q.bankInfo.bin))} ${escapeHtml(q.bankInfo.accountNo)}</option>`).join('');
+  select.value = qrProfileById(selectedId) ? selectedId : '';
 }
 
 // Bank-app transfer note — ASCII only (the server strips accents again
@@ -2965,24 +3056,393 @@ function transferNoteFor(invoice, payerName) {
   return [invoice.roomName, `T${month}${(year || '').slice(-2)}`, payerName || ''].join(' ').trim();
 }
 
+// What actually lands in the bank app's note field: the Mã QR's own
+// prefix + this note (see _render_transfer_qr in routes.py).
+function fullTransferNote(profile, note) {
+  return [profile && profile.notePrefix, note].filter(Boolean).join(' ');
+}
+
+function houseQrUrl(houseId, amount, note) {
+  return `${API_BASE}/houses/${encodeURIComponent(houseId)}/transfer-qr.svg?amount=${Math.max(0, Math.round(amount || 0))}&note=${encodeURIComponent(note || '')}`;
+}
+
+// layout 'card' = the self-contained payment card (brand header, bank,
+// account, amount) — for downloads and the Tạo Mã QR page; the default
+// compact one is just the code + caption, for inside an invoice.
+function qrProfileQrUrl(profileId, amount, note, layout) {
+  return `${API_BASE}/qr-profiles/${encodeURIComponent(profileId)}/transfer-qr.svg?amount=${Math.max(0, Math.round(amount || 0))}&note=${encodeURIComponent(note || '')}${layout ? `&layout=${layout}` : ''}`;
+}
+
+function qrBankDetailsHtml(profile) {
+  const bank = profile.bankInfo;
+  return `
+    <div>${t('lbl_bank')}: <strong>${escapeHtml(bankNameForBin(bank.bin))}</strong></div>
+    <div>${t('lbl_bank_account_no')}: <strong>${escapeHtml(bank.accountNo)}</strong></div>
+    ${bank.accountName ? `<div>${t('lbl_bank_account_name')}: <strong>${escapeHtml(bank.accountName)}</strong></div>` : ''}
+  `;
+}
+
 function transferQrCardHtml(house, amount, note, captionKey) {
-  if (!houseHasTransferQr(house)) return '';
-  const bank = house.bankInfo;
-  const src = `${API_BASE}/houses/${encodeURIComponent(house.id)}/transfer-qr.svg?amount=${Math.max(0, Math.round(amount || 0))}&note=${encodeURIComponent(note || '')}`;
+  const profile = qrProfileForHouse(house);
+  if (!qrProfileHasBank(profile)) return '';
   return `
     <div class="cala-card transfer-qr-card" style="margin-top:1.5rem; display:flex; gap:1.25rem; align-items:center; flex-wrap:wrap;">
-      <img src="${src}" alt="VietQR" style="width:220px; max-width:100%; height:auto; border:1px solid #e5e9f0; border-radius:10px; background:#fff; flex-shrink:0;">
+      <img src="${houseQrUrl(house.id, amount, note)}" alt="VietQR" style="width:220px; max-width:100%; height:auto; border:1px solid #e5e9f0; border-radius:10px; background:#fff; flex-shrink:0;">
       <div style="flex:1; min-width:200px; font-size:0.9rem;">
         <h4 style="margin-bottom:0.35rem; color:var(--cala-blue);"><i data-lucide="qr-code" style="vertical-align:middle;"></i> ${t('lbl_transfer_qr')}</h4>
         <p style="font-size:0.8rem; color:var(--text-secondary); margin:0 0 0.75rem;">${t(captionKey || 'hint_transfer_qr')}</p>
-        <div>${t('lbl_bank')}: <strong>${escapeHtml(bankNameForBin(bank.bin))}</strong></div>
-        <div>${t('lbl_bank_account_no')}: <strong>${escapeHtml(bank.accountNo)}</strong></div>
-        ${bank.accountName ? `<div>${t('lbl_bank_account_name')}: <strong>${escapeHtml(bank.accountName)}</strong></div>` : ''}
+        ${qrBankDetailsHtml(profile)}
         <div>${t('lbl_transfer_amount')}: <strong style="color:#ff5e1f;">${formatMoney(Math.round(amount || 0))} đ</strong></div>
-        <div>${t('lbl_transfer_note')}: <strong>${escapeHtml(note)}</strong></div>
+        <div>${t('lbl_transfer_note')}: <strong>${escapeHtml(fullTransferNote(profile, note))}</strong></div>
       </div>
     </div>
   `;
+}
+
+/* ---------- Tạo Mã QR page ---------- */
+
+function renderQrProfilesView() {
+  document.getElementById('btn-add-qr-profile').style.display = canManageQrProfiles() ? '' : 'none';
+  renderQrProfilesGrid();
+
+  const profiles = (state.qrProfiles || []).filter(qrProfileHasBank);
+  const select = document.getElementById('qr-gen-profile');
+  const previous = select.value;
+  select.innerHTML = profiles.length
+    ? profiles.map(q => `<option value="${q.id}">${escapeHtml(q.name)}</option>`).join('')
+    : `<option value="">${t('qr_no_profiles_option')}</option>`;
+  if (profiles.some(q => q.id === previous)) select.value = previous;
+  updateQrGeneratorPreview(true);
+}
+
+function renderQrProfilesGrid() {
+  const container = document.getElementById('qr-profiles-container');
+  const profiles = state.qrProfiles || [];
+  if (!profiles.length) {
+    container.innerHTML = `
+      <div class="cala-card" style="text-align:center; padding:2.5rem 1rem; color:var(--text-secondary);">
+        <i data-lucide="qr-code" style="width:40px; height:40px; opacity:0.4;"></i>
+        <div style="margin-top:0.5rem;">${t('qr_profiles_empty')}</div>
+      </div>`;
+    renderIcons(container);
+    return;
+  }
+  const canManage = canManageQrProfiles();
+  container.innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(270px, 1fr)); gap:1rem;">
+      ${profiles.map(q => {
+        const usedBy = state.houses.filter(h => h.qrProfileId === q.id).map(h => escapeHtml(h.name));
+        return `
+          <div class="cala-card" style="padding:1.1rem 1.25rem; display:flex; flex-direction:column; gap:0.75rem;">
+            <div>
+              <div style="font-weight:800; font-size:1rem;">${escapeHtml(q.name)}</div>
+              ${q.description ? `<div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">${escapeHtml(q.description)}</div>` : ''}
+            </div>
+            <img src="${qrProfileQrUrl(q.id, 0, '', 'card')}" alt="VietQR ${escapeHtml(q.name)}" loading="lazy" style="width:100%; max-width:280px; height:auto; align-self:center; border-radius:18px;">
+            ${q.notePrefix ? `<div style="font-size:0.85rem;">${t('lbl_qrp_note_prefix')}: <strong>${escapeHtml(q.notePrefix)}</strong></div>` : ''}
+            <div style="font-size:0.8rem; color:var(--text-secondary);">
+              <i data-lucide="building-2" style="width:13px; height:13px; vertical-align:-2px;"></i>
+              ${usedBy.length ? `${t('qr_used_by')} <strong style="color:var(--text-primary);">${usedBy.join(', ')}</strong>` : t('qr_used_by_none')}
+            </div>
+            <div style="display:flex; gap:0.5rem; margin-top:auto;">
+              <button type="button" class="btn btn-blue btn-sm" style="flex:1; justify-content:center;" onclick="useQrProfileInGenerator('${q.id}')">
+                <i data-lucide="wand-2"></i> ${t('btn_qr_use_profile')}
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" title="${t('btn_qr_download')}" onclick="downloadQrProfilePng('${q.id}', 0, '')">
+                <i data-lucide="download"></i>
+              </button>
+              ${canManage ? `<button type="button" class="btn btn-secondary btn-sm" title="${t('btn_edit')}" onclick="openQrProfileModal('${q.id}')">
+                <i data-lucide="edit-2"></i>
+              </button>` : ''}
+              ${canDelete() ? `<button type="button" class="btn btn-secondary btn-sm" style="color:var(--color-danger); border-color:var(--color-danger);" onclick="deleteQrProfileConfirm('${q.id}')">
+                <i data-lucide="trash-2"></i>
+              </button>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  renderIcons(container);
+}
+
+function useQrProfileInGenerator(profileId) {
+  document.getElementById('qr-gen-profile').value = profileId;
+  updateQrGeneratorPreview(true);
+  const amountInput = document.getElementById('qr-gen-amount');
+  amountInput.closest('.cala-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  amountInput.focus({ preventScroll: true });
+}
+
+function qrGeneratorAmount() {
+  return Number((document.getElementById('qr-gen-amount').value || '').replace(/\D/g, '')) || 0;
+}
+
+// Live thousands separators while typing — "3500000" reads as "3.500.000".
+function onQrAmountInput(input, onChange) {
+  const amount = Number(input.value.replace(/\D/g, '')) || 0;
+  input.value = amount ? formatMoney(amount) : '';
+  if (onChange) onChange();
+}
+
+// Typing in amount/note would otherwise fire one QR request per keystroke.
+let _qrPreviewTimer = null;
+function updateQrGeneratorPreview(immediate) {
+  clearTimeout(_qrPreviewTimer);
+  if (!immediate) {
+    _qrPreviewTimer = setTimeout(() => updateQrGeneratorPreview(true), 350);
+    return;
+  }
+  const profile = qrProfileById(document.getElementById('qr-gen-profile').value);
+  const img = document.getElementById('qr-gen-img');
+  const empty = document.getElementById('qr-gen-empty');
+  const download = document.getElementById('qr-gen-download');
+  if (!qrProfileHasBank(profile)) {
+    img.style.display = 'none';
+    download.style.display = 'none';
+    empty.style.display = 'block';
+    empty.textContent = t('qr_no_profiles_hint');
+    return;
+  }
+  const amount = qrGeneratorAmount();
+  const note = document.getElementById('qr-gen-note').value.trim();
+  img.src = qrProfileQrUrl(profile.id, amount, note, 'card');
+  img.style.display = 'block';
+  download.style.display = 'inline-flex';
+  empty.style.display = 'none';
+}
+
+function downloadQrGeneratorImage() {
+  downloadQrProfilePng(document.getElementById('qr-gen-profile').value, qrGeneratorAmount(), document.getElementById('qr-gen-note').value.trim());
+}
+
+function downloadQrProfilePng(profileId, amount, note) {
+  const profile = qrProfileById(profileId);
+  if (!qrProfileHasBank(profile)) return;
+  const slug = (profile.name || profile.id).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^A-Za-z0-9]+/g, '_');
+  downloadQrSvgAsPng(qrProfileQrUrl(profileId, amount, note, 'card'), `QR_${slug}${amount ? `_${amount}` : ''}`);
+}
+
+// PNG rather than the SVG itself — Zalo/Messenger and most phone
+// galleries won't show an .svg. Drawn from the same server-rendered SVG
+// the preview shows, at a size that stays sharp when forwarded.
+async function downloadQrSvgAsPng(url, baseName) {
+  let svgText;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    svgText = await res.text();
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+    return;
+  }
+  const saveBlob = (blob, filename) => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  };
+  const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+  const viewBox = svgText.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+  const width = 1000;
+  const height = viewBox ? Math.round(width * Number(viewBox[2]) / Number(viewBox[1])) : width;
+  const svgUrl = URL.createObjectURL(svgBlob);
+  try {
+    const img = new Image();
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = svgUrl; });
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    const pngBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!pngBlob) throw new Error('toBlob failed');
+    saveBlob(pngBlob, `${baseName}.png`);
+  } catch (err) {
+    // Some browsers refuse to export a canvas an SVG was drawn onto —
+    // the SVG itself is still a perfectly good QR to hand out.
+    saveBlob(svgBlob, `${baseName}.svg`);
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
+}
+
+/* ---------- Thêm / Sửa Mã QR modal ---------- */
+
+// logo: undefined = untouched (server keeps what's stored), or a freshly
+// picked data URL. storedLogo: what the server has, for the thumbnail.
+let _qrProfileForm = { logo: undefined, storedLogo: '' };
+
+async function openQrProfileModal(profileId) {
+  let profile = null;
+  if (profileId) {
+    try {
+      const res = await fetch(`${API_BASE}/qr-profiles/${encodeURIComponent(profileId)}/full`);
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error);
+      profile = data.profile;
+    } catch (err) {
+      showToast((err && err.message) || t('toast_server_connection_error'), 'error');
+      return;
+    }
+  }
+  const p = profile || { bankInfo: {}, showLogo: true };
+  _qrProfileForm = { logo: undefined, storedLogo: p.logo || '' };
+
+  document.getElementById('qrp-id').value = p.id || '';
+  document.getElementById('qrp-name').value = p.name || '';
+  const bankSelect = document.getElementById('qrp-bank-bin');
+  const banks = (p.bankInfo.bin && !VIETQR_BANKS.some(b => b.bin === p.bankInfo.bin))
+    ? [...VIETQR_BANKS, { bin: p.bankInfo.bin, name: p.bankInfo.bin }]
+    : VIETQR_BANKS;
+  bankSelect.innerHTML = `<option value="">${t('opt_choose_bank')}</option>` +
+    banks.map(b => `<option value="${b.bin}">${b.name}</option>`).join('');
+  bankSelect.value = p.bankInfo.bin || '';
+  document.getElementById('qrp-account-no').value = p.bankInfo.accountNo || '';
+  document.getElementById('qrp-account-name').value = p.bankInfo.accountName || '';
+  document.getElementById('qrp-note-prefix').value = p.notePrefix || '';
+  document.getElementById('qrp-caption').value = p.caption || '';
+  document.getElementById('qrp-color').value = p.color || '#0194f3';
+  document.getElementById('qrp-qr-color').value = p.qrColor || '#0b1f33';
+  document.getElementById('qrp-dot-style').value = p.dotStyle || 'rounded';
+  document.getElementById('qrp-description').value = p.description || '';
+  document.getElementById('qrp-logo-mode').value = !p.showLogo ? 'none' : (p.logo ? 'custom' : 'site');
+  document.getElementById('qrp-logo-file').value = '';
+  onQrLogoModeChange(true);
+
+  document.getElementById('modal-qr-profile-title').textContent = t(profileId ? 'modal_edit_qr_profile_title' : 'modal_add_qr_profile_title');
+  document.getElementById('modal-qr-profile').classList.add('active');
+  scheduleQrProfilePreview(true);
+}
+
+function onQrLogoModeChange(skipPreview) {
+  const custom = document.getElementById('qrp-logo-mode').value === 'custom';
+  document.getElementById('qrp-logo-upload').style.display = custom ? 'block' : 'none';
+  const thumb = document.getElementById('qrp-logo-thumb');
+  const logo = _qrProfileForm.logo || _qrProfileForm.storedLogo;
+  thumb.style.display = logo ? 'block' : 'none';
+  if (logo) thumb.src = logo;
+  if (!skipPreview) scheduleQrProfilePreview(true);
+}
+
+async function handleQrLogoSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  try {
+    _qrProfileForm.logo = await compressLogoImage(file);
+  } catch (err) {
+    showToast(t(err && err.message === 'too-large' ? 'toast_qrp_logo_too_large' : 'toast_qrp_logo_invalid'), 'error');
+    return;
+  }
+  onQrLogoModeChange();
+}
+
+// Collects the form into the shape /api/qr-profiles/save and /preview
+// expect. logo is only sent when it should change: '' clears a custom
+// logo when switching back to the site logo, a data URL replaces it.
+function readQrProfileForm() {
+  const logoMode = document.getElementById('qrp-logo-mode').value;
+  const body = {
+    id: document.getElementById('qrp-id').value || undefined,
+    name: document.getElementById('qrp-name').value.trim(),
+    bankInfo: {
+      bin: document.getElementById('qrp-bank-bin').value,
+      accountNo: document.getElementById('qrp-account-no').value.trim(),
+      accountName: document.getElementById('qrp-account-name').value.trim()
+    },
+    notePrefix: document.getElementById('qrp-note-prefix').value.trim(),
+    caption: document.getElementById('qrp-caption').value.trim(),
+    color: document.getElementById('qrp-color').value,
+    qrColor: document.getElementById('qrp-qr-color').value,
+    dotStyle: document.getElementById('qrp-dot-style').value,
+    showLogo: logoMode !== 'none',
+    description: document.getElementById('qrp-description').value.trim()
+  };
+  if (logoMode === 'site' && _qrProfileForm.storedLogo) body.logo = '';
+  if (logoMode === 'custom' && _qrProfileForm.logo) body.logo = _qrProfileForm.logo;
+  return { body, logoMode };
+}
+
+let _qrProfilePreviewTimer = null;
+let _qrProfilePreviewUrl = null;
+let _qrProfilePreviewSeq = 0;
+function scheduleQrProfilePreview(immediate) {
+  clearTimeout(_qrProfilePreviewTimer);
+  _qrProfilePreviewTimer = setTimeout(refreshQrProfilePreview, immediate ? 0 : 400);
+}
+
+async function refreshQrProfilePreview() {
+  const img = document.getElementById('qrp-preview-img');
+  const empty = document.getElementById('qrp-preview-empty');
+  const { body } = readQrProfileForm();
+  const showEmpty = (msg) => {
+    img.style.display = 'none';
+    empty.style.display = 'block';
+    empty.textContent = msg;
+  };
+  if (!body.bankInfo.bin || body.bankInfo.accountNo.length < 4) {
+    showEmpty(t('qrp_preview_hint'));
+    return;
+  }
+  // Drop a slower, older response that lands after a newer one.
+  const seq = ++_qrProfilePreviewSeq;
+  try {
+    const res = await fetch(`${API_BASE}/qr-profiles/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...body, name: body.name || '—', layout: 'card' })
+    });
+    if (seq !== _qrProfilePreviewSeq) return;
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showEmpty(data.error || t('qrp_preview_hint'));
+      return;
+    }
+    const blob = await res.blob();
+    if (seq !== _qrProfilePreviewSeq) return;
+    if (_qrProfilePreviewUrl) URL.revokeObjectURL(_qrProfilePreviewUrl);
+    _qrProfilePreviewUrl = URL.createObjectURL(blob);
+    img.src = _qrProfilePreviewUrl;
+    img.style.display = 'block';
+    empty.style.display = 'none';
+  } catch (err) {
+    if (seq === _qrProfilePreviewSeq) showEmpty(t('toast_server_connection_error'));
+  }
+}
+
+async function saveQrProfile(event) {
+  event.preventDefault();
+  const { body, logoMode } = readQrProfileForm();
+  if (logoMode === 'custom' && !_qrProfileForm.logo && !_qrProfileForm.storedLogo) {
+    showToast(t('toast_qrp_logo_missing'), 'error');
+    return;
+  }
+  const data = await postAndVerify(`${API_BASE}/qr-profiles/save`, body);
+  if (!data) return;
+  state.qrProfiles = state.qrProfiles || [];
+  const idx = state.qrProfiles.findIndex(q => q.id === data.profile.id);
+  if (idx >= 0) state.qrProfiles[idx] = data.profile;
+  else state.qrProfiles.push(data.profile);
+  closeModal('modal-qr-profile');
+  showToast(t(body.id ? 'toast_qrp_updated' : 'toast_qrp_added'), 'success');
+  renderCurrentView();
+}
+
+async function deleteQrProfileConfirm(profileId) {
+  const profile = qrProfileById(profileId);
+  if (!profile || !confirm(tFmt('confirm_delete_qr_profile', { name: profile.name }))) return;
+  // Blocked server-side while any house still uses it — postAndVerify
+  // shows that error and leaves the list untouched.
+  const data = await postAndVerify(`${API_BASE}/qr-profiles/delete`, { id: profileId });
+  if (!data) return;
+  state.qrProfiles = state.qrProfiles.filter(q => q.id !== profileId);
+  showToast(t('toast_qrp_deleted'), 'success');
+  renderCurrentView();
 }
 
 function openAddHouseModal() {
@@ -2990,7 +3450,7 @@ function openAddHouseModal() {
   document.getElementById('house-name').value = '';
   document.getElementById('house-address').value = '';
   document.getElementById('house-desc').value = '';
-  fillHouseBankFields(null);
+  fillHouseQrProfileSelect('');
   document.getElementById('modal-house-title').textContent = t('modal_add_house_title');
   document.getElementById('modal-add-house').classList.add('active');
 }
@@ -3005,7 +3465,7 @@ function openEditHouseModal(houseId) {
   document.getElementById('house-name').value = house.name || '';
   document.getElementById('house-address').value = house.address || '';
   document.getElementById('house-desc').value = house.description || '';
-  fillHouseBankFields(house.bankInfo);
+  fillHouseQrProfileSelect(house.qrProfileId);
   document.getElementById('modal-house-title').textContent = t('modal_edit_house_title');
   document.getElementById('modal-add-house').classList.add('active');
 }
@@ -3018,13 +3478,9 @@ async function saveHouse(event) {
   const address = document.getElementById('house-address').value.trim();
   const description = document.getElementById('house-desc').value.trim();
 
-  const bankInfo = {
-    bin: document.getElementById('house-bank-bin').value,
-    accountNo: document.getElementById('house-bank-account-no').value.trim(),
-    accountName: document.getElementById('house-bank-account-name').value.trim()
-  };
+  const qrProfileId = document.getElementById('house-qr-profile').value;
 
-  const hObj = { id: id || genId('house_'), name, address, description, bankInfo };
+  const hObj = { id: id || genId('house_'), name, address, description, qrProfileId };
 
   // Applied to local state only after the server actually confirms the
   // write (see postAndVerify) — a manager without 'houses':'edit' used to
@@ -3081,7 +3537,7 @@ function renderHousesManagement() {
                 <div style="min-width:0;">
                   <div style="font-weight:800; font-size:1rem;">${h.name}</div>
                   <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">${t('lbl_house_address_short')} ${h.address || '—'}</div>
-                  <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;"><i data-lucide="qr-code" style="width:12px; height:12px; vertical-align:-1px;"></i> ${houseHasTransferQr(h) ? `${escapeHtml(bankNameForBin(h.bankInfo.bin))} · ${escapeHtml(h.bankInfo.accountNo)}` : t('house_no_transfer_qr')}</div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;"><i data-lucide="qr-code" style="width:12px; height:12px; vertical-align:-1px;"></i> ${houseHasTransferQr(h) ? escapeHtml(qrProfileForHouse(h).name) : t('house_no_transfer_qr')}</div>
                 </div>
               </div>
               <span class="badge badge-resolved" style="font-size:0.7rem; flex-shrink:0;">${roomCount} ${t('rooms_unit_label')}</span>

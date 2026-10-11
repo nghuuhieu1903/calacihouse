@@ -7,7 +7,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, url_for, Response
 from .services import RentalService
 from .storage import Storage
-from .vietqr import build_payload, payload_to_svg, prepare_logo, is_valid_bank_info
+from .vietqr import build_payload, render_qr_svg, prepare_logo, is_valid_bank_info, bank_name, DEFAULT_ACCENT, DEFAULT_QR_COLOR
 from .auth import (
     login_required, roles_required, admin_required, superadmin_required, permission_required,
     validate_session, start_session, restamp_session_password
@@ -321,11 +321,57 @@ def save_house():
         data.get('name'),
         data.get('address'),
         data.get('description', ''),
-        data.get('bankInfo')
+        data.get('qrProfileId')
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
     return jsonify({'success': True, 'house': h_obj})
+
+def _qr_amount_arg():
+    try:
+        return max(0, float(request.args.get('amount') or 0))
+    except ValueError:
+        return 0
+
+
+def _qr_layout_arg():
+    return 'card' if request.args.get('layout') == 'card' else 'compact'
+
+
+def _render_transfer_qr(profile, house_name, amount, note, layout='compact'):
+    """SVG for one Mã QR. Logo: the Mã QR's own, else the site logo from
+    Thiết Lập Trang, else the bundled building icon (an uploaded logo PIL
+    can't read, e.g. an SVG, falls through to the next one too) — or none
+    at all when the Mã QR has showLogo off. Caption: the Mã QR's own text,
+    else "<site name> · <house name>"."""
+    settings = Storage.get_site_settings()
+    logo = None
+    if profile.get('showLogo', True):
+        for candidate in (profile.get('logo'), settings.get('logo')):
+            _, raw = _decode_data_uri(candidate)
+            logo = prepare_logo(raw)
+            if logo:
+                break
+        if not logo:
+            with open(os.path.join(rental_bp.static_folder, 'img', 'icon-192.png'), 'rb') as f:
+                logo = prepare_logo(f.read())
+    caption = profile.get('caption') or ' · '.join(x for x in (settings.get('siteName') or '', house_name or '') if x)
+    full_note = ' '.join(x for x in (profile.get('notePrefix') or '', note or '') if x)
+    bank = profile['bankInfo']
+    payload = build_payload(bank['bin'], bank['accountNo'], amount, full_note)
+    svg = render_qr_svg(
+        payload, logo, caption,
+        accent=profile.get('color') or DEFAULT_ACCENT,
+        dot_style=profile.get('dotStyle') or 'rounded',
+        qr_color=profile.get('qrColor') or DEFAULT_QR_COLOR,
+        layout=layout,
+        card={'bank_name': bank_name(bank['bin']), 'account_no': bank['accountNo'],
+              'account_name': bank.get('accountName', ''), 'amount': amount, 'note': full_note},
+    )
+    resp = Response(svg, mimetype='image/svg+xml')
+    resp.headers['Cache-Control'] = 'private, max-age=300'
+    return resp
+
 
 @rental_bp.route('/api/houses/<house_id>/transfer-qr.svg', methods=['GET'])
 @login_required
@@ -333,32 +379,78 @@ def house_transfer_qr(house_id):
     # Amount/note come from the client because a KTX occupant's own share
     # is worked out client-side (computeKtxPerPersonBreakdown) — the QR
     # only pre-fills the tenant's banking app, which still shows the
-    # amount and the house's account name for them to confirm, so a
-    # tampered amount here can't move money anywhere but this house's
-    # own configured account.
+    # amount and the account holder for them to confirm, so a tampered
+    # amount here can't move money anywhere but this house's own Mã QR
+    # account.
     house = next((h for h in Storage.get_houses() if h['id'] == house_id), None)
-    bank = (house or {}).get('bankInfo') or {}
-    if not is_valid_bank_info(bank):
-        return jsonify({'success': False, 'error': 'Tòa nhà chưa cấu hình tài khoản nhận chuyển khoản'}), 404
+    user = session.get('user') or {}
+    if house and user.get('role') == 'tenant':
+        # Same scoping as get_full_state(): only their own room's house.
+        room = next((r for r in Storage.get_rooms() if r['id'] == user.get('roomId')), None)
+        if not room or room.get('houseId') != house_id:
+            house = None
+    profile = Storage.get_qr_profile(house.get('qrProfileId')) if house and house.get('qrProfileId') else None
+    if not profile or not is_valid_bank_info(profile['bankInfo']):
+        return jsonify({'success': False, 'error': 'Tòa nhà chưa chọn mã QR chuyển khoản'}), 404
+    return _render_transfer_qr(profile, house['name'], _qr_amount_arg(), request.args.get('note', ''), _qr_layout_arg())
+
+
+@rental_bp.route('/api/qr-profiles/<profile_id>/transfer-qr.svg', methods=['GET'])
+@permission_required('houses', 'view')
+def qr_profile_transfer_qr(profile_id):
+    profile = Storage.get_qr_profile(profile_id)
+    if not profile or not is_valid_bank_info(profile['bankInfo']):
+        return jsonify({'success': False, 'error': 'Không tìm thấy mã QR'}), 404
+    return _render_transfer_qr(profile, profile['name'], _qr_amount_arg(), request.args.get('note', ''), _qr_layout_arg())
+
+
+@rental_bp.route('/api/qr-profiles/preview', methods=['POST'])
+@admin_required
+def qr_profile_preview():
+    # Live preview inside the add/edit form, before anything is saved.
+    data = request.json or {}
+    existing = Storage.get_qr_profile(data.get('id')) if data.get('id') else None
+    profile, error = RentalService.clean_qr_profile(data, existing)
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
+    if profile['logo'] is None:
+        profile['logo'] = (existing or {}).get('logo', '')
     try:
-        amount = max(0, float(request.args.get('amount') or 0))
-    except ValueError:
+        amount = max(0, float(data.get('previewAmount') or 0))
+    except (TypeError, ValueError):
         amount = 0
-    payload = build_payload(bank['bin'], bank['accountNo'], amount, request.args.get('note', ''))
-    # Branded with the same logo as Thiết Lập Trang (falling back to the
-    # app's bundled building icon, same as the PWA icons do) plus
-    # "<site name> · <house name>" underneath.
-    # An uploaded logo PIL can't read (e.g. an SVG) also falls back.
-    settings = Storage.get_site_settings()
-    _, logo_raw = _decode_data_uri(settings.get('logo'))
-    logo = prepare_logo(logo_raw)
-    if not logo:
-        with open(os.path.join(rental_bp.static_folder, 'img', 'icon-192.png'), 'rb') as f:
-            logo = prepare_logo(f.read())
-    caption = ' · '.join(x for x in (settings.get('siteName') or '', house.get('name') or '') if x)
-    resp = Response(payload_to_svg(payload, logo, caption), mimetype='image/svg+xml')
-    resp.headers['Cache-Control'] = 'private, max-age=300'
-    return resp
+    return _render_transfer_qr(profile, profile['name'], amount, data.get('previewNote', ''),
+                               'card' if data.get('layout') == 'card' else 'compact')
+
+
+@rental_bp.route('/api/qr-profiles/<profile_id>/full', methods=['GET'])
+@admin_required
+def qr_profile_full(profile_id):
+    profile = Storage.get_qr_profile(profile_id)
+    if not profile:
+        return jsonify({'success': False, 'error': 'Không tìm thấy mã QR'}), 404
+    return jsonify({'success': True, 'profile': profile})
+
+
+@rental_bp.route('/api/qr-profiles/save', methods=['POST'])
+@admin_required
+def save_qr_profile():
+    # admin-only (not the permission matrix): this decides which bank
+    # account tenants pay into. A manager allowed to edit houses can still
+    # only PICK one of these for a house, never type in an account.
+    profile, error = RentalService.save_qr_profile(request.json or {})
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
+    return jsonify({'success': True, 'profile': profile})
+
+
+@rental_bp.route('/api/qr-profiles/delete', methods=['POST'])
+@superadmin_required
+def delete_qr_profile():
+    success, error = RentalService.delete_qr_profile((request.json or {}).get('id'))
+    if not success:
+        return jsonify({'success': False, 'error': error}), 400
+    return jsonify({'success': True})
 
 @rental_bp.route('/api/houses/delete', methods=['POST'])
 @superadmin_required

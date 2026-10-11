@@ -1,5 +1,5 @@
 from .storage import Storage, LEGACY_TAX_RULES_2025
-from .vietqr import normalize_note, is_valid_bank_info
+from .vietqr import normalize_note, is_valid_bank_info, is_valid_color, is_scannable_qr_color, DOT_STYLES, VIETQR_BANKS
 from datetime import datetime, timedelta, date
 import calendar
 import math
@@ -714,6 +714,21 @@ class RentalService:
 
         safe_users = [{k: v for k, v in u.items() if k != 'password'} for u in users]
 
+        # Admin staff manage every Mã QR from the Tạo Mã QR menu; anyone
+        # else only needs the ones behind the houses they can already see
+        # (a tenant's own invoice QR card shows that account's details).
+        qr_profiles = Storage.get_qr_profiles()
+        if role not in ('superadmin', 'admin', 'manager'):
+            # `houses` itself isn't narrowed for a tenant (the house list is
+            # harmless), but other owners' bank accounts shouldn't ride
+            # along — a tenant only gets the Mã QR of their own room's house.
+            visible_houses = houses
+            if role == 'tenant':
+                tenant_house_ids = {r.get('houseId') for r in rooms}
+                visible_houses = [h for h in houses if h['id'] in tenant_house_ids]
+            used_ids = {h.get('qrProfileId') for h in visible_houses}
+            qr_profiles = [q for q in qr_profiles if q['id'] in used_ids]
+
         # Strip the embedded base64 photo out of every document/photo entry
         # before it goes out in the bulk payload — same idea as
         # get_tickets_light() for tickets. A room's contract scans/listing
@@ -755,6 +770,8 @@ class RentalService:
 
         return {
             'houses': houses,
+            'qrProfiles': qr_profiles,
+            'vietqrBanks': [{'bin': b, 'name': name} for b, name in VIETQR_BANKS],
             'users': safe_users,
             'rooms': rooms,
             'services': services,
@@ -775,38 +792,97 @@ class RentalService:
         }
 
     @staticmethod
-    def save_house(house_id, name, address, description, bank_info=None):
-        """Returns (house, error). bank_info=None means the caller's form
-        doesn't carry bank fields at all — keep whatever is saved."""
+    def save_house(house_id, name, address, description, qr_profile_id=None):
+        """Returns (house, error). qr_profile_id=None means the caller's
+        form doesn't carry it at all — keep whatever Mã QR is linked."""
         h_id = house_id or f"house_{uuid.uuid4().hex[:6]}"
         # This save comes from the basic name/address/description form,
         # which knows nothing about managerFee — carry the existing value
         # forward instead of silently resetting it to the 20%/percent
         # default on every unrelated house edit.
         existing = next((h for h in Storage.get_houses() if h['id'] == h_id), {})
-        if bank_info is None:
-            bank = existing.get('bankInfo') or {}
-        else:
-            bank = {
-                'bin': str(bank_info.get('bin') or '').strip(),
-                'accountNo': re.sub(r'\s+', '', str(bank_info.get('accountNo') or '')),
-                # Shown next to the QR so the tenant can check who they're
-                # paying before confirming — banks display it uppercase
-                # without accents, so store it the same way.
-                'accountName': normalize_note(bank_info.get('accountName') or ''),
-            }
-            # All-empty = "no QR for this house"; anything partially filled
-            # must be a usable account, or tenants would scan a QR that
-            # their bank app rejects.
-            if (bank['bin'] or bank['accountNo']) and not is_valid_bank_info(bank):
-                return None, 'Thông tin ngân hàng không hợp lệ: chọn ngân hàng và nhập số tài khoản (4-19 chữ số/chữ cái).'
+        if qr_profile_id is None:
+            qr_profile_id = existing.get('qrProfileId', '')
+        elif qr_profile_id and not any(q['id'] == qr_profile_id for q in Storage.get_qr_profiles()):
+            return None, 'Mã QR đã chọn không còn tồn tại — vui lòng chọn lại.'
         h_obj = {
             'id': h_id, 'name': name, 'address': address, 'description': description,
             'managerFee': existing.get('managerFee'),
-            'bankInfo': bank
+            'qrProfileId': qr_profile_id or ''
         }
         Storage.save_house(h_obj)
         return h_obj, None
+
+    # -- Mã QR ---------------------------------------------------------------
+
+    QR_LOGO_MAX_CHARS = 3 * 1024 * 1024  # data URL length; app.js caps logos at 2MB
+
+    @staticmethod
+    def clean_qr_profile(data, existing=None):
+        """Validates/normalizes a Mã QR from the add/edit form (also used by
+        the live preview). Returns (profile, error)."""
+        data = data or {}
+        bank_in = data.get('bankInfo') or {}
+        profile = {
+            'id': data.get('id') or (existing or {}).get('id') or f"qr_{uuid.uuid4().hex[:10]}",
+            'name': str(data.get('name') or '').strip()[:120],
+            'bankInfo': {
+                'bin': str(bank_in.get('bin') or '').strip(),
+                'accountNo': re.sub(r'\s+', '', str(bank_in.get('accountNo') or '')).upper(),
+                # Banks display the holder uppercase without accents; storing
+                # it the same way is what the tenant sees in their bank app.
+                'accountName': normalize_note(bank_in.get('accountName') or ''),
+            },
+            # Prepended to every transfer note made from this Mã QR, so the
+            # landlord can spot this account's payments in a bank statement.
+            'notePrefix': normalize_note(data.get('notePrefix') or '')[:20].strip(),
+            'caption': str(data.get('caption') or '').strip()[:80],
+            'color': str(data.get('color') or '').strip(),
+            'qrColor': str(data.get('qrColor') or '').strip(),
+            'dotStyle': data.get('dotStyle') if data.get('dotStyle') in DOT_STYLES else 'rounded',
+            'showLogo': bool(data.get('showLogo', True)),
+            'description': str(data.get('description') or '').strip()[:500],
+            'createdAt': (existing or {}).get('createdAt') or datetime.now().strftime('%Y-%m-%d %H:%M'),
+            # None = keep the stored logo; '' = remove it; data: URL = new one.
+            'logo': data.get('logo') if 'logo' in data else None,
+        }
+        if not profile['name']:
+            return None, 'Vui lòng nhập tên mã QR.'
+        if not is_valid_bank_info(profile['bankInfo']):
+            return None, 'Thông tin ngân hàng không hợp lệ: chọn ngân hàng và nhập số tài khoản (4-19 chữ số/chữ cái).'
+        if profile['color'] and not is_valid_color(profile['color']):
+            return None, 'Màu không hợp lệ.'
+        if profile['qrColor'] and not is_scannable_qr_color(profile['qrColor']):
+            return None, 'Màu mã QR quá nhạt — điện thoại sẽ khó quét. Vui lòng chọn màu đậm hơn.'
+        logo = profile['logo']
+        if logo is not None and logo != '':
+            if not isinstance(logo, str) or not re.match(r'^data:image/[a-z0-9.+-]+;base64,', logo):
+                return None, 'Logo phải là ảnh.'
+            if len(logo) > RentalService.QR_LOGO_MAX_CHARS:
+                return None, 'Logo quá lớn.'
+        return profile, None
+
+    @staticmethod
+    def save_qr_profile(data):
+        existing = Storage.get_qr_profile(data.get('id')) if data.get('id') else None
+        if data.get('id') and not existing:
+            return None, 'Không tìm thấy mã QR.'
+        profile, error = RentalService.clean_qr_profile(data, existing)
+        if error:
+            return None, error
+        Storage.save_qr_profile(profile)
+        saved = next((q for q in Storage.get_qr_profiles() if q['id'] == profile['id']), None)
+        return saved, None
+
+    @staticmethod
+    def delete_qr_profile(profile_id):
+        # Same reasoning as delete_house(): deleting it out from under the
+        # houses using it would silently drop the QR from their invoices.
+        in_use = [h['name'] for h in Storage.get_houses() if h.get('qrProfileId') == profile_id]
+        if in_use:
+            return False, f"Không thể xoá: mã QR này đang được dùng cho {', '.join(in_use)}. Vui lòng đổi mã QR cho các tòa nhà đó trước."
+        Storage.delete_qr_profile(profile_id)
+        return True, None
 
     @staticmethod
     def save_house_manager_fee(house_id, mode, value):

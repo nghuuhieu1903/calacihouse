@@ -318,12 +318,31 @@ def _house(row):
             'mode': row.get('manager_fee_mode') or 'percent',
             'value': row.get('manager_fee_value') if row.get('manager_fee_value') is not None else 20
         },
+        'qrProfileId': row.get('qr_profile_id') or ''
+    }
+
+def _qr_profile(row, include_logo=False):
+    profile = {
+        'id': row['id'],
+        'name': row['name'] or '',
         'bankInfo': {
             'bin': row.get('bank_bin') or '',
-            'accountNo': row.get('bank_account_no') or '',
-            'accountName': row.get('bank_account_name') or ''
-        }
+            'accountNo': row.get('account_no') or '',
+            'accountName': row.get('account_name') or ''
+        },
+        'notePrefix': row.get('note_prefix') or '',
+        'caption': row.get('caption') or '',
+        'color': row.get('color') or '',
+        'qrColor': row.get('qr_color') or '',
+        'dotStyle': row.get('dot_style') or '',
+        'showLogo': bool(row.get('show_logo')) if row.get('show_logo') is not None else True,
+        'hasLogo': bool(row.get('logo')),
+        'description': row.get('description') or '',
+        'createdAt': row.get('created_at') or ''
     }
+    if include_logo:
+        profile['logo'] = row.get('logo') or ''
+    return profile
 
 def _user(row):
     # house_ids is the source of truth for an investor's access (a list —
@@ -626,20 +645,19 @@ class Storage:
         try:
             with conn.cursor() as cur:
                 fee = h.get('managerFee') or {}
-                bank = h.get('bankInfo') or {}
                 cur.execute("SELECT COALESCE(MAX(sort_order), -1) AS m FROM houses")
                 next_order = cur.fetchone()['m'] + 1
                 cur.execute(
                     "INSERT INTO houses (id, name, address, description, manager_fee_mode, manager_fee_value, "
-                    "bank_bin, bank_account_no, bank_account_name, sort_order) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    "qr_profile_id, sort_order) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) "
                     "ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), description=VALUES(description), "
                     "manager_fee_mode=VALUES(manager_fee_mode), manager_fee_value=VALUES(manager_fee_value), "
-                    "bank_bin=VALUES(bank_bin), bank_account_no=VALUES(bank_account_no), bank_account_name=VALUES(bank_account_name)",
+                    "qr_profile_id=VALUES(qr_profile_id)",
                     (
                         h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''),
                         fee.get('mode', 'percent'), fee.get('value', 20),
-                        bank.get('bin', ''), bank.get('accountNo', ''), bank.get('accountName', ''), next_order
+                        h.get('qrProfileId', ''), next_order
                     )
                 )
             conn.commit()
@@ -665,6 +683,79 @@ class Storage:
             with conn.cursor() as cur:
                 for idx, hid in enumerate(house_ids):
                     cur.execute("UPDATE houses SET sort_order=%s WHERE id=%s", (idx, hid))
+            conn.commit()
+        finally:
+            conn.close()
+
+    # -- Mã QR (bank-transfer QR profiles, see vietqr.py) -------------------
+
+    @staticmethod
+    def get_qr_profiles():
+        """Without the logo itself (only hasLogo) — it rides along in the
+        bulk /api/data payload, and only the QR renderer and the edit form
+        ever need the image; both use get_qr_profile()."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, name, bank_bin, account_no, account_name, note_prefix, caption, color, qr_color, dot_style, show_logo, "
+                    "(logo IS NOT NULL AND logo != '') AS logo, description, created_at "
+                    "FROM qr_profiles ORDER BY sort_order ASC, created_at ASC"
+                )
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+        return [_qr_profile(r) for r in rows]
+
+    @staticmethod
+    def get_qr_profile(profile_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT * FROM qr_profiles WHERE id=%s", (profile_id,))
+                row = cur.fetchone()
+        finally:
+            conn.close()
+        return _qr_profile(row, include_logo=True) if row else None
+
+    @staticmethod
+    def save_qr_profile(p):
+        """Single-row upsert, same reasoning as save_house(). p['logo'] is
+        None when the edit form didn't touch the logo — the stored one is
+        left alone rather than overwritten with nothing."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT COALESCE(MAX(sort_order), -1) AS m FROM qr_profiles")
+                next_order = cur.fetchone()['m'] + 1
+                bank = p.get('bankInfo') or {}
+                columns = ['id', 'name', 'bank_bin', 'account_no', 'account_name', 'note_prefix', 'caption',
+                           'color', 'qr_color', 'dot_style', 'show_logo', 'description', 'sort_order', 'created_at']
+                values = [p['id'], p.get('name', ''), bank.get('bin', ''), bank.get('accountNo', ''),
+                          bank.get('accountName', ''), p.get('notePrefix', ''), p.get('caption', ''),
+                          p.get('color', ''), p.get('qrColor', ''), p.get('dotStyle', ''),
+                          1 if p.get('showLogo', True) else 0, p.get('description', ''),
+                          next_order, p.get('createdAt', '')]
+                if p.get('logo') is not None:
+                    columns.append('logo')
+                    values.append(p['logo'])
+                # sort_order/created_at are set on insert only.
+                updates = ', '.join(f"{c}=VALUES({c})" for c in columns if c not in ('id', 'sort_order', 'created_at'))
+                cur.execute(
+                    f"INSERT INTO qr_profiles ({', '.join(columns)}) VALUES ({', '.join(['%s'] * len(columns))}) "
+                    f"ON DUPLICATE KEY UPDATE {updates}",
+                    values
+                )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_qr_profile(profile_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM qr_profiles WHERE id=%s", (profile_id,))
             conn.commit()
         finally:
             conn.close()
