@@ -824,6 +824,11 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
   .invoice-proof-card {
     display: none !important;
   }
+  /* The transfer QR DOES print — a paper invoice handed to a tenant is
+     exactly where they'd scan it from — just never split across pages. */
+  .transfer-qr-card {
+    break-inside: avoid;
+  }
 
   /* Tenant's own invoice view keeps the grand total in its own separate
      boxed card below the items table (renderTenantInvoiceView) rather

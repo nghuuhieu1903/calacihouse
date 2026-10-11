@@ -429,6 +429,12 @@ def init_db():
             _ensure_column(cur, 'users', 'has_vehicle', "TINYINT(1) DEFAULT 0")
             _ensure_column(cur, 'investor_expenses', 'name', "TEXT")
             _ensure_column(cur, 'houses', 'sort_order', "INT DEFAULT 0")
+            # Per-house bank account for the VietQR transfer code shown
+            # on each invoice (see vietqr.py) — each building can collect
+            # into a different owner's account.
+            _ensure_column(cur, 'houses', 'bank_bin', "VARCHAR(16) DEFAULT ''")
+            _ensure_column(cur, 'houses', 'bank_account_no', "VARCHAR(64) DEFAULT ''")
+            _ensure_column(cur, 'houses', 'bank_account_name', "TEXT")
             _ensure_column(cur, 'rooms', 'sort_order', "INT DEFAULT 0")
             _ensure_column(cur, 'services', 'sort_order', "INT DEFAULT 0")
             # A "Theo đầu người" service used to always multiply by

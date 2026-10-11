@@ -7,6 +7,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, url_for, Response
 from .services import RentalService
 from .storage import Storage
+from .vietqr import build_payload, payload_to_svg, prepare_logo, is_valid_bank_info
 from .auth import (
     login_required, roles_required, admin_required, superadmin_required, permission_required,
     validate_session, start_session, restamp_session_password
@@ -315,13 +316,49 @@ def change_own_password():
 @permission_required('houses', lambda body: 'edit' if body.get('id') else 'create')
 def save_house():
     data = request.json or {}
-    h_obj = RentalService.save_house(
+    h_obj, error = RentalService.save_house(
         data.get('id'),
         data.get('name'),
         data.get('address'),
-        data.get('description', '')
+        data.get('description', ''),
+        data.get('bankInfo')
     )
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
     return jsonify({'success': True, 'house': h_obj})
+
+@rental_bp.route('/api/houses/<house_id>/transfer-qr.svg', methods=['GET'])
+@login_required
+def house_transfer_qr(house_id):
+    # Amount/note come from the client because a KTX occupant's own share
+    # is worked out client-side (computeKtxPerPersonBreakdown) — the QR
+    # only pre-fills the tenant's banking app, which still shows the
+    # amount and the house's account name for them to confirm, so a
+    # tampered amount here can't move money anywhere but this house's
+    # own configured account.
+    house = next((h for h in Storage.get_houses() if h['id'] == house_id), None)
+    bank = (house or {}).get('bankInfo') or {}
+    if not is_valid_bank_info(bank):
+        return jsonify({'success': False, 'error': 'Tòa nhà chưa cấu hình tài khoản nhận chuyển khoản'}), 404
+    try:
+        amount = max(0, float(request.args.get('amount') or 0))
+    except ValueError:
+        amount = 0
+    payload = build_payload(bank['bin'], bank['accountNo'], amount, request.args.get('note', ''))
+    # Branded with the same logo as Thiết Lập Trang (falling back to the
+    # app's bundled building icon, same as the PWA icons do) plus
+    # "<site name> · <house name>" underneath.
+    # An uploaded logo PIL can't read (e.g. an SVG) also falls back.
+    settings = Storage.get_site_settings()
+    _, logo_raw = _decode_data_uri(settings.get('logo'))
+    logo = prepare_logo(logo_raw)
+    if not logo:
+        with open(os.path.join(rental_bp.static_folder, 'img', 'icon-192.png'), 'rb') as f:
+            logo = prepare_logo(f.read())
+    caption = ' · '.join(x for x in (settings.get('siteName') or '', house.get('name') or '') if x)
+    resp = Response(payload_to_svg(payload, logo, caption), mimetype='image/svg+xml')
+    resp.headers['Cache-Control'] = 'private, max-age=300'
+    return resp
 
 @rental_bp.route('/api/houses/delete', methods=['POST'])
 @superadmin_required

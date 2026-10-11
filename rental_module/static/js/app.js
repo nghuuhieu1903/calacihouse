@@ -634,6 +634,18 @@ const I18N = {
     lbl_address: 'Địa chỉ',
     lbl_description_note: 'Ghi chú mô tả',
     btn_save_house: 'Lưu Tòa Nhà',
+    lbl_house_bank_section: 'QR Chuyển Khoản Của Tòa Nhà',
+    hint_house_bank_section: 'Khách thuê sẽ thấy mã QR chuyển vào tài khoản này trên hóa đơn của mình, có sẵn số tiền và nội dung. Để trống nếu không dùng.',
+    lbl_bank: 'Ngân hàng',
+    lbl_bank_account_no: 'Số tài khoản',
+    lbl_bank_account_name: 'Chủ tài khoản',
+    opt_no_bank: '— Không dùng QR —',
+    house_no_transfer_qr: 'Chưa cấu hình QR chuyển khoản',
+    lbl_transfer_qr: 'Quét Mã QR Để Chuyển Khoản',
+    hint_transfer_qr: 'Mở app ngân hàng bất kỳ, quét mã — số tiền và nội dung đã điền sẵn. Chuyển xong nhớ gửi ảnh minh chứng bên dưới.',
+    hint_transfer_qr_admin: 'Có thể chụp lại mã này gửi cho khách — số tiền và nội dung đã điền sẵn.',
+    lbl_transfer_amount: 'Số tiền',
+    lbl_transfer_note: 'Nội dung',
     modal_service_config_title: 'Cấu Hình Dịch Vụ & Biểu Tượng Icon',
     lbl_choose_icon: 'Chọn Biểu Tượng Icon Cho Dịch Vụ',
     lbl_apply_scope: 'Áp dụng cho Tòa Nhà & Phòng Chỉ Định (Tích chọn Tòa nhà hoặc mở rộng chọn Phòng riêng)',
@@ -1355,6 +1367,18 @@ const I18N = {
     lbl_address: 'Address',
     lbl_description_note: 'Description note',
     btn_save_house: 'Save House',
+    lbl_house_bank_section: 'Building Transfer QR',
+    hint_house_bank_section: 'Tenants will see a QR code for this account on their invoice, with the amount and note filled in. Leave blank to disable.',
+    lbl_bank: 'Bank',
+    lbl_bank_account_no: 'Account number',
+    lbl_bank_account_name: 'Account holder',
+    opt_no_bank: '— No QR —',
+    house_no_transfer_qr: 'No transfer QR set up',
+    lbl_transfer_qr: 'Scan To Pay By Bank Transfer',
+    hint_transfer_qr: 'Open any banking app and scan — the amount and note are pre-filled. Afterwards, attach a proof photo below.',
+    hint_transfer_qr_admin: 'You can screenshot this code and send it to the tenant — the amount and note are pre-filled.',
+    lbl_transfer_amount: 'Amount',
+    lbl_transfer_note: 'Note',
     modal_service_config_title: 'Service & Icon Configuration',
     lbl_choose_icon: 'Choose an Icon for the Service',
     lbl_apply_scope: 'Apply to Specific Houses & Rooms (select a house or expand to select individual rooms)',
@@ -2860,11 +2884,113 @@ async function deleteCustomIcon() {
   showToast(t('toast_icon_deleted'), 'success');
 }
 
+/* =====================================================================
+   VIETQR — each house collects into its own bank account. The QR itself
+   is built server-side (vietqr.py, /api/houses/<id>/transfer-qr.svg);
+   this side only picks the bank and supplies each invoice's amount/note.
+   BIN = the bank's NAPAS id, what VietQR actually routes on.
+===================================================================== */
+const VIETQR_BANKS = [
+  { bin: '970436', name: 'Vietcombank' },
+  { bin: '970415', name: 'VietinBank' },
+  { bin: '970418', name: 'BIDV' },
+  { bin: '970405', name: 'Agribank' },
+  { bin: '970407', name: 'Techcombank' },
+  { bin: '970422', name: 'MB Bank' },
+  { bin: '970416', name: 'ACB' },
+  { bin: '970432', name: 'VPBank' },
+  { bin: '970423', name: 'TPBank' },
+  { bin: '970403', name: 'Sacombank' },
+  { bin: '970437', name: 'HDBank' },
+  { bin: '970441', name: 'VIB' },
+  { bin: '970443', name: 'SHB' },
+  { bin: '970431', name: 'Eximbank' },
+  { bin: '970426', name: 'MSB' },
+  { bin: '970448', name: 'OCB' },
+  { bin: '970440', name: 'SeABank' },
+  { bin: '970449', name: 'LPBank' },
+  { bin: '970428', name: 'Nam A Bank' },
+  { bin: '970409', name: 'Bac A Bank' },
+  { bin: '970425', name: 'ABBANK' },
+  { bin: '970452', name: 'KienlongBank' },
+  { bin: '970427', name: 'VietABank' },
+  { bin: '970412', name: 'PVcomBank' },
+  { bin: '970438', name: 'BaoViet Bank' },
+  { bin: '970419', name: 'NCB' },
+  { bin: '970400', name: 'Saigonbank' },
+  { bin: '970430', name: 'PGBank' },
+  { bin: '970433', name: 'VietBank' },
+  { bin: '970424', name: 'Shinhan Bank' },
+  { bin: '970457', name: 'Woori Bank' },
+  { bin: '546034', name: 'CAKE by VPBank' },
+  { bin: '546035', name: 'Ubank by VPBank' },
+];
+
+// Same as escapeTaxText() — account name/number and the transfer note
+// are free text typed by an admin or derived from a room name.
+function escapeHtml(str) {
+  return escapeTaxText(str);
+}
+
+function bankNameForBin(bin) {
+  const bank = VIETQR_BANKS.find(b => b.bin === bin);
+  return bank ? bank.name : bin;
+}
+
+function houseHasTransferQr(house) {
+  const bank = house && house.bankInfo;
+  return !!(bank && bank.bin && bank.accountNo);
+}
+
+function fillHouseBankFields(bankInfo) {
+  const bank = bankInfo || {};
+  const select = document.getElementById('house-bank-bin');
+  // A BIN saved before it was in VIETQR_BANKS still gets an option so
+  // opening the form doesn't silently blank it out.
+  const banks = (bank.bin && !VIETQR_BANKS.some(b => b.bin === bank.bin))
+    ? [...VIETQR_BANKS, { bin: bank.bin, name: bank.bin }]
+    : VIETQR_BANKS;
+  select.innerHTML = `<option value="">${t('opt_no_bank')}</option>` +
+    banks.map(b => `<option value="${b.bin}">${b.name}</option>`).join('');
+  select.value = bank.bin || '';
+  document.getElementById('house-bank-account-no').value = bank.accountNo || '';
+  document.getElementById('house-bank-account-name').value = bank.accountName || '';
+}
+
+// Bank-app transfer note — ASCII only (the server strips accents again
+// anyway); KTX occupants share one room/invoice, so their own name is
+// what tells the landlord whose payment it is.
+function transferNoteFor(invoice, payerName) {
+  const [year, month] = (invoice.month || '').split('-');
+  return [invoice.roomName, `T${month}${(year || '').slice(-2)}`, payerName || ''].join(' ').trim();
+}
+
+function transferQrCardHtml(house, amount, note, captionKey) {
+  if (!houseHasTransferQr(house)) return '';
+  const bank = house.bankInfo;
+  const src = `${API_BASE}/houses/${encodeURIComponent(house.id)}/transfer-qr.svg?amount=${Math.max(0, Math.round(amount || 0))}&note=${encodeURIComponent(note || '')}`;
+  return `
+    <div class="cala-card transfer-qr-card" style="margin-top:1.5rem; display:flex; gap:1.25rem; align-items:center; flex-wrap:wrap;">
+      <img src="${src}" alt="VietQR" style="width:220px; max-width:100%; height:auto; border:1px solid #e5e9f0; border-radius:10px; background:#fff; flex-shrink:0;">
+      <div style="flex:1; min-width:200px; font-size:0.9rem;">
+        <h4 style="margin-bottom:0.35rem; color:var(--cala-blue);"><i data-lucide="qr-code" style="vertical-align:middle;"></i> ${t('lbl_transfer_qr')}</h4>
+        <p style="font-size:0.8rem; color:var(--text-secondary); margin:0 0 0.75rem;">${t(captionKey || 'hint_transfer_qr')}</p>
+        <div>${t('lbl_bank')}: <strong>${escapeHtml(bankNameForBin(bank.bin))}</strong></div>
+        <div>${t('lbl_bank_account_no')}: <strong>${escapeHtml(bank.accountNo)}</strong></div>
+        ${bank.accountName ? `<div>${t('lbl_bank_account_name')}: <strong>${escapeHtml(bank.accountName)}</strong></div>` : ''}
+        <div>${t('lbl_transfer_amount')}: <strong style="color:#ff5e1f;">${formatMoney(Math.round(amount || 0))} đ</strong></div>
+        <div>${t('lbl_transfer_note')}: <strong>${escapeHtml(note)}</strong></div>
+      </div>
+    </div>
+  `;
+}
+
 function openAddHouseModal() {
   document.getElementById('house-id').value = '';
   document.getElementById('house-name').value = '';
   document.getElementById('house-address').value = '';
   document.getElementById('house-desc').value = '';
+  fillHouseBankFields(null);
   document.getElementById('modal-house-title').textContent = t('modal_add_house_title');
   document.getElementById('modal-add-house').classList.add('active');
 }
@@ -2879,6 +3005,7 @@ function openEditHouseModal(houseId) {
   document.getElementById('house-name').value = house.name || '';
   document.getElementById('house-address').value = house.address || '';
   document.getElementById('house-desc').value = house.description || '';
+  fillHouseBankFields(house.bankInfo);
   document.getElementById('modal-house-title').textContent = t('modal_edit_house_title');
   document.getElementById('modal-add-house').classList.add('active');
 }
@@ -2891,7 +3018,13 @@ async function saveHouse(event) {
   const address = document.getElementById('house-address').value.trim();
   const description = document.getElementById('house-desc').value.trim();
 
-  const hObj = { id: id || genId('house_'), name, address, description };
+  const bankInfo = {
+    bin: document.getElementById('house-bank-bin').value,
+    accountNo: document.getElementById('house-bank-account-no').value.trim(),
+    accountName: document.getElementById('house-bank-account-name').value.trim()
+  };
+
+  const hObj = { id: id || genId('house_'), name, address, description, bankInfo };
 
   // Applied to local state only after the server actually confirms the
   // write (see postAndVerify) — a manager without 'houses':'edit' used to
@@ -2900,9 +3033,12 @@ async function saveHouse(event) {
   const data = await postAndVerify(`${API_BASE}/houses/save`, hObj);
   if (!data) return;
 
-  const idx = state.houses.findIndex(h => h.id === hObj.id);
-  if (idx >= 0) state.houses[idx] = hObj;
-  else state.houses.push(hObj);
+  // The server's copy, not hObj — it carries managerFee (not part of this
+  // form) and the bank fields as actually stored (spaces/accents stripped).
+  const saved = data.house || hObj;
+  const idx = state.houses.findIndex(h => h.id === saved.id);
+  if (idx >= 0) state.houses[idx] = saved;
+  else state.houses.push(saved);
 
   state.currentHouseId = hObj.id;
 
@@ -2945,6 +3081,7 @@ function renderHousesManagement() {
                 <div style="min-width:0;">
                   <div style="font-weight:800; font-size:1rem;">${h.name}</div>
                   <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">${t('lbl_house_address_short')} ${h.address || '—'}</div>
+                  <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;"><i data-lucide="qr-code" style="width:12px; height:12px; vertical-align:-1px;"></i> ${houseHasTransferQr(h) ? `${escapeHtml(bankNameForBin(h.bankInfo.bin))} · ${escapeHtml(h.bankInfo.accountNo)}` : t('house_no_transfer_qr')}</div>
                 </div>
               </div>
               <span class="badge badge-resolved" style="font-size:0.7rem; flex-shrink:0;">${roomCount} ${t('rooms_unit_label')}</span>
@@ -6149,6 +6286,8 @@ function renderTenantInvoiceView() {
         <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f;">${formatMoney(personalTotal)} VNĐ</div>
       </div>
 
+      ${invoice.status !== 'Đã thanh toán' ? transferQrCardHtml(house, personalTotal, transferNoteFor(invoice, isDorm ? user.fullName : '')) : ''}
+
       <div class="cala-card invoice-proof-card" style="margin-top:1.5rem;">
         <h4 style="margin-bottom:0.5rem; color:var(--cala-blue);"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
         <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.75rem;">${t('hint_payment_proof')}</p>
@@ -6431,6 +6570,11 @@ function viewInvoiceDetail(invoiceId) {
       </table>
       ${elecHistoryHtml}
       ${perPersonBreakdownHtml(perPersonBreakdown, inv.id)}
+      ${/* A KTX room's total isn't what any one occupant pays — each sees
+           a QR for their own share on their own invoice view instead. */
+        (inv.status !== 'Đã thanh toán' && !(room && room.roomType === 'dorm'))
+          ? transferQrCardHtml(state.houses.find(h => h.id === (room ? room.houseId : '')), inv.totalAmount, transferNoteFor(inv), 'hint_transfer_qr_admin')
+          : ''}
       ${paymentProofBlockHtml}
     </div>
   `;

@@ -317,6 +317,11 @@ def _house(row):
         'managerFee': {
             'mode': row.get('manager_fee_mode') or 'percent',
             'value': row.get('manager_fee_value') if row.get('manager_fee_value') is not None else 20
+        },
+        'bankInfo': {
+            'bin': row.get('bank_bin') or '',
+            'accountNo': row.get('bank_account_no') or '',
+            'accountName': row.get('bank_account_name') or ''
         }
     }
 
@@ -621,16 +626,20 @@ class Storage:
         try:
             with conn.cursor() as cur:
                 fee = h.get('managerFee') or {}
+                bank = h.get('bankInfo') or {}
                 cur.execute("SELECT COALESCE(MAX(sort_order), -1) AS m FROM houses")
                 next_order = cur.fetchone()['m'] + 1
                 cur.execute(
-                    "INSERT INTO houses (id, name, address, description, manager_fee_mode, manager_fee_value, sort_order) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s) "
+                    "INSERT INTO houses (id, name, address, description, manager_fee_mode, manager_fee_value, "
+                    "bank_bin, bank_account_no, bank_account_name, sort_order) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                     "ON DUPLICATE KEY UPDATE name=VALUES(name), address=VALUES(address), description=VALUES(description), "
-                    "manager_fee_mode=VALUES(manager_fee_mode), manager_fee_value=VALUES(manager_fee_value)",
+                    "manager_fee_mode=VALUES(manager_fee_mode), manager_fee_value=VALUES(manager_fee_value), "
+                    "bank_bin=VALUES(bank_bin), bank_account_no=VALUES(bank_account_no), bank_account_name=VALUES(bank_account_name)",
                     (
                         h['id'], h.get('name', ''), h.get('address', ''), h.get('description', ''),
-                        fee.get('mode', 'percent'), fee.get('value', 20), next_order
+                        fee.get('mode', 'percent'), fee.get('value', 20),
+                        bank.get('bin', ''), bank.get('accountNo', ''), bank.get('accountName', ''), next_order
                     )
                 )
             conn.commit()

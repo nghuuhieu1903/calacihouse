@@ -1364,6 +1364,25 @@
           <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_description_note">Ghi chú mô tả</label>
           <input type="text" id="house-desc" class="form-control" placeholder="VD: Tòa 6 tầng, 15 phòng trọ cao cấp">
         </div>
+        <!-- Tài khoản nhận tiền của riêng tòa này — mã VietQR trên mỗi hóa
+             đơn được sinh từ đây (kèm sẵn số tiền + nội dung). Để trống
+             cả 3 ô = tòa này không hiện QR. -->
+        <div style="margin-bottom: 1.5rem; padding: 0.9rem 1rem; border: 1px dashed var(--border-color); border-radius: 10px;">
+          <div style="font-size: 0.9rem; font-weight: 800; margin-bottom: 0.25rem;"><i data-lucide="qr-code" style="width:16px; height:16px; vertical-align:middle; color: var(--cala-blue);"></i> <span data-i18n="lbl_house_bank_section">QR Chuyển Khoản Của Tòa Nhà</span></div>
+          <p style="font-size: 0.78rem; color: var(--text-secondary); margin: 0 0 0.75rem;" data-i18n="hint_house_bank_section">Khách thuê sẽ thấy mã QR chuyển vào tài khoản này trên hóa đơn của mình, có sẵn số tiền và nội dung. Để trống nếu không dùng.</p>
+          <div style="margin-bottom: 0.75rem;">
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_bank">Ngân hàng</label>
+            <select id="house-bank-bin" class="form-control"></select>
+          </div>
+          <div style="margin-bottom: 0.75rem;">
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_bank_account_no">Số tài khoản</label>
+            <input type="text" id="house-bank-account-no" class="form-control" inputmode="numeric" autocomplete="off" placeholder="VD: 0123456789">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_bank_account_name">Tên chủ tài khoản</label>
+            <input type="text" id="house-bank-account-name" class="form-control" autocomplete="off" placeholder="VD: NGUYEN VAN A">
+          </div>
+        </div>
         <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('modal-add-house')" data-i18n="btn_cancel">Hủy</button>
           <button type="submit" class="btn btn-orange" data-i18n="btn_save_house">Lưu Tòa Nhà</button>

@@ -1,4 +1,5 @@
 from .storage import Storage, LEGACY_TAX_RULES_2025
+from .vietqr import normalize_note, is_valid_bank_info
 from datetime import datetime, timedelta, date
 import calendar
 import math
@@ -774,19 +775,38 @@ class RentalService:
         }
 
     @staticmethod
-    def save_house(house_id, name, address, description):
+    def save_house(house_id, name, address, description, bank_info=None):
+        """Returns (house, error). bank_info=None means the caller's form
+        doesn't carry bank fields at all — keep whatever is saved."""
         h_id = house_id or f"house_{uuid.uuid4().hex[:6]}"
         # This save comes from the basic name/address/description form,
         # which knows nothing about managerFee — carry the existing value
         # forward instead of silently resetting it to the 20%/percent
         # default on every unrelated house edit.
         existing = next((h for h in Storage.get_houses() if h['id'] == h_id), {})
+        if bank_info is None:
+            bank = existing.get('bankInfo') or {}
+        else:
+            bank = {
+                'bin': str(bank_info.get('bin') or '').strip(),
+                'accountNo': re.sub(r'\s+', '', str(bank_info.get('accountNo') or '')),
+                # Shown next to the QR so the tenant can check who they're
+                # paying before confirming — banks display it uppercase
+                # without accents, so store it the same way.
+                'accountName': normalize_note(bank_info.get('accountName') or ''),
+            }
+            # All-empty = "no QR for this house"; anything partially filled
+            # must be a usable account, or tenants would scan a QR that
+            # their bank app rejects.
+            if (bank['bin'] or bank['accountNo']) and not is_valid_bank_info(bank):
+                return None, 'Thông tin ngân hàng không hợp lệ: chọn ngân hàng và nhập số tài khoản (4-19 chữ số/chữ cái).'
         h_obj = {
             'id': h_id, 'name': name, 'address': address, 'description': description,
-            'managerFee': existing.get('managerFee')
+            'managerFee': existing.get('managerFee'),
+            'bankInfo': bank
         }
         Storage.save_house(h_obj)
-        return h_obj
+        return h_obj, None
 
     @staticmethod
     def save_house_manager_fee(house_id, mode, value):
