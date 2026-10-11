@@ -496,6 +496,9 @@ def init_db():
             # before this existed.
             _ensure_column(cur, 'houses', 'qr_profile_id', "VARCHAR(191) DEFAULT ''")
             _ensure_column(cur, 'qr_profiles', 'qr_color', "VARCHAR(16) DEFAULT ''")
+            # Each building's own logo for the centre of its transfer QR
+            # (wins over the Mã QR's / site logo — see _render_transfer_qr).
+            _ensure_column(cur, 'houses', 'logo', "LONGTEXT")
             _ensure_column(cur, 'qr_profiles', 'dot_style', "VARCHAR(16) DEFAULT ''")
             _ensure_column(cur, 'rooms', 'sort_order', "INT DEFAULT 0")
             _ensure_column(cur, 'services', 'sort_order', "INT DEFAULT 0")

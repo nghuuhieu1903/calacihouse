@@ -635,6 +635,18 @@ const I18N = {
     lbl_description_note: 'Ghi chú mô tả',
     btn_save_house: 'Lưu Tòa Nhà',
     nav_qr: 'Tạo Mã QR',
+    qr_house_logos_title: 'Logo Từng Tòa Nhà',
+    qr_house_logos_desc: 'Logo đặt giữa mã QR trên hóa đơn của tòa đó — ưu tiên hơn logo của mã QR. Để trống thì dùng logo của mã QR.',
+    btn_house_logo_upload: 'Tải logo lên',
+    btn_house_logo_change: 'Đổi logo',
+    btn_house_logo_remove: 'Xoá logo',
+    confirm_remove_house_logo: 'Xoá logo của tòa nhà này? Mã QR sẽ quay về dùng logo của mã QR.',
+    toast_house_logo_saved: 'Đã lưu logo tòa nhà!',
+    toast_house_logo_removed: 'Đã xoá logo tòa nhà.',
+    lbl_qr_gen_house: 'Tòa nhà (logo & dòng chữ)',
+    opt_qr_gen_no_house: '— Theo mã QR —',
+    qr_gen_house_no_logo_suffix: '(chưa có logo)',
+    hint_qrp_house_logo: 'Tòa nhà nào có logo riêng (mục "Logo Từng Tòa Nhà") sẽ dùng logo của tòa đó thay cho lựa chọn này.',
     house_no_transfer_qr: 'Chưa chọn mã QR chuyển khoản',
     lbl_house_qr_profile: 'Mã QR chuyển khoản',
     hint_house_qr_profile: 'Khách thuê thấy mã này trên hóa đơn của mình. Thêm/sửa mã QR ở menu "Tạo Mã QR".',
@@ -1419,6 +1431,18 @@ const I18N = {
     lbl_description_note: 'Description note',
     btn_save_house: 'Save House',
     nav_qr: 'QR Codes',
+    qr_house_logos_title: 'Building Logos',
+    qr_house_logos_desc: 'Shown in the centre of the QR on that building\'s invoices — takes priority over the QR code\'s own logo. Leave empty to use the QR code\'s logo.',
+    btn_house_logo_upload: 'Upload logo',
+    btn_house_logo_change: 'Change logo',
+    btn_house_logo_remove: 'Remove logo',
+    confirm_remove_house_logo: 'Remove this building\'s logo? Its QR will fall back to the QR code\'s own logo.',
+    toast_house_logo_saved: 'Building logo saved!',
+    toast_house_logo_removed: 'Building logo removed.',
+    lbl_qr_gen_house: 'Building (logo & caption)',
+    opt_qr_gen_no_house: '— Follow the QR code —',
+    qr_gen_house_no_logo_suffix: '(no logo)',
+    hint_qrp_house_logo: 'A building with its own logo (see "Building Logos") uses that instead of this setting.',
     house_no_transfer_qr: 'No transfer QR selected',
     lbl_house_qr_profile: 'Transfer QR code',
     hint_house_qr_profile: 'Tenants see this code on their invoice. Add/edit QR codes from the "QR Codes" menu.',
@@ -3063,14 +3087,23 @@ function fullTransferNote(profile, note) {
 }
 
 function houseQrUrl(houseId, amount, note) {
-  return `${API_BASE}/houses/${encodeURIComponent(houseId)}/transfer-qr.svg?amount=${Math.max(0, Math.round(amount || 0))}&note=${encodeURIComponent(note || '')}`;
+  return `${API_BASE}/houses/${encodeURIComponent(houseId)}/transfer-qr.svg?amount=${Math.max(0, Math.round(amount || 0))}&note=${encodeURIComponent(note || '')}&v=${houseLogoVersion(houseId)}`;
 }
 
 // layout 'card' = the self-contained payment card (brand header, bank,
 // account, amount) — for downloads and the Tạo Mã QR page; the default
 // compact one is just the code + caption, for inside an invoice.
-function qrProfileQrUrl(profileId, amount, note, layout) {
-  return `${API_BASE}/qr-profiles/${encodeURIComponent(profileId)}/transfer-qr.svg?amount=${Math.max(0, Math.round(amount || 0))}&note=${encodeURIComponent(note || '')}${layout ? `&layout=${layout}` : ''}`;
+// houseId brands it as that building (its logo + name) — see
+// qr_profile_transfer_qr in routes.py.
+function qrProfileQrUrl(profileId, amount, note, layout, houseId) {
+  return `${API_BASE}/qr-profiles/${encodeURIComponent(profileId)}/transfer-qr.svg?amount=${Math.max(0, Math.round(amount || 0))}&note=${encodeURIComponent(note || '')}${layout ? `&layout=${layout}` : ''}${houseId ? `&house=${encodeURIComponent(houseId)}&v=${houseLogoVersion(houseId)}` : ''}`;
+}
+
+// Bumped after each logo upload/removal so <img> URLs change and the
+// browser doesn't keep showing a cached old logo (or QR with it).
+const _houseLogoVersions = {};
+function houseLogoVersion(houseId) {
+  return _houseLogoVersions[houseId] || 0;
 }
 
 function qrBankDetailsHtml(profile) {
@@ -3104,6 +3137,13 @@ function transferQrCardHtml(house, amount, note, captionKey) {
 function renderQrProfilesView() {
   document.getElementById('btn-add-qr-profile').style.display = canManageQrProfiles() ? '' : 'none';
   renderQrProfilesGrid();
+  renderHouseLogosGrid();
+
+  const houseSelect = document.getElementById('qr-gen-house');
+  const previousHouse = houseSelect.value;
+  houseSelect.innerHTML = `<option value="">${t('opt_qr_gen_no_house')}</option>` +
+    state.houses.map(h => `<option value="${h.id}">${escapeHtml(h.name)}${h.hasLogo ? '' : ` ${t('qr_gen_house_no_logo_suffix')}`}</option>`).join('');
+  if (state.houses.some(h => h.id === previousHouse)) houseSelect.value = previousHouse;
 
   const profiles = (state.qrProfiles || []).filter(qrProfileHasBank);
   const select = document.getElementById('qr-gen-profile');
@@ -3166,8 +3206,89 @@ function renderQrProfilesGrid() {
   renderIcons(container);
 }
 
+function renderHouseLogosGrid() {
+  const container = document.getElementById('qr-house-logos-container');
+  if (!state.houses.length) {
+    container.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('houses_empty_state')}</div>`;
+    return;
+  }
+  const canEdit = hasPermission(state.currentUser.role, 'houses', 'edit');
+  container.innerHTML = `
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:0.85rem;">
+      ${state.houses.map(h => {
+        const profile = qrProfileForHouse(h);
+        return `
+          <div class="cala-card" style="padding:0.9rem 1rem; display:flex; gap:0.85rem; align-items:center;">
+            <div style="width:64px; height:64px; flex-shrink:0; border:1px ${h.hasLogo ? 'solid' : 'dashed'} var(--border-color); border-radius:14px; background:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+              ${h.hasLogo
+                ? `<img src="${API_BASE}/houses/${encodeURIComponent(h.id)}/logo-image?v=${houseLogoVersion(h.id)}" alt="" style="width:100%; height:100%; object-fit:contain;">`
+                : `<i data-lucide="image-plus" style="width:24px; height:24px; color:var(--text-secondary); opacity:0.6;"></i>`}
+            </div>
+            <div style="min-width:0; flex:1;">
+              <div style="font-weight:800; font-size:0.92rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(h.name)}</div>
+              <div style="font-size:0.76rem; color:var(--text-secondary); margin:2px 0 0.45rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                <i data-lucide="qr-code" style="width:11px; height:11px; vertical-align:-1px;"></i> ${profile ? escapeHtml(profile.name) : t('house_no_transfer_qr')}
+              </div>
+              ${canEdit ? `
+                <div style="display:flex; gap:0.4rem;">
+                  <button type="button" class="btn btn-blue btn-sm" style="padding:3px 8px;" onclick="pickHouseLogo('${h.id}')">
+                    <i data-lucide="upload" style="width:13px; height:13px;"></i> ${t(h.hasLogo ? 'btn_house_logo_change' : 'btn_house_logo_upload')}
+                  </button>
+                  ${h.hasLogo ? `<button type="button" class="btn btn-secondary btn-sm" style="padding:3px 8px; color:var(--color-danger);" title="${t('btn_house_logo_remove')}" onclick="removeHouseLogo('${h.id}')">
+                    <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
+                  </button>` : ''}
+                </div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+  renderIcons(container);
+}
+
+let _houseLogoTargetId = null;
+function pickHouseLogo(houseId) {
+  _houseLogoTargetId = houseId;
+  const input = document.getElementById('qr-house-logo-file');
+  input.value = '';
+  input.click();
+}
+
+async function handleHouseLogoSelect(input) {
+  const file = input.files && input.files[0];
+  const houseId = _houseLogoTargetId;
+  if (!file || !houseId) return;
+  let logo;
+  try {
+    logo = await compressLogoImage(file);
+  } catch (err) {
+    showToast(t(err && err.message === 'too-large' ? 'toast_qrp_logo_too_large' : 'toast_qrp_logo_invalid'), 'error');
+    return;
+  }
+  await saveHouseLogo(houseId, logo);
+}
+
+async function removeHouseLogo(houseId) {
+  if (!confirm(t('confirm_remove_house_logo'))) return;
+  await saveHouseLogo(houseId, '');
+}
+
+async function saveHouseLogo(houseId, logo) {
+  const data = await postAndVerify(`${API_BASE}/houses/logo/save`, { houseId, logo });
+  if (!data) return;
+  const house = state.houses.find(h => h.id === houseId);
+  if (house) house.hasLogo = data.hasLogo;
+  _houseLogoVersions[houseId] = Date.now();
+  showToast(t(logo ? 'toast_house_logo_saved' : 'toast_house_logo_removed'), 'success');
+  renderCurrentView();
+}
+
 function useQrProfileInGenerator(profileId) {
   document.getElementById('qr-gen-profile').value = profileId;
+  // Branding follows the profile's own house when exactly one uses it.
+  const users = state.houses.filter(h => h.qrProfileId === profileId);
+  document.getElementById('qr-gen-house').value = users.length === 1 ? users[0].id : '';
   updateQrGeneratorPreview(true);
   const amountInput = document.getElementById('qr-gen-amount');
   amountInput.closest('.cala-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -3206,21 +3327,22 @@ function updateQrGeneratorPreview(immediate) {
   }
   const amount = qrGeneratorAmount();
   const note = document.getElementById('qr-gen-note').value.trim();
-  img.src = qrProfileQrUrl(profile.id, amount, note, 'card');
+  img.src = qrProfileQrUrl(profile.id, amount, note, 'card', document.getElementById('qr-gen-house').value);
   img.style.display = 'block';
   download.style.display = 'inline-flex';
   empty.style.display = 'none';
 }
 
 function downloadQrGeneratorImage() {
-  downloadQrProfilePng(document.getElementById('qr-gen-profile').value, qrGeneratorAmount(), document.getElementById('qr-gen-note').value.trim());
+  downloadQrProfilePng(document.getElementById('qr-gen-profile').value, qrGeneratorAmount(), document.getElementById('qr-gen-note').value.trim(), document.getElementById('qr-gen-house').value);
 }
 
-function downloadQrProfilePng(profileId, amount, note) {
+function downloadQrProfilePng(profileId, amount, note, houseId) {
   const profile = qrProfileById(profileId);
   if (!qrProfileHasBank(profile)) return;
-  const slug = (profile.name || profile.id).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^A-Za-z0-9]+/g, '_');
-  downloadQrSvgAsPng(qrProfileQrUrl(profileId, amount, note, 'card'), `QR_${slug}${amount ? `_${amount}` : ''}`);
+  const house = houseId ? state.houses.find(h => h.id === houseId) : null;
+  const slug = ((house && house.name) || profile.name || profile.id).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^A-Za-z0-9]+/g, '_');
+  downloadQrSvgAsPng(qrProfileQrUrl(profileId, amount, note, 'card', houseId), `QR_${slug}${amount ? `_${amount}` : ''}`);
 }
 
 // PNG rather than the SVG itself — Zalo/Messenger and most phone
@@ -6737,9 +6859,12 @@ function renderTenantInvoiceView() {
       </table>
       </div>
 
-      <div class="invoice-total-block" style="background:#f7f9fa; padding:1.25rem; border-radius:12px; text-align:right; border:1px solid #e5e9f0; margin-top:1.5rem;">
-        <div style="font-size: 0.85rem; color: #687176;">${t('grand_total_label')}</div>
-        <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f;">${formatMoney(personalTotal)} VNĐ</div>
+      <!-- One row: label left, amount right. flex-wrap lets the amount drop
+           to its own line on a narrow phone; margin-left:auto keeps it in
+           the right corner when it does. -->
+      <div class="invoice-total-block" style="background:#f7f9fa; padding:1.25rem; border-radius:12px; border:1px solid #e5e9f0; margin-top:1.5rem; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:0.25rem 1rem;">
+        <div style="font-size: 1.05rem; font-weight: 800; color: #ff5e1f; letter-spacing: 0.02em;">${t('grand_total_label')}</div>
+        <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f; margin-left: auto; white-space: nowrap;">${formatMoney(personalTotal)} VNĐ</div>
       </div>
 
       ${invoice.status !== 'Đã thanh toán' ? transferQrCardHtml(house, personalTotal, transferNoteFor(invoice, isDorm ? user.fullName : '')) : ''}

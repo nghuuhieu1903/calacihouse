@@ -7,7 +7,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, jsonify, session, url_for, Response
 from .services import RentalService
 from .storage import Storage
-from .vietqr import build_payload, render_qr_svg, prepare_logo, is_valid_bank_info, bank_name, DEFAULT_ACCENT, DEFAULT_QR_COLOR
+from .vietqr import build_payload, render_qr_svg, prepare_logo, normalize_logo_upload, is_valid_bank_info, bank_name, DEFAULT_ACCENT, DEFAULT_QR_COLOR
 from .auth import (
     login_required, roles_required, admin_required, superadmin_required, permission_required,
     validate_session, start_session, restamp_session_password
@@ -338,16 +338,18 @@ def _qr_layout_arg():
     return 'card' if request.args.get('layout') == 'card' else 'compact'
 
 
-def _render_transfer_qr(profile, house_name, amount, note, layout='compact'):
-    """SVG for one Mã QR. Logo: the Mã QR's own, else the site logo from
-    Thiết Lập Trang, else the bundled building icon (an uploaded logo PIL
-    can't read, e.g. an SVG, falls through to the next one too) — or none
-    at all when the Mã QR has showLogo off. Caption: the Mã QR's own text,
-    else "<site name> · <house name>"."""
+def _render_transfer_qr(profile, house_name, amount, note, layout='compact', house_logo=''):
+    """SVG for one Mã QR. Logo, first one that works: the house's own
+    (several houses can share one Mã QR/account but each keeps its own
+    branding), the Mã QR's own, the site logo from Thiết Lập Trang, the
+    bundled building icon — or none at all when the Mã QR has showLogo
+    off. An uploaded logo PIL can't read (e.g. an SVG) falls through to
+    the next one. Caption: the Mã QR's own text, else
+    "<site name> · <house name>"."""
     settings = Storage.get_site_settings()
     logo = None
     if profile.get('showLogo', True):
-        for candidate in (profile.get('logo'), settings.get('logo')):
+        for candidate in (house_logo, profile.get('logo'), settings.get('logo')):
             _, raw = _decode_data_uri(candidate)
             logo = prepare_logo(raw)
             if logo:
@@ -392,7 +394,8 @@ def house_transfer_qr(house_id):
     profile = Storage.get_qr_profile(house.get('qrProfileId')) if house and house.get('qrProfileId') else None
     if not profile or not is_valid_bank_info(profile['bankInfo']):
         return jsonify({'success': False, 'error': 'Tòa nhà chưa chọn mã QR chuyển khoản'}), 404
-    return _render_transfer_qr(profile, house['name'], _qr_amount_arg(), request.args.get('note', ''), _qr_layout_arg())
+    return _render_transfer_qr(profile, house['name'], _qr_amount_arg(), request.args.get('note', ''), _qr_layout_arg(),
+                               Storage.get_house_logo(house_id))
 
 
 @rental_bp.route('/api/qr-profiles/<profile_id>/transfer-qr.svg', methods=['GET'])
@@ -401,7 +404,42 @@ def qr_profile_transfer_qr(profile_id):
     profile = Storage.get_qr_profile(profile_id)
     if not profile or not is_valid_bank_info(profile['bankInfo']):
         return jsonify({'success': False, 'error': 'Không tìm thấy mã QR'}), 404
-    return _render_transfer_qr(profile, profile['name'], _qr_amount_arg(), request.args.get('note', ''), _qr_layout_arg())
+    # ?house= — the Tạo Mã QR generator can brand any Mã QR as one
+    # particular building (its logo + name), e.g. when a shared account is
+    # being sent to a tenant of one specific house.
+    house = next((h for h in Storage.get_houses() if h['id'] == request.args.get('house')), None)
+    return _render_transfer_qr(profile, house['name'] if house else profile['name'], _qr_amount_arg(),
+                               request.args.get('note', ''), _qr_layout_arg(),
+                               Storage.get_house_logo(house['id']) if house else '')
+
+
+@rental_bp.route('/api/houses/<house_id>/logo-image', methods=['GET'])
+@login_required
+def house_logo_image(house_id):
+    mime_type, raw = _decode_data_uri(Storage.get_house_logo(house_id))
+    if not raw:
+        return '', 404
+    resp = Response(raw, mimetype=mime_type or 'image/png')
+    # The page appends ?v=<upload time> after a change, so this can cache.
+    resp.headers['Cache-Control'] = 'private, max-age=86400'
+    return resp
+
+
+@rental_bp.route('/api/houses/logo/save', methods=['POST'])
+@permission_required('houses', 'edit')
+def save_house_logo():
+    data = request.json or {}
+    house_id = data.get('houseId')
+    if not any(h['id'] == house_id for h in Storage.get_houses()):
+        return jsonify({'success': False, 'error': 'Không tìm thấy tòa nhà'}), 404
+    logo = data.get('logo') or ''
+    if logo:
+        _, raw = _decode_data_uri(logo)
+        logo = normalize_logo_upload(raw) if raw else None
+        if not logo:
+            return jsonify({'success': False, 'error': 'Logo phải là ảnh (PNG, JPG, ...).'}), 400
+    Storage.set_house_logo(house_id, logo)
+    return jsonify({'success': True, 'hasLogo': bool(logo)})
 
 
 @rental_bp.route('/api/qr-profiles/preview', methods=['POST'])

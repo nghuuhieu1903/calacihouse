@@ -590,13 +590,17 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
      amount; the "Xem Chi Tiết Cách Tính" eye button (toggleInvoiceDetailView)
      adds .show-detail back to reveal the calculation column for anyone who
      wants to double-check the math. Desktop/tablet always show it — there's
-     room, and it's the more useful default when reviewing on a bigger screen. */
-  .invoice-paper table.excel-table:not(.ktx-breakdown-table) th:nth-child(2),
-  .invoice-paper table.excel-table:not(.ktx-breakdown-table) td:nth-child(2) {
+     room, and it's the more useful default when reviewing on a bigger screen.
+     :not(:last-child) — admin's invoice detail (viewInvoiceDetail) uses the
+     same .invoice-paper but a 2-column table (item, amount), where column 2
+     IS the amount; without this the amounts and the TỔNG CỘNG figure
+     vanished on phones. */
+  .invoice-paper table.excel-table:not(.ktx-breakdown-table) th:nth-child(2):not(:last-child),
+  .invoice-paper table.excel-table:not(.ktx-breakdown-table) td:nth-child(2):not(:last-child) {
     display: none;
   }
-  .invoice-paper.show-detail table.excel-table:not(.ktx-breakdown-table) th:nth-child(2),
-  .invoice-paper.show-detail table.excel-table:not(.ktx-breakdown-table) td:nth-child(2) {
+  .invoice-paper.show-detail table.excel-table:not(.ktx-breakdown-table) th:nth-child(2):not(:last-child),
+  .invoice-paper.show-detail table.excel-table:not(.ktx-breakdown-table) td:nth-child(2):not(:last-child) {
     display: table-cell;
   }
   #btn-toggle-invoice-detail { display: inline-flex !important; }

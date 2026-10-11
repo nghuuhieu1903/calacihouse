@@ -811,7 +811,9 @@ class RentalService:
             'qrProfileId': qr_profile_id or ''
         }
         Storage.save_house(h_obj)
-        return h_obj, None
+        # The logo itself is saved separately (Storage.set_house_logo) and
+        # untouched here; echo the flag so the client's copy stays right.
+        return {**h_obj, 'hasLogo': bool(existing.get('hasLogo'))}, None
 
     # -- Mã QR ---------------------------------------------------------------
 

@@ -85,6 +85,21 @@ def build_payload(bank_bin, account_no, amount=0, note=''):
 LOGO_WIDTH_RATIO = 0.22
 
 
+def normalize_logo_upload(raw):
+    """An uploaded logo (any size/format PIL reads) -> a 256px PNG data
+    URL, which is all a ~1cm badge ever needs — keeps what's stored per
+    house small. None if it isn't a readable image."""
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img = img.convert('RGBA')
+        img.thumbnail((256, 256))
+        buf = io.BytesIO()
+        img.save(buf, format='PNG', optimize=True)
+        return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
+    except Exception:
+        return None
+
+
 @lru_cache(maxsize=8)
 def prepare_logo(raw):
     """Uploaded logo bytes -> small base64 PNG for embedding in the SVG.

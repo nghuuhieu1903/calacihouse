@@ -318,7 +318,8 @@ def _house(row):
             'mode': row.get('manager_fee_mode') or 'percent',
             'value': row.get('manager_fee_value') if row.get('manager_fee_value') is not None else 20
         },
-        'qrProfileId': row.get('qr_profile_id') or ''
+        'qrProfileId': row.get('qr_profile_id') or '',
+        'hasLogo': bool(row.get('has_logo'))
     }
 
 def _qr_profile(row, include_logo=False):
@@ -605,7 +606,14 @@ class Storage:
         conn = get_db()
         try:
             with conn.cursor() as cur:
-                cur.execute("SELECT * FROM houses ORDER BY sort_order ASC, id ASC")
+                # Everything except the logo image itself (only whether there
+                # is one) — this runs on nearly every request; the image is
+                # fetched on its own via get_house_logo().
+                cur.execute(
+                    "SELECT id, name, address, description, manager_fee_mode, manager_fee_value, qr_profile_id, "
+                    "(logo IS NOT NULL AND logo != '') AS has_logo "
+                    "FROM houses ORDER BY sort_order ASC, id ASC"
+                )
                 rows = cur.fetchall()
         finally:
             conn.close()
@@ -660,6 +668,30 @@ class Storage:
                         h.get('qrProfileId', ''), next_order
                     )
                 )
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def get_house_logo(house_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT logo FROM houses WHERE id=%s", (house_id,))
+                row = cur.fetchone()
+        finally:
+            conn.close()
+        return (row or {}).get('logo') or ''
+
+    @staticmethod
+    def set_house_logo(house_id, logo):
+        """Separate from save_house() on purpose: the house form never
+        carries the image, and save_house()'s upsert leaves this column
+        alone, so editing a house's name can't wipe its logo."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE houses SET logo=%s WHERE id=%s", (logo or '', house_id))
             conn.commit()
         finally:
             conn.close()
