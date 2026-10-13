@@ -798,6 +798,15 @@ def mark_paid():
     success = RentalService.mark_invoice_paid(data.get('invoiceId'))
     return jsonify({'success': success})
 
+@rental_bp.route('/api/invoices/mark-unpaid', methods=['POST'])
+@permission_required('invoices', 'edit')
+def mark_unpaid():
+    data = request.json or {}
+    success = RentalService.set_invoice_paid(data.get('invoiceId'), False)
+    if not success:
+        return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
+    return jsonify({'success': True})
+
 def _user_can_access_invoice(user, invoice):
     """Staff (superadmin/admin/manager) can always reach any invoice;
     a tenant only their own room's; investor only one on a house they

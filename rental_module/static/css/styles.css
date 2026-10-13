@@ -169,6 +169,12 @@ body {
   width: 100%; padding: 0.7rem 0.95rem; border-radius: var(--radius-md); border: 1px solid var(--border-color);
   background: var(--bg-surface); color: var(--text-primary); font-size: 0.9rem; font-family: inherit;
 }
+/* A <select> sizes itself to its longest option, so one long building name
+   ("Chung Cư Mini ... Quận Hà Đông") made the "Chọn Tòa Nhà" filter ~800px
+   wide and slid the whole page sideways on phones. Let the label + select
+   row wrap, and let the select shrink to the row (its text truncates). */
+div:has(> label + select.form-control) { flex-wrap: wrap; min-width: 0; max-width: 100%; }
+div:has(> label + select.form-control) > select.form-control { min-width: 0 !important; max-width: 100%; text-overflow: ellipsis; }
 .form-control:focus { outline: none; border-color: var(--cala-blue); box-shadow: 0 0 0 3px rgba(1, 148, 243, 0.2); }
 /* Native <select> reserves screen space for its own dropdown arrow on top of
    whatever padding we set — without slack here, a long-enough value's last
@@ -505,6 +511,10 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
     padding: 0.55rem 0; border-bottom: 1px solid var(--border-color); text-align: right;
   }
   .invoices-table td:last-child { border-bottom: none; }
+  /* .excel-table td is nowrap (spreadsheet style); in card form a long
+     room/tenant name or invoice id must wrap, or one long value widens
+     every card and cuts its own text off. */
+  .invoices-table td { white-space: normal; overflow-wrap: anywhere; }
   .invoices-table td::before {
     content: attr(data-label); font-weight: 700; color: var(--text-secondary);
     font-size: 0.78rem; text-align: left; flex-shrink: 0;
@@ -537,6 +547,30 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
 
   .cala-navbar { padding: 0.6rem 0.85rem; gap: 0.4rem; row-gap: 0.4rem; }
   .cala-navbar > div { gap: 0.4rem !important; }
+  /* Language / theme / logout wrap as ONE group (never a lone logout
+     button on its own line), and the house/month filters take what's left. */
+  .nav-actions { flex-shrink: 0; }
+  .dup-panel-heading { display: none !important; }
+  /* Bases sized so "Tháng 10/2026" never gets cut to "Tháng ...": when a
+     filter and the action group don't both fit, the group drops to the
+     next line instead of squeezing the filter. */
+  #nav-house-box { flex: 1 1 130px; min-width: 0; }
+  #nav-month-box { flex: 1 1 150px; min-width: 0; }
+  #nav-house-box select, #nav-month-box select { width: 100%; min-width: 0 !important; }
+
+  /* TAP TARGETS — several controls were ~16-26px tall, well under the
+     ~44px a fingertip needs. */
+  .nav-actions > .btn-sm { min-width: 38px; min-height: 38px; justify-content: center; }
+  .nav-actions #btn-lang-vi, .nav-actions #btn-lang-en { min-height: 32px; }
+  .btn-sm { min-height: 34px; }
+  /* Every modal's ✕ sits as the last button of the card's title row. */
+  .modal-card > div:first-child > .btn-sm:last-child,
+  .ticket-card-delete { min-width: 38px; min-height: 38px; justify-content: center; }
+  /* The ▲▼ pair stacks inside a list row, so a little shorter than 34px. */
+  button[onclick^="move"] { min-width: 30px; min-height: 26px; }
+  button[onclick^="openInvoiceMeterPhotos"] { min-width: 32px; min-height: 30px; }
+  input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; }
+  .switch-toggle input[type="checkbox"] { width: 0; height: 0; }
   .cala-brand { font-size: 1.05rem; gap: 0.5rem; }
   .cala-brand-badge { display: none; }
 

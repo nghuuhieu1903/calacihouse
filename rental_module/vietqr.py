@@ -320,13 +320,22 @@ def render_qr_svg(payload, logo_png_b64=None, caption='', accent=DEFAULT_ACCENT,
         ]
         if caption:
             # Below the quiet zone, never inside it — scanners need that
-            # white margin intact.
+            # white margin intact. A long caption steps down one font size,
+            # then gets cut with "…" — squeezing it to fit (textLength) made
+            # a long building name unreadably small at invoice size.
             inner = size - 8
+            font_size = 2.6
+            max_chars = int((inner - 4) / (font_size * 0.58))
+            if len(caption) > max_chars:
+                font_size = 2.2
+                max_chars = int((inner - 4) / (font_size * 0.58))
+            if len(caption) > max_chars:
+                caption = caption[:max_chars - 1].rstrip(' ·-') + '…'
             svg.append(
                 f'<rect x="4" y="{size}" width="{inner}" height="5" rx="2.5" fill="{accent}"/>'
                 f'<text x="{_n(size / 2)}" y="{_n(size + 2.6)}" text-anchor="middle" dominant-baseline="central" '
-                f'font-family="{FONT_STACK}" font-size="2.6" font-weight="700" fill="{on_accent}"'
-                f'{_fit(caption, 2.6, inner - 4)}>{xml_escape(caption)}</text>'
+                f'font-family="{FONT_STACK}" font-size="{font_size}" font-weight="700" fill="{on_accent}">'
+                f'{xml_escape(caption)}</text>'
             )
         svg.append('</svg>')
         return ''.join(svg)

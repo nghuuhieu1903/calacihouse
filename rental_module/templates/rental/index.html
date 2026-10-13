@@ -180,6 +180,9 @@
         </select>
       </div>
 
+      <!-- Kept together so they wrap as one group on a phone (styles.css
+           .nav-actions) instead of leaving logout alone on its own line. -->
+      <div class="nav-actions" style="display: flex; align-items: center; gap: 1rem;">
       <div style="display: flex; background: rgba(255, 255, 255, 0.2); padding: 3px; border-radius: var(--radius-full);">
         <button class="btn btn-sm" id="btn-lang-vi" onclick="setLanguage('vi')" style="padding: 4px 12px; border-radius: var(--radius-full); font-size: 0.8rem; font-weight: 800; color: white;">
           🇻🇳 VI
@@ -196,6 +199,7 @@
       <button class="btn btn-orange btn-sm" onclick="handleLogout()" title="Đăng Xuất" data-i18n-title="title_logout">
         <i data-lucide="log-out"></i>
       </button>
+      </div>
     </div>
   </header>
 

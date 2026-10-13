@@ -269,6 +269,11 @@ const I18N = {
     opt_pay_status_paid: 'Đã thanh toán',
     lbl_invoices_total_row: 'Tổng Cộng',
     btn_mark_collected: 'Đã Thu',
+    btn_mark_unpaid: 'Hoàn tác',
+    title_mark_unpaid: 'Chuyển về "Chờ thanh toán" (nếu lỡ bấm nhầm Đã Thu)',
+    confirm_mark_paid: 'Xác nhận đã thu tiền hóa đơn {room}? Khách thuê sẽ thấy trạng thái "Đã thanh toán" ngay.',
+    confirm_mark_unpaid: 'Chuyển hóa đơn {room} về "Chờ thanh toán"? Khách thuê sẽ thấy lại trạng thái chưa thanh toán và mã QR chuyển khoản.',
+    toast_invoice_marked_unpaid: 'Đã chuyển hóa đơn {id} về Chờ thanh toán.',
     toast_invoices_issued_prefix: 'Đã phát hành hóa đơn cho tháng ',
     toast_invoice_marked_paid_prefix: 'Đã xác nhận thu tiền ',
     unassigned_label: 'Chưa gán',
@@ -1065,6 +1070,11 @@ const I18N = {
     opt_pay_status_paid: 'Paid',
     lbl_invoices_total_row: 'Total',
     btn_mark_collected: 'Collected',
+    btn_mark_unpaid: 'Undo',
+    title_mark_unpaid: 'Set back to "Awaiting payment" (if Collected was clicked by mistake)',
+    confirm_mark_paid: 'Confirm payment collected for {room}? The tenant will see "Paid" right away.',
+    confirm_mark_unpaid: 'Set invoice {room} back to "Awaiting payment"? The tenant will see it as unpaid again, with the transfer QR.',
+    toast_invoice_marked_unpaid: 'Invoice {id} set back to Awaiting payment.',
     toast_invoices_issued_prefix: 'Invoices issued for ',
     toast_invoice_marked_paid_prefix: 'Payment confirmed for ',
     unassigned_label: 'Unassigned',
@@ -2504,6 +2514,22 @@ function renderCurrentView() {
   switchView(state.currentView);
 }
 
+// Most panels open with their own <h3> + description that repeat the
+// page title (#page-title) word for word — harmless on a desktop, but on a
+// phone the same heading twice in a row pushes the actual content down a
+// screen. Tag the repeat so the phone layout can hide it (styles.css,
+// .dup-panel-heading); headings that say something different stay.
+function markDuplicatePanelHeading(panel, titleEl) {
+  if (!panel || !titleEl) return;
+  const norm = text => String(text || '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().toLowerCase();
+  const heading = panel.querySelector('h3');
+  panel.querySelectorAll('.dup-panel-heading').forEach(el => el.classList.remove('dup-panel-heading'));
+  if (!heading || norm(heading.textContent) !== norm(titleEl.textContent)) return;
+  heading.classList.add('dup-panel-heading');
+  const desc = heading.nextElementSibling;
+  if (desc && desc.tagName === 'P') desc.classList.add('dup-panel-heading');
+}
+
 function switchView(viewId) {
   // Hiding a nav tab only stops someone from clicking IT — it does nothing
   // about the other buttons scattered around the app (Dashboard quick
@@ -2651,6 +2677,7 @@ function switchView(viewId) {
   // it's visited; nothing here ever un-converts an already-rendered <svg>
   // back to a plain <i>, so it doesn't need re-touching after that.
   renderIcons(targetPanel);
+  markDuplicatePanelHeading(targetPanel, titleEl);
 
   // Everything in this app lives at one URL and switches views purely in
   // JS state, so without this, the browser's own history has nothing to
@@ -3072,18 +3099,43 @@ function fillHouseQrProfileSelect(selectedId) {
   select.value = qrProfileById(selectedId) ? selectedId : '';
 }
 
-// Bank-app transfer note — ASCII only (the server strips accents again
-// anyway); KTX occupants share one room/invoice, so their own name is
-// what tells the landlord whose payment it is.
-function transferNoteFor(invoice, payerName) {
-  const [year, month] = (invoice.month || '').split('-');
-  return [invoice.roomName, `T${month}${(year || '').slice(-2)}`, payerName || ''].join(' ').trim();
+// Mirrors vietqr.py: the transfer note is uppercase A-Z/0-9/space only
+// and capped at 50 characters (several banks reject or cut anything
+// longer). The QR carries "<Mã QR prefix> <this note>".
+const TRANSFER_NOTE_MAX = 50;
+
+function normalizeTransferNote(text) {
+  return String(text || '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase();
 }
 
-// What actually lands in the bank app's note field: the Mã QR's own
-// prefix + this note (see _render_transfer_qr in routes.py).
+// "<room> T<MMYY> <payer>" — KTX occupants share one room/invoice, so
+// their own name is what tells the landlord whose payment it is. Sized to
+// fit the 50-character cap together with the Mã QR's prefix: the month is
+// always kept, the room name is shortened first, then the payer — a long
+// room name used to push "T1026" past the cap, so the landlord couldn't
+// tell which month a payment was for.
+function transferNoteFor(invoice, payerName, profile) {
+  const [year, mm] = (invoice.month || '').split('-');
+  const month = `T${mm}${(year || '').slice(-2)}`;
+  const prefix = normalizeTransferNote(profile && profile.notePrefix);
+  let budget = TRANSFER_NOTE_MAX - (prefix ? prefix.length + 1 : 0) - month.length;
+  const fit = (text, max) => (max <= 0 ? '' : text.slice(0, max).trim());
+  const payerFull = normalizeTransferNote(payerName);
+  // Hold back room for (up to 14 chars of) the payer's name, so a long
+  // room name can't crowd a KTX occupant's name out entirely.
+  const payerReserve = payerFull ? Math.min(payerFull.length, 14) + 1 : 0;
+  const room = fit(normalizeTransferNote(invoice.roomName), budget - 1 - payerReserve);
+  budget -= room ? room.length + 1 : 0;
+  const payer = fit(payerFull, budget - 1);
+  return [room, month, payer].filter(Boolean).join(' ');
+}
+
+// Exactly what lands in the bank app's note field (see
+// _render_transfer_qr in routes.py / normalize_note in vietqr.py).
 function fullTransferNote(profile, note) {
-  return [profile && profile.notePrefix, note].filter(Boolean).join(' ');
+  return normalizeTransferNote([profile && profile.notePrefix, note].filter(Boolean).join(' ')).slice(0, TRANSFER_NOTE_MAX).trim();
 }
 
 function houseQrUrl(houseId, amount, note) {
@@ -5284,7 +5336,9 @@ function renderAdminInvoices() {
       <td data-label="${t('col_actions')}">
         <div style="display:flex; gap:0.5rem;">
           <button class="btn btn-secondary btn-sm" onclick="viewInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i></button>
-          ${inv.status !== 'Đã thanh toán' ? `<button class="btn btn-orange btn-sm" onclick="markInvoicePaidApi('${inv.id}')"><i data-lucide="check-circle"></i> ${t('btn_mark_collected')}</button>` : ''}
+          ${inv.status !== 'Đã thanh toán'
+            ? `<button class="btn btn-orange btn-sm" onclick="markInvoicePaidApi('${inv.id}')"><i data-lucide="check-circle"></i> ${t('btn_mark_collected')}</button>`
+            : (hasPermission(state.currentUser.role, 'invoices', 'edit') ? `<button class="btn btn-secondary btn-sm" title="${t('title_mark_unpaid')}" onclick="markInvoiceUnpaidApi('${inv.id}')"><i data-lucide="undo-2"></i> ${t('btn_mark_unpaid')}</button>` : '')}
         </div>
       </td>
     `;
@@ -5309,12 +5363,31 @@ function renderAdminInvoices() {
 
 async function markInvoicePaidApi(invoiceId) {
   const inv = state.invoices.find(i => i.id === invoiceId);
+  // Asked first: the tenant sees this status right away (and their
+  // transfer QR disappears), so a slip of the finger shouldn't be one tap.
+  const ok = await showConfirmModal(tFmt('confirm_mark_paid', { room: inv ? inv.roomName : invoiceId }), { okLabel: t('btn_mark_collected') });
+  if (!ok) return;
   if (inv) inv.status = 'Đã thanh toán';
 
   const data = await postAndVerify(`${API_BASE}/invoices/mark-paid`, { invoiceId });
   if (!data) return;
 
   showToast(`${t('toast_invoice_marked_paid_prefix')}${invoiceId}!`, 'success');
+  renderAdminInvoices();
+}
+
+// Undo for a mistaken "Đã Thu" — back to "Chờ thanh toán", which also
+// brings the tenant's transfer QR back on their invoice.
+async function markInvoiceUnpaidApi(invoiceId) {
+  const inv = state.invoices.find(i => i.id === invoiceId);
+  const ok = await showConfirmModal(tFmt('confirm_mark_unpaid', { room: inv ? inv.roomName : invoiceId }), { okLabel: t('btn_mark_unpaid') });
+  if (!ok) return;
+
+  const data = await postAndVerify(`${API_BASE}/invoices/mark-unpaid`, { invoiceId });
+  if (!data) return;
+  if (inv) inv.status = 'Chờ thanh toán';
+
+  showToast(tFmt('toast_invoice_marked_unpaid', { id: invoiceId }), 'success');
   renderAdminInvoices();
 }
 
@@ -6867,7 +6940,7 @@ function renderTenantInvoiceView() {
         <div style="font-size: 1.65rem; font-weight: 800; color: #ff5e1f; margin-left: auto; white-space: nowrap;">${formatMoney(personalTotal)} VNĐ</div>
       </div>
 
-      ${invoice.status !== 'Đã thanh toán' ? transferQrCardHtml(house, personalTotal, transferNoteFor(invoice, isDorm ? user.fullName : '')) : ''}
+      ${invoice.status !== 'Đã thanh toán' ? transferQrCardHtml(house, personalTotal, transferNoteFor(invoice, isDorm ? user.fullName : '', qrProfileForHouse(house))) : ''}
 
       <div class="cala-card invoice-proof-card" style="margin-top:1.5rem;">
         <h4 style="margin-bottom:0.5rem; color:var(--cala-blue);"><i data-lucide="camera" style="vertical-align:middle;"></i> ${t('lbl_payment_proof')}</h4>
@@ -7154,7 +7227,7 @@ function viewInvoiceDetail(invoiceId) {
       ${/* A KTX room's total isn't what any one occupant pays — each sees
            a QR for their own share on their own invoice view instead. */
         (inv.status !== 'Đã thanh toán' && !(room && room.roomType === 'dorm'))
-          ? transferQrCardHtml(state.houses.find(h => h.id === (room ? room.houseId : '')), inv.totalAmount, transferNoteFor(inv), 'hint_transfer_qr_admin')
+          ? transferQrCardHtml(state.houses.find(h => h.id === (room ? room.houseId : '')), inv.totalAmount, transferNoteFor(inv, '', qrProfileForHouse(state.houses.find(h => h.id === (room ? room.houseId : '')))), 'hint_transfer_qr_admin')
           : ''}
       ${paymentProofBlockHtml}
     </div>
@@ -7791,8 +7864,11 @@ function renderSalerRooms() {
         return `
         <div class="cala-card" style="padding: 0; overflow: hidden;">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; padding:1rem 1.25rem; cursor:pointer;" onclick="toggleSalerRoomDetail('${r.id}')">
-            <div style="display:flex; align-items:center; gap:0.75rem; min-width:0;">
-              <div style="font-weight:800; font-size:1rem; white-space:nowrap;">${r.name}</div>
+            <!-- Name + building stack and may wrap — as a nowrap row the room
+                 name ran underneath the price on a phone, and the building
+                 name got squeezed down to just its icon. -->
+            <div style="display:flex; flex-direction:column; gap:2px; min-width:0; flex:1;">
+              <div style="font-weight:800; font-size:1rem; overflow-wrap:anywhere;">${r.name}</div>
               <span style="font-size:0.8rem; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><i data-lucide="building-2" style="width:13px; height:13px; vertical-align:-2px;"></i> ${house ? house.name : ''}</span>
             </div>
             <div style="display:flex; align-items:center; gap:0.85rem; flex-shrink:0;">
@@ -10219,20 +10295,30 @@ function renderTaxMonthly(overview) {
       const h = Math.round((m.taxableRevenue || 0) / maxRevenue * 130);
       const taxH = Math.round((m.estimatedTax || 0) / maxRevenue * 130);
       const label = m.month.split('-')[1];
+      // Columns shrink to ~18px so all 12 months fit a phone's width — at
+      // a fixed 42px plus the legend beside them, the chart only showed
+      // through July and the current month needed a sideways scroll.
       return `
-        <div style="flex: 1 0 42px; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;"
+        <div style="flex: 1 1 18px; min-width: 18px; display: flex; flex-direction: column; align-items: center; gap: 0.25rem;"
              title="Tháng ${label}: DT tính thuế ${taxMoney(m.taxableRevenue)} · Thuế ${taxMoney(m.estimatedTax)}">
           <div style="flex: 1; display: flex; align-items: flex-end; gap: 2px;">
-            <div style="width: 14px; height: ${h}px; min-height: 2px; background: var(--cala-blue); border-radius: 3px 3px 0 0;"></div>
-            <div style="width: 8px; height: ${taxH}px; min-height: 2px; background: var(--cala-orange); border-radius: 3px 3px 0 0;"></div>
+            <div style="width: clamp(7px, 1.6vw, 14px); height: ${h}px; min-height: 2px; background: var(--cala-blue); border-radius: 3px 3px 0 0;"></div>
+            <div style="width: clamp(4px, 1vw, 8px); height: ${taxH}px; min-height: 2px; background: var(--cala-orange); border-radius: 3px 3px 0 0;"></div>
           </div>
-          <div style="font-size: 0.7rem; color: var(--text-secondary);">T${label}</div>
+          <div style="font-size: 0.68rem; color: var(--text-secondary);">T${label}</div>
         </div>`;
-    }).join('') + `
-      <div style="flex: 0 0 auto; align-self: flex-start; font-size: 0.75rem; color: var(--text-secondary); padding-left: 0.75rem;">
+    }).join('');
+    // Legend under the chart instead of as a 13th column beside it.
+    let legend = document.getElementById('tax-monthly-legend');
+    if (!legend) {
+      legend = document.createElement('div');
+      legend.id = 'tax-monthly-legend';
+      legend.style.cssText = 'display:flex; flex-wrap:wrap; gap:0.35rem 1rem; font-size:0.75rem; color:var(--text-secondary); margin-top:0.5rem;';
+      legend.innerHTML = `
         <div><span style="display:inline-block;width:10px;height:10px;background:var(--cala-blue);border-radius:2px;"></span> DT tính thuế</div>
-        <div><span style="display:inline-block;width:10px;height:10px;background:var(--cala-orange);border-radius:2px;"></span> Thuế ước tính</div>
-      </div>`;
+        <div><span style="display:inline-block;width:10px;height:10px;background:var(--cala-orange);border-radius:2px;"></span> Thuế ước tính</div>`;
+      chart.insertAdjacentElement('afterend', legend);
+    }
   }
 
   const tbody = document.getElementById('tax-monthly-table-body');

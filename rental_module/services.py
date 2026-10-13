@@ -1561,14 +1561,24 @@ class RentalService:
 
     @staticmethod
     def mark_invoice_paid(invoice_id):
+        return RentalService.set_invoice_paid(invoice_id, True)
+
+    @staticmethod
+    def set_invoice_paid(invoice_id, paid):
+        """paid=False is the undo for a mistaken "Đã Thu" click — the
+        tenant sees the status (and the transfer QR is hidden once paid),
+        so it has to be reversible. Returns False if no such invoice."""
+        found = []
+
         def mutate(invoices):
             for inv in invoices:
                 if inv['id'] == invoice_id:
-                    inv['status'] = 'Đã thanh toán'
+                    inv['status'] = 'Đã thanh toán' if paid else 'Chờ thanh toán'
+                    found.append(inv)
             return invoices
 
         Storage.update_invoices(mutate)
-        return True
+        return bool(found)
 
     @staticmethod
     def add_payment_proof_photo(invoice_id, data_url, assigned_to=None, thumb=None):
