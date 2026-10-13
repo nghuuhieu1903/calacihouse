@@ -1,3 +1,4 @@
+import gc
 import hashlib
 import json
 import os
@@ -52,7 +53,35 @@ def _create_database_if_missing():
 # stored as base64 data URLs inside JSON blobs and can run to a few MB —
 # MySQL's plain TEXT caps at ~64KB, so anything that may hold embedded
 # images must be LONGTEXT. Everything else is a normal identifier/label.
+# ---------------------------------------------------------------------------
+# PHOTO BLOBS
+# readings / invoices / room_documents / room_photos live in kv_store as ONE
+# JSON value each, with every photo embedded as a base64 data URL. Tens of
+# MB of images meant even a one-field edit (mark an invoice paid, type one
+# meter number) or a plain page load (/api/data) had to read, json.loads,
+# json.dumps and write back the whole thing — seconds of CPU and a
+# gigabyte-scale memory spike per request, which is a lot on a 1-core,
+# 2GB VPS. Photos at or above BLOB_MIN_CHARS are therefore stored once in
+# photo_blobs (keyed by the SHA-1 of the data URL) and the JSON keeps only
+# a short "blob:<sha1>" token in their place. See Storage._kv_* in
+# storage.py for the read/write side.
+# ---------------------------------------------------------------------------
+BLOB_PREFIX = 'blob:'
+BLOB_MIN_CHARS = 20000          # a real 1600px photo is 100KB+; thumbnails (~8KB) stay inline
+BLOB_KEYS = ('readings', 'invoices', 'room_documents', 'room_photos')
+_BLOB_TOKEN_RE = re.compile(r'"blob:([0-9a-f]{40})"')
+_DATA_URL_RE = re.compile(r'"(data:[^"\\]{%d,})"' % BLOB_MIN_CHARS)
+BLOB_GC_MIN_AGE_HOURS = 1
+
+
 SCHEMA_STATEMENTS = [
+    """
+    CREATE TABLE IF NOT EXISTS photo_blobs (
+        id         CHAR(40) PRIMARY KEY,
+        data       LONGTEXT NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
     """
     CREATE TABLE IF NOT EXISTS houses (
         id                VARCHAR(191) PRIMARY KEY,
@@ -280,7 +309,10 @@ def _backfill_room_sort_order(cur):
     cur.execute("SELECT id, sort_order FROM houses ORDER BY sort_order ASC, id ASC")
     house_order = [row['id'] for row in cur.fetchall()]
     cur.execute("SELECT id, name, house_id FROM rooms")
-    rooms = cur.fetchall()
+    # list(): pymysql hands back an immutable empty TUPLE when there are no
+    # rows, which has no .sort() — a brand-new install (no rooms yet)
+    # crashed here on its very first start.
+    rooms = list(cur.fetchall())
     house_index = {hid: i for i, hid in enumerate(house_order)}
     rooms.sort(key=lambda r: (house_index.get(r['house_id'], len(house_order)), _numeric_name_key(r['name'])))
     for idx, row in enumerate(rooms):
@@ -452,6 +484,97 @@ def _migrate_house_bank_to_qr_profiles(cur):
         )
 
 
+def _migrate_photos_to_blobs():
+    """One-time: move the photos already embedded in the four BLOB_KEYS
+    values into photo_blobs, working on the raw JSON TEXT with a regex so
+    the multi-hundred-MB value is never turned into Python objects (a
+    json.loads of it is exactly the memory spike this migration exists to
+    get rid of). Idempotent and safe with several gunicorn workers booting
+    at once: a MySQL named lock lets one do the work while the others wait,
+    then find the done-flag set. Each key is ONE transaction: its row is
+    locked (FOR UPDATE) while the photos are inserted and the rewritten
+    value stored, so a concurrent write can't be lost and an interruption
+    rolls back cleanly instead of leaving tokens that point at nothing."""
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT GET_LOCK('calaci_photo_blobs_migration', 600) AS got")
+            if not cur.fetchone()['got']:
+                return
+            try:
+                cur.execute("SELECT `value` FROM kv_store WHERE `key`='photo_blobs_migrated'")
+                if cur.fetchone():
+                    return
+                for key in BLOB_KEYS:
+                    conn.commit()
+                    cur.execute("SELECT `value` FROM kv_store WHERE `key`=%s FOR UPDATE", (key,))
+                    row = cur.fetchone()
+                    if not row or 'data:' not in row['value']:
+                        conn.commit()
+                        continue
+                    raw = row['value']
+                    moved = [0]
+
+                    def to_token(match):
+                        data = match.group(1)
+                        blob_id = hashlib.sha1(data.encode('utf-8')).hexdigest()
+                        cur.execute(
+                            "INSERT INTO photo_blobs (id, data) VALUES (%s,%s) "
+                            "ON DUPLICATE KEY UPDATE created_at=CURRENT_TIMESTAMP",
+                            (blob_id, data)
+                        )
+                        moved[0] += 1
+                        return '"' + BLOB_PREFIX + blob_id + '"'
+
+                    new_raw = _DATA_URL_RE.sub(to_token, raw)
+                    del raw, row
+                    cur.execute("UPDATE kv_store SET `value`=%s WHERE `key`=%s", (new_raw, key))
+                    conn.commit()   # photos + the value that points at them, together
+                    print(f"[DB] photos -> photo_blobs: {key}: {moved[0]} photos moved, value now {len(new_raw) // 1024} KB")
+                    del new_raw
+                    gc.collect()
+                cur.execute("REPLACE INTO kv_store (`key`, `value`) VALUES ('photo_blobs_migrated', '1')")
+                conn.commit()
+            finally:
+                cur.execute("SELECT RELEASE_LOCK('calaci_photo_blobs_migration')")
+    finally:
+        conn.close()
+
+
+def gc_photo_blobs():
+    """Deletes photo_blobs rows nothing references any more (a photo that
+    was replaced/deleted, or whose month was purged by the retention
+    policy). Only rows older than BLOB_GC_MIN_AGE_HOURS are eligible: a
+    request that has inserted a blob but not yet committed the value
+    pointing at it can't have it deleted from under it. Returns the number
+    of rows removed."""
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            referenced = set()
+            for key in BLOB_KEYS:
+                cur.execute("SELECT `value` FROM kv_store WHERE `key`=%s", (key,))
+                row = cur.fetchone()
+                if row:
+                    referenced.update(_BLOB_TOKEN_RE.findall(row['value']))
+            cur.execute(
+                "SELECT id FROM photo_blobs WHERE created_at < NOW() - INTERVAL %s HOUR",
+                (BLOB_GC_MIN_AGE_HOURS,)
+            )
+            orphans = [r['id'] for r in cur.fetchall() if r['id'] not in referenced]
+            for i in range(0, len(orphans), 200):
+                chunk = orphans[i:i + 200]
+                cur.execute(
+                    "DELETE FROM photo_blobs WHERE id IN (%s) AND created_at < NOW() - INTERVAL %%s HOUR"
+                    % ','.join(['%s'] * len(chunk)),
+                    chunk + [BLOB_GC_MIN_AGE_HOURS]
+                )
+        conn.commit()
+        return len(orphans)
+    finally:
+        conn.close()
+
+
 def init_db():
     """Create the database and all tables if they don't already exist.
     Called once on app startup. Safe to run every time (IF NOT EXISTS)."""
@@ -539,4 +662,11 @@ def init_db():
         conn.commit()
     finally:
         conn.close()
+    try:
+        _migrate_photos_to_blobs()
+    except Exception as exc:
+        # Not fatal: Storage reads old (inline data URL) values fine and
+        # moves photos out as they're next written; the migration retries
+        # on the next start.
+        print("[DB] photo migration skipped:", exc)
     print("[DB] MySQL ready:", f"{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DATABASE}")

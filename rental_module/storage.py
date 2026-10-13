@@ -1,7 +1,8 @@
 import copy
+import hashlib
 import json
 import uuid
-from .database import get_db
+from .database import get_db, gc_photo_blobs, BLOB_PREFIX, BLOB_MIN_CHARS, BLOB_KEYS
 
 # ---------------------------------------------------------------------------
 # DEFAULT seed data — used when the database is empty on first run
@@ -544,12 +545,122 @@ def _ticket(row):
 # Storage class — same public interface as before, now backed by MySQL
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Photo blobs — see the long comment above BLOB_PREFIX in database.py.
+# A photo (data URL >= BLOB_MIN_CHARS) inside readings / invoices /
+# room_documents / room_photos is stored in photo_blobs and the JSON holds
+# "blob:<sha1>". Everything below is about moving between the two forms.
+# ---------------------------------------------------------------------------
+
+def _is_token(value):
+    return isinstance(value, str) and value.startswith(BLOB_PREFIX) and len(value) == len(BLOB_PREFIX) + 40
+
+
+def _externalize(value, found):
+    """Copy of `value` with every big data URL swapped for its token;
+    the data itself is collected into `found` {sha1: data URL}."""
+    if isinstance(value, str):
+        if len(value) >= BLOB_MIN_CHARS and value.startswith('data:'):
+            blob_id = hashlib.sha1(value.encode('utf-8')).hexdigest()
+            found[blob_id] = value
+            return BLOB_PREFIX + blob_id
+        return value
+    if isinstance(value, dict):
+        return {k: _externalize(v, found) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_externalize(v, found) for v in value]
+    return value
+
+
+def _collect_tokens(value, out):
+    if isinstance(value, str):
+        if _is_token(value):
+            out.add(value[len(BLOB_PREFIX):])
+    elif isinstance(value, dict):
+        for v in value.values():
+            _collect_tokens(v, out)
+    elif isinstance(value, list):
+        for v in value:
+            _collect_tokens(v, out)
+
+
+def _fetch_blobs(cur, ids):
+    """{sha1: data URL} for the given ids, a few rows per query so one
+    response never has to hold a giant packet."""
+    ids = list(ids)
+    out = {}
+    for i in range(0, len(ids), 10):
+        chunk = ids[i:i + 10]
+        cur.execute(
+            "SELECT id, data FROM photo_blobs WHERE id IN (%s)" % ','.join(['%s'] * len(chunk)),
+            chunk
+        )
+        for row in cur.fetchall():
+            out[row['id']] = row['data']
+    return out
+
+
+def _substitute(value, blobs):
+    if isinstance(value, str):
+        if _is_token(value):
+            return blobs.get(value[len(BLOB_PREFIX):], '')
+        return value
+    if isinstance(value, dict):
+        return {k: _substitute(v, blobs) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_substitute(v, blobs) for v in value]
+    return value
+
+
+def _resolve(value):
+    """Replaces every token inside `value` with its real data URL (an
+    unknown token — blob already collected — becomes '' like a missing
+    photo). A no-op, with no query at all, when there are no tokens."""
+    tokens = set()
+    _collect_tokens(value, tokens)
+    if not tokens:
+        return value
+    conn = get_db()
+    try:
+        with conn.cursor() as cur:
+            blobs = _fetch_blobs(cur, tokens)
+    finally:
+        conn.close()
+    return _substitute(value, blobs)
+
+
+def _store_blobs(cur, found):
+    for blob_id, data in found.items():
+        # created_at is refreshed on re-use so gc_photo_blobs() can't
+        # collect a photo that has just been re-attached.
+        cur.execute(
+            "INSERT INTO photo_blobs (id, data) VALUES (%s,%s) "
+            "ON DUPLICATE KEY UPDATE created_at=CURRENT_TIMESTAMP",
+            (blob_id, data)
+        )
+
+
+def light_reading_entry(rd):
+    """One room's reading with each of its 4 meter photos collapsed to a
+    boolean — what the UI needs to draw the camera button's state."""
+    out = dict(rd)
+    for f in READING_PHOTO_FIELDS:
+        if out.get(f):
+            out[f] = True
+    return out
+
+
 class Storage:
 
     # -- Generic KV helpers (readings, invoices, permissions) ---------------
 
     @staticmethod
-    def _kv_get(key, default):
+    def _kv_get(key, default, resolve=True):
+        """resolve=False leaves a heavy key's photo tokens in place (see the
+        photo-blob comment above) — correct and fast for anything that only
+        looks at the structure/metadata; resolve=True (the default, so every
+        existing caller keeps getting real data URLs) swaps them back for
+        the actual images."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
@@ -557,15 +668,22 @@ class Storage:
                 row = cur.fetchone()
         finally:
             conn.close()
-        if row:
-            return json.loads(row['value'])
-        return default
+        if not row:
+            return default
+        data = json.loads(row['value'])
+        if resolve and key in BLOB_KEYS:
+            data = _resolve(data)
+        return data
 
     @staticmethod
     def _kv_set(key, value):
+        found = {}
+        if key in BLOB_KEYS:
+            value = _externalize(value, found)
         conn = get_db()
         try:
             with conn.cursor() as cur:
+                _store_blobs(cur, found)
                 cur.execute(
                     "REPLACE INTO kv_store (`key`, `value`) VALUES (%s,%s)",
                     (key, json.dumps(value, ensure_ascii=False))
@@ -582,7 +700,15 @@ class Storage:
         the second call blocks on `FOR UPDATE` until the first commits, then
         starts from its result instead of a stale read that would otherwise
         get overwritten back on top of it. `mutate(data)` returns the new
-        value to store."""
+        value to store.
+
+        For the photo-heavy keys `mutate` sees photo TOKENS, not images:
+        carrying a photo over (copying a meter photo onto an invoice) just
+        copies the token, and a brand-new photo it sets is a real data URL
+        that gets moved into photo_blobs on the way out. So a one-field
+        edit no longer has to load or rewrite any image bytes. The returned
+        value likewise holds tokens for existing photos — callers that hand
+        it to a client must collapse/resolve them first."""
         conn = get_db()
         try:
             with conn.cursor() as cur:
@@ -590,14 +716,45 @@ class Storage:
                 row = cur.fetchone()
                 data = json.loads(row['value']) if row else copy.deepcopy(default)
                 data = mutate(data)
-                cur.execute(
-                    "REPLACE INTO kv_store (`key`, `value`) VALUES (%s,%s)",
-                    (key, json.dumps(data, ensure_ascii=False))
-                )
+                found = {}
+                stored = _externalize(data, found) if key in BLOB_KEYS else data
+                new_json = json.dumps(stored, ensure_ascii=False)
+                # A mutate that changed nothing writes nothing. This matters:
+                # sync_readings_with_services() runs on every /api/data and
+                # almost always has nothing to add — it used to rewrite the
+                # whole value (and hold its row lock against every other
+                # writer) on every single page load.
+                if not (row and row['value'] == new_json):
+                    _store_blobs(cur, found)
+                    cur.execute(
+                        "REPLACE INTO kv_store (`key`, `value`) VALUES (%s,%s)",
+                        (key, new_json)
+                    )
             conn.commit()
-            return data
+            return stored
         finally:
             conn.close()
+
+    @staticmethod
+    def get_photo_blob(token_or_value):
+        """One photo's real data URL for a stored value: a token is looked
+        up in photo_blobs, anything else (an inline data URL from before
+        the migration, '' or None) is returned as it is."""
+        if not _is_token(token_or_value):
+            return token_or_value or ''
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                blobs = _fetch_blobs(cur, [token_or_value[len(BLOB_PREFIX):]])
+        finally:
+            conn.close()
+        return blobs.get(token_or_value[len(BLOB_PREFIX):], '')
+
+    @staticmethod
+    def collect_photo_blobs():
+        """Drops photo_blobs rows no stored value references any more —
+        called after the retention purge and once per superadmin session."""
+        return gc_photo_blobs()
 
     # -- Houses -------------------------------------------------------------
 
@@ -1281,8 +1438,8 @@ class Storage:
     # -- Readings (complex nested dict → kv_store) --------------------------
 
     @staticmethod
-    def get_readings():
-        return Storage._kv_get('readings', DEFAULT_READINGS)
+    def get_readings(resolve=True):
+        return Storage._kv_get('readings', DEFAULT_READINGS, resolve)
 
     @staticmethod
     def get_readings_light():
@@ -1296,25 +1453,21 @@ class Storage:
         cause of the admin UI lag/reload whenever a manager uploaded a new
         one. get_reading_photo() below fetches one photo's real bytes on
         demand, only when it's actually opened."""
-        readings = Storage.get_readings()
-        light = {}
-        for month, rooms in readings.items():
-            light[month] = {}
-            for room_id, rd in rooms.items():
-                rd_light = dict(rd)
-                for f in READING_PHOTO_FIELDS:
-                    if rd_light.get(f):
-                        rd_light[f] = True
-                light[month][room_id] = rd_light
-        return light
+        readings = Storage.get_readings(resolve=False)
+        return {
+            month: {room_id: light_reading_entry(rd) for room_id, rd in rooms.items()}
+            for month, rooms in readings.items()
+        }
 
     @staticmethod
     def get_reading_photo(month, room_id, field):
         if field not in READING_PHOTO_FIELDS:
             return ''
-        readings = Storage.get_readings()
+        # Metadata-only load, then fetch just THIS photo's bytes — the
+        # alternative is resolving every photo of every room and month.
+        readings = Storage.get_readings(resolve=False)
         rd = (readings.get(month) or {}).get(room_id) or {}
-        return rd.get(field) or ''
+        return Storage.get_photo_blob(rd.get(field))
 
     @staticmethod
     def save_readings(readings):
@@ -1329,8 +1482,8 @@ class Storage:
     # -- Invoices (list of complex objects → kv_store) ----------------------
 
     @staticmethod
-    def get_invoices():
-        return Storage._kv_get('invoices', [])
+    def get_invoices(resolve=True):
+        return Storage._kv_get('invoices', [], resolve)
 
     @staticmethod
     def _normalize_payment_proofs(raw):
@@ -1365,7 +1518,7 @@ class Storage:
         payload only carries a count + who each photo belongs to, never
         the image bytes. get_invoice_photo()/get_invoice_payment_proofs()
         fetch the real ones on demand."""
-        invoices = Storage.get_invoices()
+        invoices = Storage.get_invoices(resolve=False)
         light = []
         for inv in invoices:
             inv_light = dict(inv)
@@ -1375,24 +1528,28 @@ class Storage:
             proofs = Storage._normalize_payment_proofs(inv_light.get('paymentProofPhotos'))
             inv_light['paymentProofPhotos'] = [{k: v for k, v in p.items() if k != 'dataUrl'} for p in proofs]
             light.append(inv_light)
-        return light
+        # A proof photo's `thumb` that is itself a big photo (old uploads
+        # fell back to the full image) is a token here — the list view
+        # shows it, so swap back just those few.
+        return _resolve(light)
 
     @staticmethod
     def get_invoice_photo(invoice_id, field):
         if field not in READING_PHOTO_FIELDS:
             return ''
-        invoices = Storage.get_invoices()
+        invoices = Storage.get_invoices(resolve=False)
         inv = next((i for i in invoices if i.get('id') == invoice_id), None)
-        return (inv or {}).get(field) or ''
+        return Storage.get_photo_blob((inv or {}).get(field))
 
     @staticmethod
     def get_invoice_payment_proofs(invoice_id):
         """Full (dataUrl included) list — caller (routes.py) filters by
         assignedTo for a tenant caller, same as get_room_documents_full()
         does for room_documents."""
-        invoices = Storage.get_invoices()
+        invoices = Storage.get_invoices(resolve=False)
         inv = next((i for i in invoices if i.get('id') == invoice_id), None)
-        return Storage._normalize_payment_proofs((inv or {}).get('paymentProofPhotos'))
+        # Only this one invoice's proof photos are turned back into images.
+        return _resolve(Storage._normalize_payment_proofs((inv or {}).get('paymentProofPhotos')))
 
     @staticmethod
     def save_invoices(invoices):
@@ -1562,13 +1719,18 @@ class Storage:
         matches chronological order for this format), no date parsing
         needed. Returns (deleted_invoice_count, deleted_reading_months) so
         the caller can report what actually happened."""
-        invoices = Storage.get_invoices()
-        kept = [i for i in invoices if (i.get('month') or '') > cutoff_month]
-        deleted_invoice_count = len(invoices) - len(kept)
-        if deleted_invoice_count:
-            Storage.save_invoices(kept)
+        # Locked read-modify-write on token-level data (no images loaded):
+        # the old unlocked get-then-save could overwrite an invoice that was
+        # marked paid while this ran.
+        deleted_invoice_count = [0]
 
-        readings = Storage.get_readings()
+        def prune_invoices(invoices):
+            kept = [i for i in invoices if (i.get('month') or '') > cutoff_month]
+            deleted_invoice_count[0] = len(invoices) - len(kept)
+            return kept
+        Storage.update_invoices(prune_invoices)
+
+        readings = Storage.get_readings(resolve=False)
         removed_months = sorted(m for m in readings.keys() if m <= cutoff_month)
         if removed_months:
             def mutate(data):
@@ -1577,7 +1739,11 @@ class Storage:
                 return data
             Storage.update_readings(mutate)
 
-        return deleted_invoice_count, removed_months
+        # The purged months' photos are now unreferenced — free their space.
+        if deleted_invoice_count[0] or removed_months:
+            Storage.collect_photo_blobs()
+
+        return deleted_invoice_count[0], removed_months
 
     # -- Investor monthly report snapshots (survive invoice deletion) -------
     # The 3-month invoice retention policy above means the raw data behind
@@ -1697,8 +1863,30 @@ class Storage:
     # -- Room Documents (contract & related images, keyed by roomId) --------
 
     @staticmethod
-    def get_room_documents():
-        return Storage._kv_get('room_documents', {})
+    def get_room_documents(resolve=True):
+        return Storage._kv_get('room_documents', {}, resolve)
+
+    @staticmethod
+    def get_room_documents_for(room_id):
+        """One room's documents with real images — the on-demand fetch the
+        photo modal makes; resolves only this room's photos."""
+        return _resolve(Storage.get_room_documents(resolve=False).get(room_id, []))
+
+    @staticmethod
+    def get_room_documents_light():
+        """Every room's documents without the full image (id/label/
+        uploadedAt/thumb kept) — the bulk /api/data payload."""
+        return Storage._light_photo_map(Storage.get_room_documents(resolve=False))
+
+    @staticmethod
+    def _light_photo_map(photo_map):
+        light = {
+            rid: [{k: v for k, v in item.items() if k != 'dataUrl'} for item in items]
+            for rid, items in photo_map.items()
+        }
+        # Same as get_invoices_light(): a thumb that fell back to the full
+        # image is a token here; only those get fetched.
+        return _resolve(light)
 
     @staticmethod
     def save_room_documents(documents):
@@ -1718,8 +1906,16 @@ class Storage:
     # be shipped to the saler role's public room listing.
 
     @staticmethod
-    def get_room_photos():
-        return Storage._kv_get('room_photos', {})
+    def get_room_photos(resolve=True):
+        return Storage._kv_get('room_photos', {}, resolve)
+
+    @staticmethod
+    def get_room_photos_for(room_id):
+        return _resolve(Storage.get_room_photos(resolve=False).get(room_id, []))
+
+    @staticmethod
+    def get_room_photos_light():
+        return Storage._light_photo_map(Storage.get_room_photos(resolve=False))
 
     @staticmethod
     def save_room_photos(photos):

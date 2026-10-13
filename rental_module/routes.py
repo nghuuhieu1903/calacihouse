@@ -258,6 +258,13 @@ def get_public_site_settings():
     settings = dict(Storage.get_site_settings())
     if settings.get('logo'):
         settings['logo'] = True
+    # Same for shareImage (a photo, up to ~2MB): the only client-side use
+    # is a truthiness check before pointing og:image at /og-image (see
+    # applySiteSettings), and get_full_state() already collapses it for the
+    # same reason. This public route runs for every visitor on every page
+    # load, so shipping the bytes cost real bandwidth and CPU each time.
+    if settings.get('shareImage'):
+        settings['shareImage'] = True
     return jsonify({'success': True, 'settings': settings})
 
 @rental_bp.route('/api/auth/login', methods=['POST'])
@@ -758,7 +765,7 @@ def save_elec_reading():
     if field == 'elecNewPhoto':
         user = session.get('user') or {}
         if user.get('role') != 'superadmin':
-            readings = Storage.get_readings()
+            readings = Storage.get_readings(resolve=False)
             current = (readings.get(month) or {}).get(room_id) or {}
             if current.get('elecPhotoLocked'):
                 return jsonify({'success': False, 'error': 'Ảnh đã hoàn thành, không thể xoá/sửa. Liên hệ Super Admin.'}), 403
@@ -838,7 +845,7 @@ def add_payment_proof():
     # the system themselves yet.
     data = request.json or {}
     invoice_id = data.get('invoiceId')
-    invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
+    invoice = next((i for i in Storage.get_invoices(resolve=False) if i.get('id') == invoice_id), None)
     if not invoice:
         return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
     user = session.get('user')
@@ -855,7 +862,7 @@ def delete_payment_proof():
     data = request.json or {}
     invoice_id = data.get('invoiceId')
     photo_id = data.get('photoId')
-    invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
+    invoice = next((i for i in Storage.get_invoices(resolve=False) if i.get('id') == invoice_id), None)
     if not invoice:
         return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
     user = session.get('user')
@@ -877,7 +884,7 @@ def delete_payment_proof():
 @login_required
 def get_payment_proof_photos():
     invoice_id = request.args.get('invoiceId', '')
-    invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
+    invoice = next((i for i in Storage.get_invoices(resolve=False) if i.get('id') == invoice_id), None)
     if not invoice:
         return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
     user = session.get('user')
@@ -1239,7 +1246,7 @@ def get_room_documents_full(room_id):
     user = session.get('user')
     if not _user_can_view_room_documents(user, room_id):
         return jsonify({'success': False, 'error': 'Bạn không có quyền xem tài liệu phòng này!'}), 403
-    docs = Storage.get_room_documents().get(room_id, [])
+    docs = Storage.get_room_documents_for(room_id)
     # A dorm/KTX room's documents can be scoped to one occupant (see
     # save_room_document's assignedTo) — a tenant only ever gets 'all' +
     # their own; staff/investor roles manage/see the whole room's set.
@@ -1254,7 +1261,7 @@ def get_room_documents_full(room_id):
 def get_room_photos_full(room_id):
     if not _user_can_view_room_photos(session.get('user'), room_id):
         return jsonify({'success': False, 'error': 'Bạn không có quyền xem ảnh phòng này!'}), 403
-    photos = Storage.get_room_photos().get(room_id, [])
+    photos = Storage.get_room_photos_for(room_id)
     resp = jsonify({'success': True, 'photos': photos})
     resp.headers['Cache-Control'] = 'no-store'
     return resp
@@ -1287,7 +1294,7 @@ def get_invoice_photo():
     # the 4 meter-photo fields (see Storage.get_invoices_light()).
     invoice_id = request.args.get('invoiceId', '')
     field = request.args.get('field', '')
-    invoice = next((i for i in Storage.get_invoices() if i.get('id') == invoice_id), None)
+    invoice = next((i for i in Storage.get_invoices(resolve=False) if i.get('id') == invoice_id), None)
     if not invoice:
         return jsonify({'success': False, 'error': 'Không tìm thấy hóa đơn'}), 404
     if not _user_can_view_room_documents(session.get('user'), invoice.get('roomId', '')):

@@ -1,4 +1,4 @@
-from .storage import Storage, LEGACY_TAX_RULES_2025
+from .storage import Storage, LEGACY_TAX_RULES_2025, light_reading_entry
 from .vietqr import normalize_note, is_valid_bank_info, is_valid_color, is_scannable_qr_color, DOT_STYLES, VIETQR_BANKS
 from datetime import datetime, timedelta, date
 import calendar
@@ -536,7 +536,7 @@ class RentalService:
             return readings
 
         readings = Storage.update_readings(mutate)
-        return readings[month]
+        return {rid: light_reading_entry(rd) for rid, rd in readings[month].items()}
 
     @staticmethod
     def get_full_state(month=None, current_user=None):
@@ -553,8 +553,8 @@ class RentalService:
         permissions = Storage.get_permissions()
         site_settings = Storage.get_site_settings()
         custom_icons = Storage.get_custom_icons()
-        room_documents = Storage.get_room_documents()
-        room_photos = Storage.get_room_photos()
+        room_documents = Storage.get_room_documents_light()
+        room_photos = Storage.get_room_photos_light()
         # Investor payout math is internal to admin/manager — never shipped to
         # an investor or tenant session (see role filtering below).
         investor_expenses = Storage.get_investor_expenses_light()
@@ -1389,7 +1389,9 @@ class RentalService:
             return readings
 
         readings = Storage.update_readings(mutate)
-        return readings[month]
+        # Photo fields as booleans (the client keeps the same light shape
+        # /api/data gives it) — never the stored photo tokens.
+        return {rid: light_reading_entry(rd) for rid, rd in readings[month].items()}
 
     @staticmethod
     def set_elec_photo_lock(month, room_id, locked):
@@ -1416,14 +1418,16 @@ class RentalService:
             return readings
 
         readings = Storage.update_readings(mutate)
-        return readings[month][room_id]
+        return light_reading_entry(readings[month][room_id])
 
     @staticmethod
     def generate_all_invoices(month):
         users = Storage.get_users()
         rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), users)
         services = Storage.get_services()
-        readings = Storage.get_readings().get(month, {})
+        # Token-level read: a meter photo is copied onto the invoice as its
+        # token (same image, stored once), never loaded.
+        readings = Storage.get_readings(resolve=False).get(month, {})
 
         # Regenerating carries every existing invoice's paid/unpaid status
         # forward (see `status` below) — reading invoices outside the lock
@@ -1889,8 +1893,8 @@ class RentalService:
         today = datetime.now()
 
         cutoff_month = RentalService._shift_month(current_month, -RentalService.INVOICE_RETENTION_MONTHS)
-        readings = Storage.get_readings()
-        invoices = Storage.get_invoices()
+        readings = Storage.get_readings(resolve=False)
+        invoices = Storage.get_invoices(resolve=False)
         has_old_invoice_data = (
             any(m <= cutoff_month for m in readings.keys())
             or any((i.get('month') or '') <= cutoff_month for i in invoices)
@@ -1923,6 +1927,13 @@ class RentalService:
             elif ts < ticket_warn_cutoff:
                 pending_ticket_count += 1
         Storage.delete_tickets_by_ids(ticket_ids_to_delete)
+
+        # Photos that were replaced/deleted leave an unreferenced row in
+        # photo_blobs; sweep them (the disk is not unlimited).
+        try:
+            Storage.collect_photo_blobs()
+        except Exception as exc:
+            print('[photo_blobs] cleanup skipped:', exc)
 
         return {
             'pendingInvoiceMonth': pending_invoice_month,
