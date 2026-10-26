@@ -220,6 +220,35 @@ SCHEMA_STATEMENTS = [
         images_json   LONGTEXT
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
+    # Xe & thẻ gửi xe — một dòng = một chiếc xe đã/đang xin đăng ký. Ảnh biển
+    # số nằm ngay trong dòng (photo = ảnh đầy đủ, thumb = ảnh nhỏ ~8KB để
+    # danh sách không phải kéo ảnh nặng về). Cố ý KHÔNG nhét vào kv_store /
+    # /api/data như ticket: xem comment PHOTO BLOBS phía trên về lý do.
+    """
+    CREATE TABLE IF NOT EXISTS vehicles (
+        id               VARCHAR(191) PRIMARY KEY,
+        house_id         VARCHAR(191) DEFAULT '',
+        room_id          VARCHAR(191) DEFAULT '',
+        user_id          VARCHAR(191) DEFAULT '',
+        owner_name       TEXT,
+        plate            VARCHAR(32) DEFAULT '',
+        plate_key        VARCHAR(32) DEFAULT '',
+        vehicle_type     VARCHAR(32) DEFAULT '',
+        brand            VARCHAR(128) DEFAULT '',
+        color            VARCHAR(64) DEFAULT '',
+        card_number      VARCHAR(64) DEFAULT '',
+        card_issued_date VARCHAR(16) DEFAULT '',
+        status           VARCHAR(16) DEFAULT 'pending',
+        reject_reason    TEXT,
+        note             TEXT,
+        created_by       VARCHAR(191) DEFAULT '',
+        created_at       VARCHAR(32) DEFAULT '',
+        photo            LONGTEXT,
+        thumb            MEDIUMTEXT,
+        INDEX idx_vehicles_room (room_id),
+        INDEX idx_vehicles_plate (plate_key)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """,
     # Sổ thuế Hộ Kinh Doanh — một dòng = một khoản thuế đã kê khai/đã nộp
     # cho MỘT kỳ (lệ phí môn bài tính theo năm, GTGT/TNCN khoán tính theo
     # tháng/quý/năm tùy cách cơ quan thuế ấn định). Đây là bảng "sự thật đã

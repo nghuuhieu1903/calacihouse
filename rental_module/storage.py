@@ -188,6 +188,15 @@ DEFAULT_PERMISSIONS = [
         "tenant":   {"view": False, "create": False, "edit": False}
     },
     {
+        # Xe & thẻ gửi xe. Tenant không nằm trong ma trận này: người thuê
+        # luôn được đăng ký xe CỦA PHÒNG MÌNH qua luồng riêng (xem
+        # RentalService.save_vehicle), không phải quyền admin cấp.
+        "key": "vehicles", "name": "Xe & Thẻ Gửi Xe",
+        "manager":  {"view": False, "create": False, "edit": False},
+        "investor": {"view": False, "create": False, "edit": False},
+        "tenant":   {"view": False, "create": False, "edit": False}
+    },
+    {
         "key": "accounts", "name": "Tài Khoản Người Dùng",
         "manager":  {"view": False, "create": False, "edit": False},
         "investor": {"view": False, "create": False, "edit": False},
@@ -538,6 +547,29 @@ def _ticket(row):
         'response': row['response'] or '',
         'comments': json.loads(row['comments_json']) if row['comments_json'] else [],
         'images': json.loads(row['images_json']) if row['images_json'] else []
+    }
+
+
+def _vehicle(row):
+    return {
+        'id': row['id'],
+        'houseId': row['house_id'] or '',
+        'roomId': row['room_id'] or '',
+        'userId': row['user_id'] or '',
+        'ownerName': row['owner_name'] or '',
+        'plate': row['plate'] or '',
+        'vehicleType': row['vehicle_type'] or '',
+        'brand': row['brand'] or '',
+        'color': row['color'] or '',
+        'cardNumber': row['card_number'] or '',
+        'cardIssuedDate': row['card_issued_date'] or '',
+        'status': row['status'] or 'pending',
+        'rejectReason': row['reject_reason'] or '',
+        'note': row['note'] or '',
+        'createdBy': row['created_by'] or '',
+        'createdAt': row['created_at'] or '',
+        'thumb': row.get('thumb') or '',
+        'hasPhoto': bool(row.get('has_photo'))
     }
 
 
@@ -1563,6 +1595,92 @@ class Storage:
         edit (e.g. marking one paid) does, since it can't be allowed to
         clobber a concurrent edit to a different invoice."""
         return Storage._kv_update('invoices', [], mutate)
+
+    # -- Vehicles (xe & thẻ gửi xe) -----------------------------------------
+    # Không đi qua /api/data: danh sách riêng, không kèm ảnh đầy đủ (chỉ
+    # thumb), ảnh gốc lấy từng xe một qua get_vehicle_photo().
+    _VEHICLE_LIST_COLS = (
+        "id, house_id, room_id, user_id, owner_name, plate, vehicle_type, brand, color, "
+        "card_number, card_issued_date, status, reject_reason, note, created_by, created_at, "
+        "thumb, (photo IS NOT NULL AND photo <> '') AS has_photo"
+    )
+
+    @staticmethod
+    def get_vehicles():
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT {Storage._VEHICLE_LIST_COLS} FROM vehicles ORDER BY created_at DESC, id DESC")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+        return [_vehicle(r) for r in rows]
+
+    @staticmethod
+    def get_vehicle(vehicle_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(f"SELECT {Storage._VEHICLE_LIST_COLS} FROM vehicles WHERE id=%s", (vehicle_id,))
+                row = cur.fetchone()
+        finally:
+            conn.close()
+        return _vehicle(row) if row else None
+
+    @staticmethod
+    def get_vehicle_photo(vehicle_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT photo FROM vehicles WHERE id=%s", (vehicle_id,))
+                row = cur.fetchone()
+        finally:
+            conn.close()
+        return (row or {}).get('photo') or ''
+
+    @staticmethod
+    def save_vehicle(v, photo=None, thumb=None):
+        """Upserts this one row by primary key. photo/thumb=None leaves the
+        stored image untouched (an edit that didn't pick a new picture);
+        '' clears it; anything else replaces it."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO vehicles "
+                    "(id, house_id, room_id, user_id, owner_name, plate, plate_key, vehicle_type, brand, color, "
+                    " card_number, card_issued_date, status, reject_reason, note, created_by, created_at) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    "ON DUPLICATE KEY UPDATE house_id=VALUES(house_id), room_id=VALUES(room_id), "
+                    "user_id=VALUES(user_id), owner_name=VALUES(owner_name), plate=VALUES(plate), "
+                    "plate_key=VALUES(plate_key), vehicle_type=VALUES(vehicle_type), brand=VALUES(brand), "
+                    "color=VALUES(color), card_number=VALUES(card_number), "
+                    "card_issued_date=VALUES(card_issued_date), status=VALUES(status), "
+                    "reject_reason=VALUES(reject_reason), note=VALUES(note)",
+                    (
+                        v['id'], v.get('houseId', ''), v.get('roomId', ''), v.get('userId', ''),
+                        v.get('ownerName', ''), v.get('plate', ''), v.get('plateKey', ''),
+                        v.get('vehicleType', ''), v.get('brand', ''), v.get('color', ''),
+                        v.get('cardNumber', ''), v.get('cardIssuedDate', ''), v.get('status', 'pending'),
+                        v.get('rejectReason', ''), v.get('note', ''), v.get('createdBy', ''),
+                        v.get('createdAt', '')
+                    )
+                )
+                if photo is not None:
+                    cur.execute("UPDATE vehicles SET photo=%s, thumb=%s WHERE id=%s", (photo, thumb or '', v['id']))
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def delete_vehicle(vehicle_id):
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM vehicles WHERE id=%s", (vehicle_id,))
+            conn.commit()
+        finally:
+            conn.close()
 
     # -- Tickets ------------------------------------------------------------
 

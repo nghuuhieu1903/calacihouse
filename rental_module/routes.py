@@ -992,6 +992,54 @@ def delete_investor_report_override():
     RentalService.delete_investor_report_override(data.get('houseId'), data.get('month'))
     return jsonify({'success': True})
 
+# -- Xe & thẻ gửi xe -------------------------------------------------------
+# Quyền xem/ghi do RentalService.vehicle_actor() quyết định (staff theo ma trận
+# quyền, tenant chỉ xe của phòng mình), nên các route chỉ cần đăng nhập.
+
+@rental_bp.route('/api/vehicles', methods=['GET'])
+@login_required
+def list_vehicles():
+    vehicles = RentalService.list_vehicles(session['user'])
+    if vehicles is None:
+        return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
+    return jsonify({'success': True, 'vehicles': vehicles})
+
+@rental_bp.route('/api/vehicles/<vehicle_id>/photo', methods=['GET'])
+@login_required
+def get_vehicle_photo(vehicle_id):
+    photo = RentalService.get_vehicle_photo_for(session['user'], vehicle_id)
+    if photo is None:
+        return jsonify({'success': False, 'error': 'Không tìm thấy xe'}), 404
+    return jsonify({'success': True, 'photo': photo})
+
+@rental_bp.route('/api/vehicles/save', methods=['POST'])
+@login_required
+def save_vehicle():
+    vehicle, error = RentalService.save_vehicle(session['user'], request.json or {})
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
+    return jsonify({'success': True, 'vehicle': vehicle})
+
+@rental_bp.route('/api/vehicles/review', methods=['POST'])
+@login_required
+def review_vehicle():
+    data = request.json or {}
+    vehicle, error = RentalService.review_vehicle(
+        session['user'], data.get('id'), data.get('decision'),
+        data.get('cardNumber'), data.get('cardIssuedDate'), data.get('rejectReason')
+    )
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
+    return jsonify({'success': True, 'vehicle': vehicle})
+
+@rental_bp.route('/api/vehicles/delete', methods=['POST'])
+@login_required
+def delete_vehicle():
+    error = RentalService.delete_vehicle(session['user'], (request.json or {}).get('id'))
+    if error:
+        return jsonify({'success': False, 'error': error}), 403
+    return jsonify({'success': True})
+
 @rental_bp.route('/api/tickets/create', methods=['POST'])
 @login_required
 def create_ticket():

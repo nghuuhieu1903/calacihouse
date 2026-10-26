@@ -97,6 +97,50 @@ const I18N = {
     col_headcount: 'Số Người',
     nav_my_invoices: 'Hóa Đơn Của Tôi',
     nav_send_ticket: 'Gửi Báo Lỗi / Khiếu Nại',
+    nav_vehicles: 'Xe & Thẻ Gửi Xe',
+    nav_my_vehicles: 'Xe Của Tôi',
+    vehicles_title: 'Xe & Thẻ Gửi Xe',
+    vehicles_subtitle: 'Đăng ký xe bằng ảnh biển số, cấp và quản lý thẻ gửi xe theo phòng',
+    my_vehicles_title: 'Xe Của Tôi',
+    my_vehicles_subtitle: 'Tải ảnh biển số để đăng ký xe và nhận thẻ gửi xe',
+    btn_add_vehicle: 'Đăng Ký Xe',
+    ph_vehicle_search: 'Tìm biển số, số thẻ, chủ xe...',
+    opt_vehicle_all_status: 'Tất cả trạng thái',
+    vehicle_status_pending: 'Chờ duyệt',
+    vehicle_status_approved: 'Đã cấp thẻ',
+    vehicle_status_rejected: 'Từ chối',
+    modal_vehicle_title: 'Đăng Ký Xe',
+    modal_vehicle_edit_title: 'Sửa Thông Tin Xe',
+    lbl_vehicle_photo: 'Ảnh biển số xe',
+    btn_choose_vehicle_photo: 'Chọn / chụp ảnh',
+    lbl_plate: 'Biển số',
+    lbl_vehicle_type: 'Loại xe',
+    lbl_vehicle_brand: 'Hãng / dòng xe',
+    lbl_vehicle_color: 'Màu xe',
+    lbl_vehicle_owner: 'Chủ xe',
+    lbl_vehicle_note: 'Ghi chú',
+    lbl_vehicle_status: 'Trạng thái',
+    lbl_card_number: 'Số thẻ gửi xe',
+    lbl_card_date: 'Ngày cấp thẻ',
+    lbl_reject_reason: 'Lý do từ chối',
+    btn_save_vehicle: 'Lưu Xe',
+    btn_approve_vehicle: 'Cấp thẻ',
+    btn_reject_vehicle: 'Từ chối',
+    vehicle_review_approve_title: 'Cấp Thẻ Gửi Xe',
+    vehicle_review_reject_title: 'Từ Chối Đăng Ký Xe',
+    vehicles_empty: 'Chưa có xe nào được đăng ký.',
+    vehicle_no_card: 'Chưa có thẻ',
+    vehicle_card_label: 'Thẻ',
+    vehicle_type_xe_may: 'Xe máy',
+    vehicle_type_xe_dap_dien: 'Xe đạp điện',
+    vehicle_type_xe_dap: 'Xe đạp',
+    vehicle_type_o_to: 'Ô tô',
+    vehicle_type_khac: 'Khác',
+    toast_vehicle_saved: 'Đã lưu thông tin xe!',
+    toast_vehicle_reviewed: 'Đã cập nhật trạng thái xe!',
+    toast_vehicle_deleted: 'Đã xóa xe!',
+    toast_vehicle_photo_required: 'Vui lòng tải lên ảnh biển số xe!',
+    confirm_delete_vehicle: 'Xóa xe này khỏi danh sách?',
     billing_period: 'Kỳ hóa đơn:',
     month_select_prefix: 'Tháng',
     stat_revenue: 'Tổng thu dự kiến',
@@ -898,6 +942,50 @@ const I18N = {
     col_headcount: 'Occupants',
     nav_my_invoices: 'My Invoices',
     nav_send_ticket: 'Report An Issue',
+    nav_vehicles: 'Vehicles & Parking Cards',
+    nav_my_vehicles: 'My Vehicles',
+    vehicles_title: 'Vehicles & Parking Cards',
+    vehicles_subtitle: 'Register vehicles from a plate photo, issue and manage parking cards per room',
+    my_vehicles_title: 'My Vehicles',
+    my_vehicles_subtitle: 'Upload a plate photo to register a vehicle and get a parking card',
+    btn_add_vehicle: 'Register Vehicle',
+    ph_vehicle_search: 'Search plate, card no., owner...',
+    opt_vehicle_all_status: 'All statuses',
+    vehicle_status_pending: 'Pending',
+    vehicle_status_approved: 'Card issued',
+    vehicle_status_rejected: 'Rejected',
+    modal_vehicle_title: 'Register Vehicle',
+    modal_vehicle_edit_title: 'Edit Vehicle',
+    lbl_vehicle_photo: 'License plate photo',
+    btn_choose_vehicle_photo: 'Choose / take photo',
+    lbl_plate: 'License plate',
+    lbl_vehicle_type: 'Vehicle type',
+    lbl_vehicle_brand: 'Brand / model',
+    lbl_vehicle_color: 'Color',
+    lbl_vehicle_owner: 'Owner',
+    lbl_vehicle_note: 'Note',
+    lbl_vehicle_status: 'Status',
+    lbl_card_number: 'Parking card no.',
+    lbl_card_date: 'Card issue date',
+    lbl_reject_reason: 'Reason for rejection',
+    btn_save_vehicle: 'Save Vehicle',
+    btn_approve_vehicle: 'Issue card',
+    btn_reject_vehicle: 'Reject',
+    vehicle_review_approve_title: 'Issue Parking Card',
+    vehicle_review_reject_title: 'Reject Vehicle Registration',
+    vehicles_empty: 'No vehicles registered yet.',
+    vehicle_no_card: 'No card yet',
+    vehicle_card_label: 'Card',
+    vehicle_type_xe_may: 'Motorbike',
+    vehicle_type_xe_dap_dien: 'E-bike',
+    vehicle_type_xe_dap: 'Bicycle',
+    vehicle_type_o_to: 'Car',
+    vehicle_type_khac: 'Other',
+    toast_vehicle_saved: 'Vehicle saved!',
+    toast_vehicle_reviewed: 'Vehicle status updated!',
+    toast_vehicle_deleted: 'Vehicle deleted!',
+    toast_vehicle_photo_required: 'Please upload a license plate photo!',
+    confirm_delete_vehicle: 'Remove this vehicle?',
     billing_period: 'Billing Period:',
     month_select_prefix: 'Month',
     stat_revenue: 'Expected Revenue',
@@ -2096,6 +2184,7 @@ const ADMIN_TAB_PERMISSIONS = {
   'admin-investor-report': ['investor_report', 'view'],
   'admin-rooms': ['rooms', 'view'],
   'admin-tickets': ['tickets', 'view'],
+  'admin-vehicles': ['vehicles', 'view'],
   'admin-users': ['accounts', 'view']
 };
 
@@ -2232,6 +2321,8 @@ function setupUserRoleUI() {
     if (dataRetentionNav) dataRetentionNav.style.display = user.role === 'superadmin' ? 'flex' : 'none';
     const taxNav = document.getElementById('nav-tax');
     if (taxNav) taxNav.style.display = canAccessAdminView(user.role, 'admin-tax') ? 'flex' : 'none';
+    // Huy hiệu "chờ duyệt" của Xe & Thẻ Gửi Xe cần danh sách xe ngay từ đầu, không đợi mở trang.
+    if (canAccessAdminView(user.role, 'admin-vehicles')) loadVehicles();
 
     // Shortcut buttons OUTSIDE the sidebar that jump straight to one of
     // the views above (Dashboard's "Phím Tắt Thao Tác Nhanh", the
@@ -2657,6 +2748,16 @@ function switchView(viewId) {
       titleEl.innerText = dict.view_tenant_contract_title;
       subtitleEl.innerText = dict.view_tenant_contract_subtitle;
       renderTenantContractView();
+      break;
+    case 'admin-vehicles':
+      titleEl.innerText = dict.vehicles_title;
+      subtitleEl.innerText = dict.vehicles_subtitle;
+      renderVehiclesView();
+      break;
+    case 'tenant-vehicles':
+      titleEl.innerText = dict.my_vehicles_title;
+      subtitleEl.innerText = dict.my_vehicles_subtitle;
+      renderVehiclesView();
       break;
     case 'tenant-reports':
       titleEl.innerText = dict.form_ticket_title;
@@ -9001,6 +9102,281 @@ function removeTenantImage(idx) {
 }
 
 
+
+// ---------------------------------------------------------------------------
+// Xe & thẻ gửi xe — dùng chung cho admin (admin-vehicles) và người thuê
+// (tenant-vehicles). Danh sách lấy riêng từ /api/vehicles (không nằm trong
+// state/fetchState) và chỉ kèm ảnh thu nhỏ; ảnh đầy đủ tải khi bấm vào.
+// Quyền thật sự do server quyết định (RentalService.vehicle_actor) — các nút
+// ẩn/hiện ở đây chỉ là giao diện.
+// ---------------------------------------------------------------------------
+const VEHICLE_TYPES = ['Xe máy', 'Xe đạp điện', 'Xe đạp', 'Ô tô', 'Khác'];
+const VEHICLE_TYPE_KEYS = { 'Xe máy': 'xe_may', 'Xe đạp điện': 'xe_dap_dien', 'Xe đạp': 'xe_dap', 'Ô tô': 'o_to', 'Khác': 'khac' };
+let _vehicles = [];
+let _vehiclePhoto = null;   // { dataUrl, thumb } vừa chọn; null = giữ ảnh cũ
+
+function vehicleIsStaff() {
+  return !!state.currentUser && state.currentUser.role !== 'tenant';
+}
+
+function vehicleTypeLabel(type) {
+  const key = VEHICLE_TYPE_KEYS[type];
+  return key ? t('vehicle_type_' + key) : type;
+}
+
+function vehicleStatusBadge(status) {
+  const cls = status === 'approved' ? 'badge-paid' : status === 'rejected' ? 'badge-open' : 'badge-pending';
+  return `<span class="badge ${cls}">${t('vehicle_status_' + status)}</span>`;
+}
+
+async function loadVehicles() {
+  try {
+    const res = await fetch(`${API_BASE}/vehicles`);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.success) {
+      _vehicles = data.vehicles;
+    } else {
+      showToast(data.error || t('toast_action_not_permitted'), 'error');
+    }
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+  updateVehicleBadge();
+}
+
+function updateVehicleBadge() {
+  const badge = document.getElementById('admin-vehicle-badge');
+  if (!badge) return;
+  const pending = _vehicles.filter(v => v.status === 'pending').length;
+  badge.innerText = pending;
+  badge.style.display = pending > 0 && vehicleIsStaff() ? 'inline-block' : 'none';
+}
+
+async function renderVehiclesView(filterOnly) {
+  const mode = vehicleIsStaff() ? 'admin' : 'tenant';
+  const body = document.getElementById(`${mode}-vehicles-body`);
+  if (!body) return;
+  // Chỉ gọi mạng khi mở trang; gõ tìm kiếm/đổi bộ lọc thì lọc lại trên danh sách đã có.
+  if (!filterOnly) await loadVehicles();
+
+  const q = (document.getElementById(`${mode}-vehicle-search`).value || '').trim().toLowerCase();
+  const st = document.getElementById(`${mode}-vehicle-status`).value;
+  const list = _vehicles.filter(v => (!st || v.status === st) && (!q ||
+    [v.plate, v.cardNumber, v.ownerName, v.brand].some(x => (x || '').toLowerCase().includes(q))));
+
+  if (list.length === 0) {
+    body.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('vehicles_empty')}</div>`;
+    return;
+  }
+
+  const isStaff = mode === 'admin';
+  body.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1rem;">${list.map(v => {
+    const house = state.houses.find(h => h.id === v.houseId);
+    const room = state.rooms.find(r => r.id === v.roomId);
+    const canEdit = isStaff || v.status !== 'approved';
+    const canDelete = isStaff ? (state.currentUser.role === 'superadmin') : v.status !== 'approved';
+    return `
+    <div class="card" style="padding:1rem; display:flex; flex-direction:column; gap:0.6rem;">
+      <div style="display:flex; gap:0.75rem;">
+        ${v.thumb
+          ? `<img src="${v.thumb}" alt="" onclick="openVehiclePhoto('${v.id}')" style="width:96px; height:72px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--border-color); cursor:pointer; flex-shrink:0;">`
+          : `<div style="width:96px; height:72px; border-radius:var(--radius-sm); border:2px dashed var(--border-color); display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0;"><i data-lucide="image-off"></i></div>`}
+        <div style="min-width:0; flex:1;">
+          <div style="font-weight:800; font-size:1.15rem; letter-spacing:0.5px;">${escapeHtml(v.plate)}</div>
+          <div style="font-size:0.82rem; color:var(--text-secondary);">${escapeHtml(vehicleTypeLabel(v.vehicleType))}${v.brand ? ' · ' + escapeHtml(v.brand) : ''}${v.color ? ' · ' + escapeHtml(v.color) : ''}</div>
+          <div style="margin-top:0.25rem;">${vehicleStatusBadge(v.status)}</div>
+        </div>
+      </div>
+      <div style="font-size:0.82rem; display:grid; grid-template-columns:1fr 1fr; gap:0.3rem;">
+        <div><span style="color:var(--text-muted);">${t('col_room')}:</span> <strong>${escapeHtml(room ? room.name : '—')}</strong>${house ? ` <small style="color:var(--text-muted);">(${escapeHtml(house.name)})</small>` : ''}</div>
+        <div><span style="color:var(--text-muted);">${t('lbl_vehicle_owner')}:</span> <strong>${escapeHtml(v.ownerName || '—')}</strong></div>
+        <div style="grid-column:1/-1;"><span style="color:var(--text-muted);">${t('vehicle_card_label')}:</span> <strong>${v.cardNumber ? escapeHtml(v.cardNumber) : `<em>${t('vehicle_no_card')}</em>`}</strong>${v.cardIssuedDate ? ` <small style="color:var(--text-muted);">(${escapeHtml(v.cardIssuedDate)})</small>` : ''}</div>
+        ${v.status === 'rejected' && v.rejectReason ? `<div style="grid-column:1/-1; color:var(--cala-red);">${escapeHtml(v.rejectReason)}</div>` : ''}
+        ${v.note ? `<div style="grid-column:1/-1; color:var(--text-secondary);">${escapeHtml(v.note)}</div>` : ''}
+      </div>
+      <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:auto;">
+        ${isStaff && v.status !== 'approved' ? `<button class="btn btn-orange btn-sm" onclick="openVehicleReview('${v.id}','approved')"><i data-lucide="id-card"></i> ${t('btn_approve_vehicle')}</button>` : ''}
+        ${isStaff && v.status === 'pending' ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger);" onclick="openVehicleReview('${v.id}','rejected')"><i data-lucide="x"></i> ${t('btn_reject_vehicle')}</button>` : ''}
+        ${canEdit ? `<button class="btn btn-secondary btn-sm" onclick="openVehicleModal('${v.id}')"><i data-lucide="edit"></i></button>` : ''}
+        ${canDelete ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger);" onclick="deleteVehicle('${v.id}')"><i data-lucide="trash-2"></i></button>` : ''}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+  renderIcons(body);
+}
+
+async function openVehiclePhoto(id) {
+  try {
+    const res = await fetch(`${API_BASE}/vehicles/${id}/photo`);
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.photo) openImageLightbox(data.photo);
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  }
+}
+
+function openVehiclePreviewLightbox() {
+  const img = document.getElementById('vehicle-photo-preview');
+  if (img && img.src) openImageLightbox(img.src);
+}
+
+function setVehiclePhotoPreview(src) {
+  const img = document.getElementById('vehicle-photo-preview');
+  if (src) { img.src = src; img.style.display = 'block'; } else { img.removeAttribute('src'); img.style.display = 'none'; }
+}
+
+function onVehicleRoomChange() {
+  const room = state.rooms.find(r => r.id === document.getElementById('vehicle-room').value);
+  const owner = document.getElementById('vehicle-owner');
+  if (room && !document.getElementById('vehicle-id').value) owner.value = room.tenant || '';
+}
+
+function openVehicleModal(id) {
+  const isStaff = vehicleIsStaff();
+  const v = id ? _vehicles.find(x => x.id === id) : null;
+  _vehiclePhoto = null;
+  document.getElementById('form-vehicle').reset();
+  document.getElementById('vehicle-id').value = v ? v.id : '';
+  document.getElementById('modal-vehicle-title').innerText = t(v ? 'modal_vehicle_edit_title' : 'modal_vehicle_title');
+
+  const typeSel = document.getElementById('vehicle-type');
+  typeSel.innerHTML = VEHICLE_TYPES.map(x => `<option value="${x}">${escapeHtml(vehicleTypeLabel(x))}</option>`).join('');
+
+  // Người thuê bị khoá vào phòng của mình (server cũng ép như vậy); admin chọn phòng.
+  const roomRow = document.getElementById('vehicle-room-row');
+  roomRow.style.display = isStaff ? 'block' : 'none';
+  const roomSel = document.getElementById('vehicle-room');
+  roomSel.innerHTML = state.rooms.map(r => {
+    const h = state.houses.find(x => x.id === r.houseId);
+    return `<option value="${r.id}">${escapeHtml((h ? h.name + ' — ' : '') + r.name)}</option>`;
+  }).join('');
+  roomSel.disabled = !!v;
+
+  document.getElementById('vehicle-staff-block').style.display = isStaff ? 'block' : 'none';
+
+  if (v) {
+    roomSel.value = v.roomId;
+    document.getElementById('vehicle-plate').value = v.plate;
+    typeSel.value = v.vehicleType;
+    document.getElementById('vehicle-brand').value = v.brand;
+    document.getElementById('vehicle-color').value = v.color;
+    document.getElementById('vehicle-owner').value = v.ownerName;
+    document.getElementById('vehicle-note').value = v.note;
+    document.getElementById('vehicle-card-number').value = v.cardNumber;
+    document.getElementById('vehicle-card-date').value = v.cardIssuedDate;
+    document.getElementById('vehicle-status').value = v.status;
+    setVehiclePhotoPreview(v.thumb);
+  } else {
+    setVehiclePhotoPreview('');
+    document.getElementById('vehicle-status').value = 'approved';
+    onVehicleRoomChange();
+    if (!isStaff) {
+      const me = state.currentUser;
+      document.getElementById('vehicle-owner').value = me ? me.fullName : '';
+    }
+  }
+  document.getElementById('modal-vehicle').classList.add('active');
+  renderIcons(document.getElementById('modal-vehicle'));
+}
+
+async function handleVehiclePhotoSelect(event) {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  try {
+    _vehiclePhoto = await compressImageFile(file);
+    setVehiclePhotoPreview(_vehiclePhoto.dataUrl);
+  } catch (err) {
+    showToast(t(err.message === 'too-large' ? 'toast_image_too_large' : 'toast_image_compress_failed'), 'error');
+  }
+}
+
+async function saveVehicle(event) {
+  event.preventDefault();
+  const id = document.getElementById('vehicle-id').value;
+  const isStaff = vehicleIsStaff();
+  if (!id && !_vehiclePhoto && !isStaff) {
+    showToast(t('toast_vehicle_photo_required'), 'error');
+    return;
+  }
+  const body = {
+    id: id || undefined,
+    roomId: document.getElementById('vehicle-room').value,
+    plate: document.getElementById('vehicle-plate').value,
+    vehicleType: document.getElementById('vehicle-type').value,
+    brand: document.getElementById('vehicle-brand').value,
+    color: document.getElementById('vehicle-color').value,
+    ownerName: document.getElementById('vehicle-owner').value,
+    note: document.getElementById('vehicle-note').value
+  };
+  if (isStaff) {
+    body.cardNumber = document.getElementById('vehicle-card-number').value;
+    body.cardIssuedDate = document.getElementById('vehicle-card-date').value;
+    body.status = document.getElementById('vehicle-status').value;
+  }
+  if (_vehiclePhoto) {
+    body.photo = _vehiclePhoto.dataUrl;
+    body.thumb = _vehiclePhoto.thumb;
+  }
+  const btn = document.getElementById('btn-save-vehicle');
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/vehicles/save`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success === false) {
+      showToast(data.error || t('toast_action_not_permitted'), 'error');
+      return;
+    }
+    closeModal('modal-vehicle');
+    showToast(t('toast_vehicle_saved'), 'success');
+    await renderVehiclesView();
+  } catch (err) {
+    showToast(t('toast_server_connection_error'), 'error');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function openVehicleReview(id, decision) {
+  const v = _vehicles.find(x => x.id === id);
+  if (!v) return;
+  document.getElementById('vehicle-review-id').value = id;
+  document.getElementById('vehicle-review-decision').value = decision;
+  document.getElementById('modal-vehicle-review-title').innerText = t(decision === 'approved' ? 'vehicle_review_approve_title' : 'vehicle_review_reject_title');
+  document.getElementById('vehicle-review-approve').style.display = decision === 'approved' ? 'block' : 'none';
+  document.getElementById('vehicle-review-reject').style.display = decision === 'rejected' ? 'block' : 'none';
+  document.getElementById('vehicle-review-card').value = v.cardNumber || '';
+  document.getElementById('vehicle-review-date').value = v.cardIssuedDate || new Date().toISOString().slice(0, 10);
+  document.getElementById('vehicle-review-reason').value = '';
+  document.getElementById('modal-vehicle-review').classList.add('active');
+  renderIcons(document.getElementById('modal-vehicle-review'));
+}
+
+async function submitVehicleReview(event) {
+  event.preventDefault();
+  const decision = document.getElementById('vehicle-review-decision').value;
+  const data = await postAndVerify(`${API_BASE}/vehicles/review`, {
+    id: document.getElementById('vehicle-review-id').value,
+    decision,
+    cardNumber: document.getElementById('vehicle-review-card').value,
+    cardIssuedDate: document.getElementById('vehicle-review-date').value,
+    rejectReason: document.getElementById('vehicle-review-reason').value
+  });
+  if (!data) return;
+  closeModal('modal-vehicle-review');
+  showToast(t('toast_vehicle_reviewed'), 'success');
+  await renderVehiclesView();
+}
+
+async function deleteVehicle(id) {
+  if (!(await showConfirmModal(t('confirm_delete_vehicle'), { danger: true }))) return;
+  const data = await postAndVerify(`${API_BASE}/vehicles/delete`, { id });
+  if (!data) return;
+  showToast(t('toast_vehicle_deleted'), 'success');
+  await renderVehiclesView();
+}
 
 function renderTenantReportsView() {
   const tbody = document.getElementById('tenant-tickets-tbody');

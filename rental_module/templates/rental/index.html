@@ -263,6 +263,11 @@
           <span data-i18n="nav_tickets">Xử Lý Báo Lỗi</span>
           <span id="admin-ticket-badge" class="badge badge-open" style="margin-left: auto; display: none;">0</span>
         </a>
+        <a class="nav-item" data-view="admin-vehicles">
+          <i data-lucide="bike"></i>
+          <span data-i18n="nav_vehicles">Xe & Thẻ Gửi Xe</span>
+          <span id="admin-vehicle-badge" class="badge badge-pending" style="margin-left: auto; display: none;">0</span>
+        </a>
         <a class="nav-item" data-view="admin-users">
           <i data-lucide="users"></i>
           <span data-i18n="nav_users">Quản Lý Tài Khoản</span>
@@ -316,6 +321,10 @@
         <a class="nav-item" data-view="tenant-contract">
           <i data-lucide="file-image"></i>
           <span data-i18n="nav_my_contract">Hợp Đồng Của Tôi</span>
+        </a>
+        <a class="nav-item" data-view="tenant-vehicles">
+          <i data-lucide="bike"></i>
+          <span data-i18n="nav_my_vehicles">Xe Của Tôi</span>
         </a>
         <a class="nav-item" data-view="tenant-reports">
           <i data-lucide="message-square-plus"></i>
@@ -1297,6 +1306,50 @@
           </div>
         </div>
 
+        <div id="view-admin-vehicles" class="view-panel" style="display: none;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+            <div>
+              <h3><i data-lucide="bike" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="vehicles_title">Xe & Thẻ Gửi Xe</span></h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="vehicles_subtitle">Đăng ký xe bằng ảnh biển số, cấp và quản lý thẻ gửi xe theo phòng</p>
+            </div>
+            <button type="button" class="btn btn-orange btn-sm" onclick="openVehicleModal()">
+              <i data-lucide="plus"></i> <span data-i18n="btn_add_vehicle">Đăng Ký Xe</span>
+            </button>
+          </div>
+          <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem;">
+            <input type="search" id="admin-vehicle-search" class="form-control" style="flex:1; min-width:180px;" data-i18n-placeholder="ph_vehicle_search" placeholder="Tìm biển số, số thẻ, chủ xe..." oninput="renderVehiclesView(true)">
+            <select id="admin-vehicle-status" class="form-control" style="width:auto;" onchange="renderVehiclesView(true)">
+              <option value="" data-i18n="opt_vehicle_all_status">Tất cả trạng thái</option>
+              <option value="pending" data-i18n="vehicle_status_pending">Chờ duyệt</option>
+              <option value="approved" data-i18n="vehicle_status_approved">Đã cấp thẻ</option>
+              <option value="rejected" data-i18n="vehicle_status_rejected">Từ chối</option>
+            </select>
+          </div>
+          <div id="admin-vehicles-body"></div>
+        </div>
+
+        <div id="view-tenant-vehicles" class="view-panel" style="display: none;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem;">
+            <div>
+              <h3><i data-lucide="bike" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="my_vehicles_title">Xe Của Tôi</span></h3>
+              <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="my_vehicles_subtitle">Tải ảnh biển số để đăng ký xe và nhận thẻ gửi xe</p>
+            </div>
+            <button type="button" class="btn btn-orange btn-sm" onclick="openVehicleModal()">
+              <i data-lucide="plus"></i> <span data-i18n="btn_add_vehicle">Đăng Ký Xe</span>
+            </button>
+          </div>
+          <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem;">
+            <input type="search" id="tenant-vehicle-search" class="form-control" style="flex:1; min-width:180px;" data-i18n-placeholder="ph_vehicle_search" placeholder="Tìm biển số, số thẻ, chủ xe..." oninput="renderVehiclesView(true)">
+            <select id="tenant-vehicle-status" class="form-control" style="width:auto;" onchange="renderVehiclesView(true)">
+              <option value="" data-i18n="opt_vehicle_all_status">Tất cả trạng thái</option>
+              <option value="pending" data-i18n="vehicle_status_pending">Chờ duyệt</option>
+              <option value="approved" data-i18n="vehicle_status_approved">Đã cấp thẻ</option>
+              <option value="rejected" data-i18n="vehicle_status_rejected">Từ chối</option>
+            </select>
+          </div>
+          <div id="tenant-vehicles-body"></div>
+        </div>
+
         <div id="view-tenant-invoices" class="view-panel" style="display: none;">
           <div id="tenant-invoice-header" style="margin-bottom: 1.5rem;">
             <h3 data-i18n="my_invoice_title">Hóa Đơn Tháng Của Tôi</h3>
@@ -1385,6 +1438,116 @@
   </div>
 
   <!-- MODALS -->
+
+  <!-- Modal Đăng ký / Sửa xe (dùng chung admin & người thuê) -->
+  <div class="modal-backdrop" id="modal-vehicle">
+    <div class="modal-card" style="max-width: 560px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="bike" style="color: var(--cala-blue); vertical-align: middle;"></i> <span id="modal-vehicle-title" data-i18n="modal_vehicle_title">Đăng Ký Xe</span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-vehicle')"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-vehicle" onsubmit="saveVehicle(event)">
+        <input type="hidden" id="vehicle-id">
+        <div style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_vehicle_photo">Ảnh biển số xe</label>
+          <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+            <img id="vehicle-photo-preview" alt="" style="display:none; width:120px; height:80px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--border-color); cursor:pointer;" onclick="openVehiclePreviewLightbox()">
+            <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+              <i data-lucide="camera"></i> <span data-i18n="btn_choose_vehicle_photo">Chọn / chụp ảnh</span>
+              <input type="file" accept="image/*" capture="environment" style="display:none;" onchange="handleVehiclePhotoSelect(event)">
+            </label>
+          </div>
+        </div>
+        <div id="vehicle-room-row" style="margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="col_room">Phòng</label>
+          <select id="vehicle-room" class="form-control" onchange="onVehicleRoomChange()"></select>
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem; margin-bottom:1rem;">
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_plate">Biển số</label>
+            <input type="text" id="vehicle-plate" class="form-control" placeholder="VD: 29A1-123.45" maxlength="20" required style="text-transform:uppercase;">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_vehicle_type">Loại xe</label>
+            <select id="vehicle-type" class="form-control"></select>
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_vehicle_brand">Hãng / dòng xe</label>
+            <input type="text" id="vehicle-brand" class="form-control" placeholder="VD: Honda Vision" maxlength="128">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_vehicle_color">Màu xe</label>
+            <input type="text" id="vehicle-color" class="form-control" placeholder="VD: Đen" maxlength="64">
+          </div>
+          <div>
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_vehicle_owner">Chủ xe</label>
+            <input type="text" id="vehicle-owner" class="form-control" maxlength="120">
+          </div>
+        </div>
+        <!-- Phần cấp thẻ: chỉ admin/quản lý thấy. Người thuê không bao giờ tự cấp thẻ. -->
+        <div id="vehicle-staff-block" style="display:none; padding:1rem; margin-bottom:1rem; border:1px dashed var(--border-color); border-radius:var(--radius-sm);">
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem;">
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_card_number">Số thẻ gửi xe</label>
+              <input type="text" id="vehicle-card-number" class="form-control" maxlength="64">
+            </div>
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_card_date">Ngày cấp thẻ</label>
+              <input type="date" id="vehicle-card-date" class="form-control">
+            </div>
+            <div>
+              <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_vehicle_status">Trạng thái</label>
+              <select id="vehicle-status" class="form-control">
+                <option value="pending" data-i18n="vehicle_status_pending">Chờ duyệt</option>
+                <option value="approved" data-i18n="vehicle_status_approved">Đã cấp thẻ</option>
+                <option value="rejected" data-i18n="vehicle_status_rejected">Từ chối</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom: 1.5rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_vehicle_note">Ghi chú</label>
+          <input type="text" id="vehicle-note" class="form-control" maxlength="500">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-vehicle')" data-i18n="btn_cancel">Hủy</button>
+          <button type="submit" class="btn btn-orange" id="btn-save-vehicle" data-i18n="btn_save_vehicle">Lưu Xe</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Duyệt / Từ chối xe -->
+  <div class="modal-backdrop" id="modal-vehicle-review">
+    <div class="modal-card" style="max-width: 420px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:1.25rem;">
+        <h3><i data-lucide="id-card" style="color: var(--cala-blue); vertical-align: middle;"></i> <span id="modal-vehicle-review-title"></span></h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-vehicle-review')"><i data-lucide="x"></i></button>
+      </div>
+      <form onsubmit="submitVehicleReview(event)">
+        <input type="hidden" id="vehicle-review-id">
+        <input type="hidden" id="vehicle-review-decision">
+        <div id="vehicle-review-approve" style="display:none;">
+          <div style="margin-bottom: 1rem;">
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_card_number">Số thẻ gửi xe</label>
+            <input type="text" id="vehicle-review-card" class="form-control" maxlength="64">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_card_date">Ngày cấp thẻ</label>
+            <input type="date" id="vehicle-review-date" class="form-control">
+          </div>
+        </div>
+        <div id="vehicle-review-reject" style="display:none; margin-bottom: 1rem;">
+          <label style="font-size: 0.85rem; font-weight: 700; display: block; margin-bottom: 0.35rem;" data-i18n="lbl_reject_reason">Lý do từ chối</label>
+          <input type="text" id="vehicle-review-reason" class="form-control" maxlength="200">
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('modal-vehicle-review')" data-i18n="btn_cancel">Hủy</button>
+          <button type="submit" class="btn btn-orange" data-i18n="btn_confirm">Xác nhận</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Modal: choose format to download selected tickets -->
   <div class="modal-backdrop" id="modal-download-tickets">

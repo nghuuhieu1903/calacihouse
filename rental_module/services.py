@@ -1718,6 +1718,201 @@ class RentalService:
         Storage.delete_investor_report_override(f"{house_id}_{month}")
         return True
 
+    # -- Vehicles (xe & thẻ gửi xe) -----------------------------------------
+    # Hai luồng tách bạch, giống tickets: người thuê (tenant) chỉ đăng ký/sửa/
+    # xoá xe CỦA PHÒNG MÌNH và không bao giờ tự cấp thẻ; admin/superadmin (và
+    # manager nếu ma trận quyền 'vehicles' cho phép) quản lý theo tòa nhà.
+    VEHICLE_TYPES = ('Xe máy', 'Xe đạp điện', 'Xe đạp', 'Ô tô', 'Khác')
+    VEHICLE_PHOTO_MAX_CHARS = 8_000_000   # ~6MB ảnh — ảnh thật đã được nén ở trình duyệt
+    VEHICLE_THUMB_MAX_CHARS = 120_000
+
+    @staticmethod
+    def _plate_key(plate):
+        return re.sub(r'[^A-Z0-9]', '', (plate or '').upper())
+
+    @staticmethod
+    def vehicle_actor(user, action):
+        """'staff' | 'tenant' | None for this user doing `action`
+        (view/create/edit). Investor/saler never get in."""
+        role = (user or {}).get('role')
+        if role in ('superadmin', 'admin'):
+            return 'staff'
+        if role == 'manager':
+            perm = next((p for p in Storage.get_permissions() if p.get('key') == 'vehicles'), None)
+            return 'staff' if perm and perm.get('manager', {}).get(action) else None
+        if role == 'tenant':
+            return 'tenant'
+        return None
+
+    @staticmethod
+    def _staff_house_scope(user):
+        """None = every house; otherwise the set of house ids this
+        manager is assigned to (empty set = none yet)."""
+        if user.get('role') != 'manager':
+            return None
+        ids = user.get('houseIds') or ([user.get('houseId')] if user.get('houseId') else [])
+        return None if 'all' in ids else set(ids)
+
+    @staticmethod
+    def _can_see_vehicle(user, actor, v):
+        if actor == 'tenant':
+            return bool(user.get('roomId')) and v.get('roomId') == user.get('roomId')
+        scope = RentalService._staff_house_scope(user)
+        return scope is None or v.get('houseId') in scope
+
+    @staticmethod
+    def list_vehicles(user):
+        actor = RentalService.vehicle_actor(user, 'view')
+        if not actor:
+            return None
+        return [v for v in Storage.get_vehicles() if RentalService._can_see_vehicle(user, actor, v)]
+
+    @staticmethod
+    def get_vehicle_photo_for(user, vehicle_id):
+        actor = RentalService.vehicle_actor(user, 'view')
+        v = Storage.get_vehicle(vehicle_id) if actor else None
+        if not v or not RentalService._can_see_vehicle(user, actor, v):
+            return None
+        return Storage.get_vehicle_photo(vehicle_id)
+
+    @staticmethod
+    def _clean_image(value, limit):
+        if value is None:
+            return None, None
+        if value == '':
+            return '', None
+        if not isinstance(value, str) or not value.startswith('data:image/') or len(value) > limit:
+            return None, 'Ảnh không hợp lệ hoặc quá lớn!'
+        return value, None
+
+    @staticmethod
+    def save_vehicle(user, data):
+        """Create (no id) or edit (id) one vehicle. Returns (vehicle, error)."""
+        is_edit = bool(data.get('id'))
+        actor = RentalService.vehicle_actor(user, 'edit' if is_edit else 'create')
+        if not actor:
+            return None, 'Bạn không có quyền thực hiện thao tác này!'
+
+        existing = None
+        if is_edit:
+            existing = Storage.get_vehicle(data['id'])
+            if not existing or not RentalService._can_see_vehicle(user, actor, existing):
+                return None, 'Không tìm thấy xe!'
+            if actor == 'tenant' and existing['status'] == 'approved':
+                return None, 'Xe đã được duyệt, vui lòng liên hệ quản lý để chỉnh sửa!'
+
+        plate = (data.get('plate') or '').strip().upper()
+        plate_key = RentalService._plate_key(plate)
+        if len(plate_key) < 4 or len(plate) > 20:
+            return None, 'Biển số xe không hợp lệ!'
+        vehicle_type = data.get('vehicleType') or 'Xe máy'
+        if vehicle_type not in RentalService.VEHICLE_TYPES:
+            return None, 'Loại xe không hợp lệ!'
+
+        # Phòng: người thuê bị khoá cứng vào phòng của chính họ.
+        if actor == 'tenant':
+            room_id = user.get('roomId')
+        else:
+            room_id = existing['roomId'] if existing else data.get('roomId')
+        room = next((r for r in Storage.get_rooms() if r['id'] == room_id), None)
+        if not room:
+            return None, 'Vui lòng chọn phòng!'
+        scope = RentalService._staff_house_scope(user) if actor == 'staff' else None
+        if scope is not None and room.get('houseId') not in scope:
+            return None, 'Bạn không có quyền với tòa nhà này!'
+
+        photo, err = RentalService._clean_image(data.get('photo'), RentalService.VEHICLE_PHOTO_MAX_CHARS)
+        if err:
+            return None, err
+        thumb, err = RentalService._clean_image(data.get('thumb'), RentalService.VEHICLE_THUMB_MAX_CHARS)
+        if err:
+            return None, err
+        if photo is None and not existing and actor == 'tenant':
+            return None, 'Vui lòng tải lên ảnh biển số xe!'
+
+        card_number = (data.get('cardNumber') or '').strip()[:64] if actor == 'staff' else (existing or {}).get('cardNumber', '')
+        card_date = (data.get('cardIssuedDate') or '').strip()[:16] if actor == 'staff' else (existing or {}).get('cardIssuedDate', '')
+        if actor == 'staff':
+            status = data.get('status') or (existing['status'] if existing else 'approved')
+            if status not in ('pending', 'approved', 'rejected'):
+                return None, 'Trạng thái không hợp lệ!'
+        else:
+            status = 'pending'   # người thuê đăng ký/sửa lại thì luôn chờ duyệt
+        if status == 'approved' and not card_number:
+            return None, 'Cần nhập số thẻ gửi xe trước khi duyệt!'
+
+        for other in Storage.get_vehicles():
+            if existing and other['id'] == existing['id']:
+                continue
+            if other['status'] != 'rejected' and RentalService._plate_key(other['plate']) == plate_key:
+                return None, 'Biển số này đã được đăng ký!'
+            if card_number and other['cardNumber'] == card_number:
+                return None, 'Số thẻ gửi xe này đã được cấp cho xe khác!'
+
+        v = {
+            'id': existing['id'] if existing else f"VH_{uuid.uuid4().hex[:8]}",
+            'houseId': room.get('houseId', ''),
+            'roomId': room['id'],
+            'userId': existing['userId'] if existing else (user.get('id') if actor == 'tenant' else ''),
+            'ownerName': (data.get('ownerName') or '').strip()[:120] or (existing or {}).get('ownerName') or room.get('tenant') or (user.get('fullName') or ''),
+            'plate': plate,
+            'plateKey': plate_key,
+            'vehicleType': vehicle_type,
+            'brand': (data.get('brand') or '').strip()[:128],
+            'color': (data.get('color') or '').strip()[:64],
+            'cardNumber': card_number,
+            'cardIssuedDate': card_date,
+            'status': status,
+            'rejectReason': '' if status != 'rejected' else ((data.get('rejectReason') or (existing or {}).get('rejectReason') or '').strip()),
+            'note': (data.get('note') or '').strip()[:500],
+            'createdBy': existing['createdBy'] if existing else (user.get('username') or ''),
+            'createdAt': existing['createdAt'] if existing else datetime.now().strftime('%Y-%m-%d %H:%M'),
+        }
+        Storage.save_vehicle(v, photo, thumb if photo is not None else None)
+        return Storage.get_vehicle(v['id']), None
+
+    @staticmethod
+    def review_vehicle(user, vehicle_id, decision, card_number, card_issued_date, reject_reason):
+        """Staff approve (needs a card number) / reject one pending vehicle."""
+        if not RentalService.vehicle_actor(user, 'edit') or user.get('role') == 'tenant':
+            return None, 'Bạn không có quyền thực hiện thao tác này!'
+        v = Storage.get_vehicle(vehicle_id)
+        if not v or not RentalService._can_see_vehicle(user, 'staff', v):
+            return None, 'Không tìm thấy xe!'
+        if decision not in ('approved', 'rejected'):
+            return None, 'Thao tác không hợp lệ!'
+        card_number = (card_number or '').strip()[:64]
+        if decision == 'approved':
+            if not card_number:
+                return None, 'Cần nhập số thẻ gửi xe trước khi duyệt!'
+            if any(o['id'] != v['id'] and o['cardNumber'] == card_number for o in Storage.get_vehicles()):
+                return None, 'Số thẻ gửi xe này đã được cấp cho xe khác!'
+        full = dict(v, plateKey=RentalService._plate_key(v['plate']))
+        full.update({
+            'status': decision,
+            'cardNumber': card_number if decision == 'approved' else v['cardNumber'],
+            'cardIssuedDate': (card_issued_date or datetime.now().strftime('%Y-%m-%d')) if decision == 'approved' else v['cardIssuedDate'],
+            'rejectReason': (reject_reason or '').strip() if decision == 'rejected' else '',
+        })
+        Storage.save_vehicle(full)
+        return Storage.get_vehicle(v['id']), None
+
+    @staticmethod
+    def delete_vehicle(user, vehicle_id):
+        """superadmin xoá được mọi xe (quy tắc xoá cố định của hệ thống);
+        người thuê chỉ rút lại được yêu cầu CHƯA duyệt của chính phòng mình."""
+        v = Storage.get_vehicle(vehicle_id)
+        if not v:
+            return 'Không tìm thấy xe!'
+        role = user.get('role')
+        if role == 'tenant':
+            if not RentalService._can_see_vehicle(user, 'tenant', v) or v['status'] == 'approved':
+                return 'Bạn không có quyền thực hiện thao tác này!'
+        elif role != 'superadmin':
+            return 'Bạn không có quyền thực hiện thao tác này!'
+        Storage.delete_vehicle(vehicle_id)
+        return None
+
     @staticmethod
     def create_ticket(room_id, category, priority, description, images):
         room = next((r for r in Storage.get_rooms() if r['id'] == room_id), None)
