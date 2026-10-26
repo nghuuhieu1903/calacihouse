@@ -105,10 +105,14 @@ const I18N = {
     my_vehicles_subtitle: 'Tải ảnh biển số để đăng ký xe và nhận thẻ gửi xe',
     btn_add_vehicle: 'Đăng Ký Xe',
     ph_vehicle_search: 'Tìm biển số, số thẻ, chủ xe...',
-    opt_vehicle_all_status: 'Tất cả trạng thái',
     vehicle_status_pending: 'Chờ duyệt',
     vehicle_status_approved: 'Đã cấp thẻ',
     vehicle_status_rejected: 'Từ chối',
+    vehicle_tab_issued: 'Thẻ đã cấp',
+    vehicle_tab_pending: 'Chờ phê duyệt',
+    vehicle_card_title: 'THẺ GỬI XE',
+    vehicles_empty_issued: 'Chưa có thẻ gửi xe nào được cấp.',
+    vehicles_empty_pending: 'Không có xe nào đang chờ phê duyệt.',
     modal_vehicle_title: 'Đăng Ký Xe',
     modal_vehicle_edit_title: 'Sửa Thông Tin Xe',
     lbl_vehicle_photo: 'Ảnh biển số xe',
@@ -128,7 +132,6 @@ const I18N = {
     btn_reject_vehicle: 'Từ chối',
     vehicle_review_approve_title: 'Cấp Thẻ Gửi Xe',
     vehicle_review_reject_title: 'Từ Chối Đăng Ký Xe',
-    vehicles_empty: 'Chưa có xe nào được đăng ký.',
     vehicle_no_card: 'Chưa có thẻ',
     vehicle_card_label: 'Thẻ',
     vehicle_type_xe_may: 'Xe máy',
@@ -950,10 +953,14 @@ const I18N = {
     my_vehicles_subtitle: 'Upload a plate photo to register a vehicle and get a parking card',
     btn_add_vehicle: 'Register Vehicle',
     ph_vehicle_search: 'Search plate, card no., owner...',
-    opt_vehicle_all_status: 'All statuses',
     vehicle_status_pending: 'Pending',
     vehicle_status_approved: 'Card issued',
     vehicle_status_rejected: 'Rejected',
+    vehicle_tab_issued: 'Issued cards',
+    vehicle_tab_pending: 'Awaiting approval',
+    vehicle_card_title: 'PARKING CARD',
+    vehicles_empty_issued: 'No parking cards issued yet.',
+    vehicles_empty_pending: 'No vehicles awaiting approval.',
     modal_vehicle_title: 'Register Vehicle',
     modal_vehicle_edit_title: 'Edit Vehicle',
     lbl_vehicle_photo: 'License plate photo',
@@ -973,7 +980,6 @@ const I18N = {
     btn_reject_vehicle: 'Reject',
     vehicle_review_approve_title: 'Issue Parking Card',
     vehicle_review_reject_title: 'Reject Vehicle Registration',
-    vehicles_empty: 'No vehicles registered yet.',
     vehicle_no_card: 'No card yet',
     vehicle_card_label: 'Card',
     vehicle_type_xe_may: 'Motorbike',
@@ -9162,28 +9168,48 @@ function updateVehicleBadge() {
   badge.style.display = pending > 0 && vehicleIsStaff() ? 'inline-block' : 'none';
 }
 
+let _vehicleTab = 'issued';   // 'issued' (đã cấp thẻ) | 'pending' (chờ duyệt + bị từ chối)
+
+function setVehicleTab(tab) {
+  _vehicleTab = tab;
+  renderVehiclesView(true);
+}
+
 async function renderVehiclesView(filterOnly) {
   const mode = vehicleIsStaff() ? 'admin' : 'tenant';
   const body = document.getElementById(`${mode}-vehicles-body`);
   if (!body) return;
-  // Chỉ gọi mạng khi mở trang; gõ tìm kiếm/đổi bộ lọc thì lọc lại trên danh sách đã có.
+  // Chỉ gọi mạng khi mở trang; gõ tìm kiếm/đổi tab thì lọc lại trên danh sách đã có.
   if (!filterOnly) await loadVehicles();
-
-  const q = (document.getElementById(`${mode}-vehicle-search`).value || '').trim().toLowerCase();
-  const st = document.getElementById(`${mode}-vehicle-status`).value;
-  const list = _vehicles.filter(v => (!st || v.status === st) && (!q ||
-    [v.plate, v.cardNumber, v.ownerName, v.brand].some(x => (x || '').toLowerCase().includes(q))));
-
-  if (list.length === 0) {
-    body.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-secondary);">${t('vehicles_empty')}</div>`;
-    return;
-  }
 
   const isStaff = mode === 'admin';
   const canManage = vehicleCanManage();
   document.querySelectorAll('.vehicle-add-btn').forEach(b => { b.style.display = !isStaff || canManage ? '' : 'none'; });
+
+  const issuedCount = _vehicles.filter(v => v.status === 'approved').length;
+  const pendingCount = _vehicles.filter(v => v.status === 'pending').length;
+  const waitingCount = _vehicles.filter(v => v.status !== 'approved').length;
+  document.getElementById(`${mode}-vehicle-tabs`).innerHTML = `
+    <button type="button" class="vehicle-tab ${_vehicleTab === 'issued' ? 'active' : ''}" onclick="setVehicleTab('issued')">
+      <i data-lucide="id-card"></i> ${t('vehicle_tab_issued')} <span>${issuedCount}</span>
+    </button>
+    <button type="button" class="vehicle-tab ${_vehicleTab === 'pending' ? 'active' : ''}" onclick="setVehicleTab('pending')">
+      <i data-lucide="hourglass"></i> ${t('vehicle_tab_pending')} <span class="${pendingCount ? 'hot' : ''}">${waitingCount}</span>
+    </button>`;
+
+  const q = (document.getElementById(`${mode}-vehicle-search`).value || '').trim().toLowerCase();
+  const list = _vehicles.filter(v =>
+    (_vehicleTab === 'issued' ? v.status === 'approved' : v.status !== 'approved') &&
+    (!q || [v.plate, v.cardNumber, v.ownerName, v.brand].some(x => (x || '').toLowerCase().includes(q))));
+
+  if (list.length === 0) {
+    body.innerHTML = `<div style="text-align:center; padding:2rem; color:var(--text-secondary);">${t(_vehicleTab === 'issued' ? 'vehicles_empty_issued' : 'vehicles_empty_pending')}</div>`;
+    renderIcons(document.getElementById(`${mode}-vehicle-tabs`));
+    return;
+  }
+
   if (isStaff) {
-    // Gom theo tòa nhà, mỗi thẻ ghi rõ chủ xe — để thấy ngay tòa nào, ai, xe nào.
+    // Gom theo tòa nhà, mỗi phiếu ghi rõ chủ xe — để thấy ngay tòa nào, ai, xe nào.
     const groups = new Map();
     list.forEach(v => { if (!groups.has(v.houseId)) groups.set(v.houseId, []); groups.get(v.houseId).push(v); });
     body.innerHTML = [...groups.entries()].map(([houseId, vs]) => {
@@ -9194,8 +9220,9 @@ async function renderVehiclesView(filterOnly) {
   } else {
     body.innerHTML = `<div class="vehicle-grid">${list.map(v => vehicleCardHtml(v, false, false)).join('')}</div>`;
   }
+  renderIcons(document.getElementById(`${mode}-vehicle-tabs`));
   renderIcons(body);
-  // Người thuê chỉ có vài xe nên tải luôn ảnh đầy đủ cho thẻ nét hơn ảnh thu nhỏ;
+  // Người thuê chỉ có vài xe nên tải luôn ảnh đầy đủ cho nét hơn ảnh thu nhỏ;
   // admin có thể có hàng trăm xe nên giữ ảnh thu nhỏ, bấm vào mới tải ảnh gốc.
   if (!isStaff) hydrateVehiclePhotos(list);
 }
@@ -9211,49 +9238,46 @@ async function hydrateVehiclePhotos(list) {
   }
 }
 
-// Một "tấm thẻ xe": ảnh biển số ở trên, biển số in lớn dạng bảng số, bên dưới
-// là dải thông tin thẻ gửi xe. Màu viền/dải đổi theo trạng thái để nhìn là hiểu.
+// Mỗi xe là một "phiếu" giống hóa đơn: đầu phiếu (tòa nhà + trạng thái),
+// ảnh + biển số, đường xé, rồi các dòng nhãn – giá trị. Một cột, chữ to để
+// xem trên điện thoại; màu đầu phiếu đổi theo trạng thái.
 function vehicleCardHtml(v, isStaff, canManage) {
   const house = state.houses.find(h => h.id === v.houseId);
   const room = state.rooms.find(r => r.id === v.roomId);
   const canEdit = isStaff ? canManage : v.status !== 'approved';
   const canDelete = isStaff ? (state.currentUser.role === 'superadmin') : v.status !== 'approved';
-  const typeIcon = v.vehicleType === 'Ô tô' ? 'car' : 'bike';
-  const approved = v.status === 'approved';
+  const row = (label, value, cls) => `<div class="vcard-row"><dt>${label}</dt><dd class="${cls || ''}">${value}</dd></div>`;
+  const actions = [
+    canManage && v.status !== 'approved' ? `<button class="btn btn-orange btn-sm" onclick="openVehicleReview('${v.id}','approved')"><i data-lucide="id-card"></i> ${t('btn_approve_vehicle')}</button>` : '',
+    canManage && v.status === 'pending' ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger);" onclick="openVehicleReview('${v.id}','rejected')"><i data-lucide="x"></i> ${t('btn_reject_vehicle')}</button>` : '',
+    canEdit ? `<button class="btn btn-secondary btn-sm" onclick="openVehicleModal('${v.id}')"><i data-lucide="edit"></i></button>` : '',
+    canDelete ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger);" onclick="deleteVehicle('${v.id}')"><i data-lucide="trash-2"></i></button>` : ''
+  ].join('');
   return `
-  <div class="vehicle-card vehicle-${v.status}">
-    <div class="vehicle-photo" ${v.hasPhoto ? `onclick="openVehiclePhoto('${v.id}')"` : ''}>
-      ${v.thumb
-        ? `<img src="${v.thumb}" data-vehicle-photo="${v.id}" alt="">`
-        : `<div class="vehicle-photo-empty"><i data-lucide="image-off"></i></div>`}
-      <span class="vehicle-status-pill">${t('vehicle_status_' + v.status)}</span>
+  <div class="vcard vcard-${v.status}">
+    <div class="vcard-head">
+      <div><small>${t('vehicle_card_title')}</small><b>${escapeHtml(house ? house.name : 'CALACIHOUSE')}</b></div>
+      <span class="vcard-pill">${t('vehicle_status_' + v.status)}</span>
     </div>
-    <div class="vehicle-body">
-      <div class="vehicle-plate">${escapeHtml(v.plate)}</div>
-      <div class="vehicle-sub"><i data-lucide="${typeIcon}"></i>
-        ${escapeHtml(vehicleTypeLabel(v.vehicleType))}${v.brand ? ' · ' + escapeHtml(v.brand) : ''}${v.color ? ' · ' + escapeHtml(v.color) : ''}
+    <div class="vcard-main">
+      <div class="vcard-photo" ${v.hasPhoto ? `onclick="openVehiclePhoto('${v.id}')"` : ''}>
+        ${v.thumb ? `<img src="${v.thumb}" data-vehicle-photo="${v.id}" alt="">` : `<i data-lucide="image-off"></i>`}
       </div>
-      <div class="vehicle-meta">
-        <div><small>${t('lbl_vehicle_owner')}</small><b>${escapeHtml(v.ownerName || '—')}</b></div>
-        <div><small>${t('col_room')}</small><b>${escapeHtml(room ? room.name : '—')}</b>${isStaff && house ? `<em>${escapeHtml(house.name)}</em>` : ''}</div>
-      </div>
-      <div class="vehicle-pass ${approved ? 'on' : ''}">
-        <i data-lucide="${approved ? 'id-card' : 'hourglass'}"></i>
-        <div>
-          <small>${t('lbl_card_number')}</small>
-          <b>${v.cardNumber ? escapeHtml(v.cardNumber) : t('vehicle_no_card')}</b>
-        </div>
-        ${v.cardIssuedDate ? `<span>${escapeHtml(v.cardIssuedDate)}</span>` : ''}
-      </div>
-      ${v.status === 'rejected' && v.rejectReason ? `<div class="vehicle-note reject">${escapeHtml(v.rejectReason)}</div>` : ''}
-      ${v.note ? `<div class="vehicle-note">${escapeHtml(v.note)}</div>` : ''}
-      <div class="vehicle-actions">
-        ${canManage && v.status !== 'approved' ? `<button class="btn btn-orange btn-sm" onclick="openVehicleReview('${v.id}','approved')"><i data-lucide="id-card"></i> ${t('btn_approve_vehicle')}</button>` : ''}
-        ${canManage && v.status === 'pending' ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger);" onclick="openVehicleReview('${v.id}','rejected')"><i data-lucide="x"></i> ${t('btn_reject_vehicle')}</button>` : ''}
-        ${canEdit ? `<button class="btn btn-secondary btn-sm" onclick="openVehicleModal('${v.id}')"><i data-lucide="edit"></i></button>` : ''}
-        ${canDelete ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger);" onclick="deleteVehicle('${v.id}')"><i data-lucide="trash-2"></i></button>` : ''}
+      <div class="vcard-id">
+        <div class="vcard-plate">${escapeHtml(v.plate)}</div>
+        <div class="vcard-sub">${escapeHtml(vehicleTypeLabel(v.vehicleType))}${v.brand ? ' · ' + escapeHtml(v.brand) : ''}${v.color ? ' · ' + escapeHtml(v.color) : ''}</div>
       </div>
     </div>
+    <div class="vcard-tear"></div>
+    <dl class="vcard-rows">
+      ${row(t('lbl_vehicle_owner'), escapeHtml(v.ownerName || '—'))}
+      ${row(t('col_room'), escapeHtml(room ? room.name : '—'))}
+      ${row(t('lbl_card_number'), v.cardNumber ? escapeHtml(v.cardNumber) : `<em>${t('vehicle_no_card')}</em>`, 'vcard-card')}
+      ${v.cardIssuedDate ? row(t('lbl_card_date'), escapeHtml(v.cardIssuedDate)) : ''}
+      ${v.status === 'rejected' && v.rejectReason ? row(t('lbl_reject_reason'), escapeHtml(v.rejectReason), 'vcard-bad') : ''}
+      ${v.note ? row(t('lbl_vehicle_note'), escapeHtml(v.note)) : ''}
+    </dl>
+    ${actions ? `<div class="vcard-actions">${actions}</div>` : ''}
   </div>`;
 }
 
@@ -9383,6 +9407,7 @@ async function saveVehicle(event) {
     }
     closeModal('modal-vehicle');
     showToast(t('toast_vehicle_saved'), 'success');
+    if (data.vehicle) _vehicleTab = data.vehicle.status === 'approved' ? 'issued' : 'pending';
     await renderVehiclesView();
   } catch (err) {
     showToast(t('toast_server_connection_error'), 'error');

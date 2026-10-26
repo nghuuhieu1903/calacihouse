@@ -1307,46 +1307,24 @@
         </div>
 
         <div id="view-admin-vehicles" class="view-panel" style="display: none;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem;">
-            <div>
-              <h3><i data-lucide="bike" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="vehicles_title">Xe & Thẻ Gửi Xe</span></h3>
-              <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="vehicles_subtitle">Đăng ký xe bằng ảnh biển số, cấp và quản lý thẻ gửi xe theo phòng</p>
-            </div>
-            <button type="button" class="btn btn-orange btn-sm vehicle-add-btn" onclick="openVehicleModal()">
+          <div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:1rem;">
+            <input type="search" id="admin-vehicle-search" class="form-control" style="flex:1; min-width:180px;" data-i18n-placeholder="ph_vehicle_search" placeholder="Tìm biển số, số thẻ, chủ xe..." oninput="renderVehiclesView(true)">
+            <button type="button" class="btn btn-orange btn-sm vehicle-add-btn" style="flex-shrink:0;" onclick="openVehicleModal()">
               <i data-lucide="plus"></i> <span data-i18n="btn_add_vehicle">Đăng Ký Xe</span>
             </button>
           </div>
-          <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem;">
-            <input type="search" id="admin-vehicle-search" class="form-control" style="flex:1; min-width:180px;" data-i18n-placeholder="ph_vehicle_search" placeholder="Tìm biển số, số thẻ, chủ xe..." oninput="renderVehiclesView(true)">
-            <select id="admin-vehicle-status" class="form-control" style="width:auto;" onchange="renderVehiclesView(true)">
-              <option value="" data-i18n="opt_vehicle_all_status">Tất cả trạng thái</option>
-              <option value="pending" data-i18n="vehicle_status_pending">Chờ duyệt</option>
-              <option value="approved" data-i18n="vehicle_status_approved">Đã cấp thẻ</option>
-              <option value="rejected" data-i18n="vehicle_status_rejected">Từ chối</option>
-            </select>
-          </div>
+          <div id="admin-vehicle-tabs" class="vehicle-tabs"></div>
           <div id="admin-vehicles-body"></div>
         </div>
 
         <div id="view-tenant-vehicles" class="view-panel" style="display: none;">
-          <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; margin-bottom:1.25rem;">
-            <div>
-              <h3><i data-lucide="bike" style="color: var(--cala-blue); vertical-align: middle;"></i> <span data-i18n="my_vehicles_title">Xe Của Tôi</span></h3>
-              <p style="font-size: 0.85rem; color: var(--text-secondary);" data-i18n="my_vehicles_subtitle">Tải ảnh biển số để đăng ký xe và nhận thẻ gửi xe</p>
-            </div>
-            <button type="button" class="btn btn-orange btn-sm vehicle-add-btn" onclick="openVehicleModal()">
+          <div style="display:flex; gap:0.75rem; align-items:center; margin-bottom:1rem;">
+            <input type="search" id="tenant-vehicle-search" class="form-control" style="flex:1; min-width:180px;" data-i18n-placeholder="ph_vehicle_search" placeholder="Tìm biển số, số thẻ, chủ xe..." oninput="renderVehiclesView(true)">
+            <button type="button" class="btn btn-orange btn-sm vehicle-add-btn" style="flex-shrink:0;" onclick="openVehicleModal()">
               <i data-lucide="plus"></i> <span data-i18n="btn_add_vehicle">Đăng Ký Xe</span>
             </button>
           </div>
-          <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem;">
-            <input type="search" id="tenant-vehicle-search" class="form-control" style="flex:1; min-width:180px;" data-i18n-placeholder="ph_vehicle_search" placeholder="Tìm biển số, số thẻ, chủ xe..." oninput="renderVehiclesView(true)">
-            <select id="tenant-vehicle-status" class="form-control" style="width:auto;" onchange="renderVehiclesView(true)">
-              <option value="" data-i18n="opt_vehicle_all_status">Tất cả trạng thái</option>
-              <option value="pending" data-i18n="vehicle_status_pending">Chờ duyệt</option>
-              <option value="approved" data-i18n="vehicle_status_approved">Đã cấp thẻ</option>
-              <option value="rejected" data-i18n="vehicle_status_rejected">Từ chối</option>
-            </select>
-          </div>
+          <div id="tenant-vehicle-tabs" class="vehicle-tabs"></div>
           <div id="tenant-vehicles-body"></div>
         </div>
 
