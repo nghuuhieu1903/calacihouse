@@ -2184,7 +2184,6 @@ const ADMIN_TAB_PERMISSIONS = {
   'admin-investor-report': ['investor_report', 'view'],
   'admin-rooms': ['rooms', 'view'],
   'admin-tickets': ['tickets', 'view'],
-  'admin-vehicles': ['vehicles', 'view'],
   'admin-users': ['accounts', 'view']
 };
 
@@ -2207,6 +2206,9 @@ function canAccessAdminView(role, viewId) {
   // đúng @admin_required của mọi route /api/tax/* bên server, nên đây chỉ
   // là lớp ẩn giao diện chứ không phải chỗ chặn thật sự.
   if (viewId === 'admin-tax') return role === 'superadmin' || role === 'admin';
+  // Xe & Thẻ Gửi Xe: admin/superadmin quản lý toàn bộ, manager chỉ xem xe của
+  // các tòa mình phụ trách (khớp RentalService.vehicle_actor).
+  if (viewId === 'admin-vehicles') return role === 'superadmin' || role === 'admin' || role === 'manager';
   // Manager's home is Xử Lý Báo Lỗi, not the revenue-oriented Tổng Quan —
   // deliberately hardcoded per-role rather than a matrix toggle, since
   // there's no "view" action on a feature called 'dashboard' to hang a
@@ -2322,7 +2324,10 @@ function setupUserRoleUI() {
     const taxNav = document.getElementById('nav-tax');
     if (taxNav) taxNav.style.display = canAccessAdminView(user.role, 'admin-tax') ? 'flex' : 'none';
     // Huy hiệu "chờ duyệt" của Xe & Thẻ Gửi Xe cần danh sách xe ngay từ đầu, không đợi mở trang.
-    if (canAccessAdminView(user.role, 'admin-vehicles')) loadVehicles();
+    const vehiclesNav = document.querySelector('.admin-nav [data-view="admin-vehicles"]');
+    const canSeeVehicles = canAccessAdminView(user.role, 'admin-vehicles');
+    if (vehiclesNav) vehiclesNav.style.display = canSeeVehicles ? 'flex' : 'none';
+    if (canSeeVehicles) loadVehicles();
 
     // Shortcut buttons OUTSIDE the sidebar that jump straight to one of
     // the views above (Dashboard's "Phím Tắt Thao Tác Nhanh", the
@@ -9119,6 +9124,11 @@ function vehicleIsStaff() {
   return !!state.currentUser && state.currentUser.role !== 'tenant';
 }
 
+// Manager xem được danh sách nhưng không cấp thẻ/sửa/xóa — chỉ admin/superadmin.
+function vehicleCanManage() {
+  return !!state.currentUser && ['superadmin', 'admin'].includes(state.currentUser.role);
+}
+
 function vehicleTypeLabel(type) {
   const key = VEHICLE_TYPE_KEYS[type];
   return key ? t('vehicle_type_' + key) : type;
@@ -9170,39 +9180,81 @@ async function renderVehiclesView(filterOnly) {
   }
 
   const isStaff = mode === 'admin';
-  body.innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:1rem;">${list.map(v => {
-    const house = state.houses.find(h => h.id === v.houseId);
-    const room = state.rooms.find(r => r.id === v.roomId);
-    const canEdit = isStaff || v.status !== 'approved';
-    const canDelete = isStaff ? (state.currentUser.role === 'superadmin') : v.status !== 'approved';
-    return `
-    <div class="card" style="padding:1rem; display:flex; flex-direction:column; gap:0.6rem;">
-      <div style="display:flex; gap:0.75rem;">
-        ${v.thumb
-          ? `<img src="${v.thumb}" alt="" onclick="openVehiclePhoto('${v.id}')" style="width:96px; height:72px; object-fit:cover; border-radius:var(--radius-sm); border:2px solid var(--border-color); cursor:pointer; flex-shrink:0;">`
-          : `<div style="width:96px; height:72px; border-radius:var(--radius-sm); border:2px dashed var(--border-color); display:flex; align-items:center; justify-content:center; color:var(--text-muted); flex-shrink:0;"><i data-lucide="image-off"></i></div>`}
-        <div style="min-width:0; flex:1;">
-          <div style="font-weight:800; font-size:1.15rem; letter-spacing:0.5px;">${escapeHtml(v.plate)}</div>
-          <div style="font-size:0.82rem; color:var(--text-secondary);">${escapeHtml(vehicleTypeLabel(v.vehicleType))}${v.brand ? ' · ' + escapeHtml(v.brand) : ''}${v.color ? ' · ' + escapeHtml(v.color) : ''}</div>
-          <div style="margin-top:0.25rem;">${vehicleStatusBadge(v.status)}</div>
+  const canManage = vehicleCanManage();
+  document.querySelectorAll('.vehicle-add-btn').forEach(b => { b.style.display = !isStaff || canManage ? '' : 'none'; });
+  if (isStaff) {
+    // Gom theo tòa nhà, mỗi thẻ ghi rõ chủ xe — để thấy ngay tòa nào, ai, xe nào.
+    const groups = new Map();
+    list.forEach(v => { if (!groups.has(v.houseId)) groups.set(v.houseId, []); groups.get(v.houseId).push(v); });
+    body.innerHTML = [...groups.entries()].map(([houseId, vs]) => {
+      const h = state.houses.find(x => x.id === houseId);
+      return `<div class="vehicle-house-head"><i data-lucide="building"></i> ${escapeHtml(h ? h.name : '—')} <span>${vs.length}</span></div>
+        <div class="vehicle-grid" style="margin-bottom:1.5rem;">${vs.map(v => vehicleCardHtml(v, true, canManage)).join('')}</div>`;
+    }).join('');
+  } else {
+    body.innerHTML = `<div class="vehicle-grid">${list.map(v => vehicleCardHtml(v, false, false)).join('')}</div>`;
+  }
+  renderIcons(body);
+  // Người thuê chỉ có vài xe nên tải luôn ảnh đầy đủ cho thẻ nét hơn ảnh thu nhỏ;
+  // admin có thể có hàng trăm xe nên giữ ảnh thu nhỏ, bấm vào mới tải ảnh gốc.
+  if (!isStaff) hydrateVehiclePhotos(list);
+}
+
+async function hydrateVehiclePhotos(list) {
+  for (const v of list.filter(x => x.hasPhoto)) {
+    try {
+      const res = await fetch(`${API_BASE}/vehicles/${v.id}/photo`);
+      const data = await res.json().catch(() => ({}));
+      const img = document.querySelector(`img[data-vehicle-photo="${v.id}"]`);
+      if (img && data.photo) img.src = data.photo;
+    } catch (err) { /* giữ ảnh thu nhỏ */ }
+  }
+}
+
+// Một "tấm thẻ xe": ảnh biển số ở trên, biển số in lớn dạng bảng số, bên dưới
+// là dải thông tin thẻ gửi xe. Màu viền/dải đổi theo trạng thái để nhìn là hiểu.
+function vehicleCardHtml(v, isStaff, canManage) {
+  const house = state.houses.find(h => h.id === v.houseId);
+  const room = state.rooms.find(r => r.id === v.roomId);
+  const canEdit = isStaff ? canManage : v.status !== 'approved';
+  const canDelete = isStaff ? (state.currentUser.role === 'superadmin') : v.status !== 'approved';
+  const typeIcon = v.vehicleType === 'Ô tô' ? 'car' : 'bike';
+  const approved = v.status === 'approved';
+  return `
+  <div class="vehicle-card vehicle-${v.status}">
+    <div class="vehicle-photo" ${v.hasPhoto ? `onclick="openVehiclePhoto('${v.id}')"` : ''}>
+      ${v.thumb
+        ? `<img src="${v.thumb}" data-vehicle-photo="${v.id}" alt="">`
+        : `<div class="vehicle-photo-empty"><i data-lucide="image-off"></i></div>`}
+      <span class="vehicle-status-pill">${t('vehicle_status_' + v.status)}</span>
+    </div>
+    <div class="vehicle-body">
+      <div class="vehicle-plate">${escapeHtml(v.plate)}</div>
+      <div class="vehicle-sub"><i data-lucide="${typeIcon}"></i>
+        ${escapeHtml(vehicleTypeLabel(v.vehicleType))}${v.brand ? ' · ' + escapeHtml(v.brand) : ''}${v.color ? ' · ' + escapeHtml(v.color) : ''}
+      </div>
+      <div class="vehicle-meta">
+        <div><small>${t('lbl_vehicle_owner')}</small><b>${escapeHtml(v.ownerName || '—')}</b></div>
+        <div><small>${t('col_room')}</small><b>${escapeHtml(room ? room.name : '—')}</b>${isStaff && house ? `<em>${escapeHtml(house.name)}</em>` : ''}</div>
+      </div>
+      <div class="vehicle-pass ${approved ? 'on' : ''}">
+        <i data-lucide="${approved ? 'id-card' : 'hourglass'}"></i>
+        <div>
+          <small>${t('lbl_card_number')}</small>
+          <b>${v.cardNumber ? escapeHtml(v.cardNumber) : t('vehicle_no_card')}</b>
         </div>
+        ${v.cardIssuedDate ? `<span>${escapeHtml(v.cardIssuedDate)}</span>` : ''}
       </div>
-      <div style="font-size:0.82rem; display:grid; grid-template-columns:1fr 1fr; gap:0.3rem;">
-        <div><span style="color:var(--text-muted);">${t('col_room')}:</span> <strong>${escapeHtml(room ? room.name : '—')}</strong>${house ? ` <small style="color:var(--text-muted);">(${escapeHtml(house.name)})</small>` : ''}</div>
-        <div><span style="color:var(--text-muted);">${t('lbl_vehicle_owner')}:</span> <strong>${escapeHtml(v.ownerName || '—')}</strong></div>
-        <div style="grid-column:1/-1;"><span style="color:var(--text-muted);">${t('vehicle_card_label')}:</span> <strong>${v.cardNumber ? escapeHtml(v.cardNumber) : `<em>${t('vehicle_no_card')}</em>`}</strong>${v.cardIssuedDate ? ` <small style="color:var(--text-muted);">(${escapeHtml(v.cardIssuedDate)})</small>` : ''}</div>
-        ${v.status === 'rejected' && v.rejectReason ? `<div style="grid-column:1/-1; color:var(--cala-red);">${escapeHtml(v.rejectReason)}</div>` : ''}
-        ${v.note ? `<div style="grid-column:1/-1; color:var(--text-secondary);">${escapeHtml(v.note)}</div>` : ''}
-      </div>
-      <div style="display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:auto;">
-        ${isStaff && v.status !== 'approved' ? `<button class="btn btn-orange btn-sm" onclick="openVehicleReview('${v.id}','approved')"><i data-lucide="id-card"></i> ${t('btn_approve_vehicle')}</button>` : ''}
-        ${isStaff && v.status === 'pending' ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger);" onclick="openVehicleReview('${v.id}','rejected')"><i data-lucide="x"></i> ${t('btn_reject_vehicle')}</button>` : ''}
+      ${v.status === 'rejected' && v.rejectReason ? `<div class="vehicle-note reject">${escapeHtml(v.rejectReason)}</div>` : ''}
+      ${v.note ? `<div class="vehicle-note">${escapeHtml(v.note)}</div>` : ''}
+      <div class="vehicle-actions">
+        ${canManage && v.status !== 'approved' ? `<button class="btn btn-orange btn-sm" onclick="openVehicleReview('${v.id}','approved')"><i data-lucide="id-card"></i> ${t('btn_approve_vehicle')}</button>` : ''}
+        ${canManage && v.status === 'pending' ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger);" onclick="openVehicleReview('${v.id}','rejected')"><i data-lucide="x"></i> ${t('btn_reject_vehicle')}</button>` : ''}
         ${canEdit ? `<button class="btn btn-secondary btn-sm" onclick="openVehicleModal('${v.id}')"><i data-lucide="edit"></i></button>` : ''}
         ${canDelete ? `<button class="btn btn-secondary btn-sm" style="color:var(--color-danger);" onclick="deleteVehicle('${v.id}')"><i data-lucide="trash-2"></i></button>` : ''}
       </div>
-    </div>`;
-  }).join('')}</div>`;
-  renderIcons(body);
+    </div>
+  </div>`;
 }
 
 async function openVehiclePhoto(id) {

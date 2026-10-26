@@ -1732,24 +1732,23 @@ class RentalService:
 
     @staticmethod
     def vehicle_actor(user, action):
-        """'staff' | 'tenant' | None for this user doing `action`
-        (view/create/edit). Investor/saler never get in."""
+        """'staff' | 'viewer' | 'tenant' | None. admin/superadmin xem và quản
+        lý TOÀN BỘ xe; manager chỉ XEM (không tạo/sửa/duyệt) xe thuộc các tòa
+        nhà mình phụ trách; người thuê chỉ thấy xe của phòng mình; investor/
+        saler không có phần này."""
         role = (user or {}).get('role')
         if role in ('superadmin', 'admin'):
             return 'staff'
         if role == 'manager':
-            perm = next((p for p in Storage.get_permissions() if p.get('key') == 'vehicles'), None)
-            return 'staff' if perm and perm.get('manager', {}).get(action) else None
+            return 'viewer' if action == 'view' else None
         if role == 'tenant':
             return 'tenant'
         return None
 
     @staticmethod
-    def _staff_house_scope(user):
-        """None = every house; otherwise the set of house ids this
-        manager is assigned to (empty set = none yet)."""
-        if user.get('role') != 'manager':
-            return None
+    def _manager_house_scope(user):
+        """None = mọi tòa; ngược lại là tập id tòa nhà manager được giao
+        (rỗng = chưa được giao tòa nào)."""
         ids = user.get('houseIds') or ([user.get('houseId')] if user.get('houseId') else [])
         return None if 'all' in ids else set(ids)
 
@@ -1757,8 +1756,10 @@ class RentalService:
     def _can_see_vehicle(user, actor, v):
         if actor == 'tenant':
             return bool(user.get('roomId')) and v.get('roomId') == user.get('roomId')
-        scope = RentalService._staff_house_scope(user)
-        return scope is None or v.get('houseId') in scope
+        if actor == 'viewer':
+            scope = RentalService._manager_house_scope(user)
+            return scope is None or v.get('houseId') in scope
+        return True
 
     @staticmethod
     def list_vehicles(user):
@@ -1817,9 +1818,6 @@ class RentalService:
         room = next((r for r in Storage.get_rooms() if r['id'] == room_id), None)
         if not room:
             return None, 'Vui lòng chọn phòng!'
-        scope = RentalService._staff_house_scope(user) if actor == 'staff' else None
-        if scope is not None and room.get('houseId') not in scope:
-            return None, 'Bạn không có quyền với tòa nhà này!'
 
         photo, err = RentalService._clean_image(data.get('photo'), RentalService.VEHICLE_PHOTO_MAX_CHARS)
         if err:

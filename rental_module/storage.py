@@ -188,15 +188,6 @@ DEFAULT_PERMISSIONS = [
         "tenant":   {"view": False, "create": False, "edit": False}
     },
     {
-        # Xe & thẻ gửi xe. Tenant không nằm trong ma trận này: người thuê
-        # luôn được đăng ký xe CỦA PHÒNG MÌNH qua luồng riêng (xem
-        # RentalService.save_vehicle), không phải quyền admin cấp.
-        "key": "vehicles", "name": "Xe & Thẻ Gửi Xe",
-        "manager":  {"view": False, "create": False, "edit": False},
-        "investor": {"view": False, "create": False, "edit": False},
-        "tenant":   {"view": False, "create": False, "edit": False}
-    },
-    {
         "key": "accounts", "name": "Tài Khoản Người Dùng",
         "manager":  {"view": False, "create": False, "edit": False},
         "investor": {"view": False, "create": False, "edit": False},
