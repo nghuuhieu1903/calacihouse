@@ -9428,7 +9428,11 @@ function openVehicleReview(id, decision) {
   document.getElementById('vehicle-review-approve').style.display = decision === 'approved' ? 'block' : 'none';
   document.getElementById('vehicle-review-reject').style.display = decision === 'rejected' ? 'block' : 'none';
   document.getElementById('vehicle-review-card').value = v.cardNumber || '';
-  document.getElementById('vehicle-review-date').value = v.cardIssuedDate || new Date().toISOString().slice(0, 10);
+  // Local date, not toISOString() (UTC) — before 7am in Vietnam that was
+  // still yesterday's date.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  document.getElementById('vehicle-review-date').value = v.cardIssuedDate || today;
   document.getElementById('vehicle-review-reason').value = '';
   document.getElementById('modal-vehicle-review').classList.add('active');
   renderIcons(document.getElementById('modal-vehicle-review'));

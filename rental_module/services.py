@@ -1765,6 +1765,19 @@ class RentalService:
         return re.sub(r'[^A-Z0-9]', '', (plate or '').upper())
 
     @staticmethod
+    def _card_key(card_number):
+        # "the-100 " and "THE-100" are the same physical card.
+        return (card_number or '').strip().upper()
+
+    @staticmethod
+    def _card_taken(card_number, vehicle_id):
+        """A card can sit on only one vehicle that isn't rejected."""
+        key = RentalService._card_key(card_number)
+        return bool(key) and any(
+            o['id'] != vehicle_id and o['status'] != 'rejected' and RentalService._card_key(o['cardNumber']) == key
+            for o in Storage.get_vehicles())
+
+    @staticmethod
     def vehicle_actor(user, action):
         """'staff' | 'viewer' | 'tenant' | None. admin/superadmin xem và quản
         lý TOÀN BỘ xe; manager chỉ XEM (không tạo/sửa/duyệt) xe thuộc các tòa
@@ -1781,10 +1794,13 @@ class RentalService:
 
     @staticmethod
     def _manager_house_scope(user):
-        """None = mọi tòa; ngược lại là tập id tòa nhà manager được giao
-        (rỗng = chưa được giao tòa nào)."""
+        """None = mọi tòa; ngược lại là tập id tòa nhà manager được giao.
+        Form tài khoản chỉ cho chọn tòa với investor — manager không có chỗ
+        nào để được giao tòa, và mọi trang khác đều cho manager xem tất cả
+        các tòa — nên "chưa giao tòa nào" cũng là mọi tòa. Trước đây nó là
+        "không tòa nào", khiến mọi manager thấy danh sách xe trống."""
         ids = user.get('houseIds') or ([user.get('houseId')] if user.get('houseId') else [])
-        return None if 'all' in ids else set(ids)
+        return None if not ids or 'all' in ids else set(ids)
 
     @staticmethod
     def _can_see_vehicle(user, actor, v):
@@ -1838,7 +1854,9 @@ class RentalService:
 
         plate = (data.get('plate') or '').strip().upper()
         plate_key = RentalService._plate_key(plate)
-        if len(plate_key) < 4 or len(plate) > 20:
+        # Chữ, số, dấu cách, chấm, gạch — đủ cho mọi kiểu biển số VN
+        # (29A-123.45, 59-X1 234.56); chặn HTML/emoji lọt vào thẻ in ra.
+        if len(plate_key) < 4 or len(plate) > 20 or not re.fullmatch(r'[A-Z0-9 .\-]+', plate):
             return None, 'Biển số xe không hợp lệ!'
         vehicle_type = data.get('vehicleType') or 'Xe máy'
         if vehicle_type not in RentalService.VEHICLE_TYPES:
@@ -1851,6 +1869,8 @@ class RentalService:
             room_id = existing['roomId'] if existing else data.get('roomId')
         room = next((r for r in Storage.get_rooms() if r['id'] == room_id), None)
         if not room:
+            if actor == 'tenant':
+                return None, 'Tài khoản của bạn chưa được gán phòng, vui lòng liên hệ quản lý!'
             return None, 'Vui lòng chọn phòng!'
 
         photo, err = RentalService._clean_image(data.get('photo'), RentalService.VEHICLE_PHOTO_MAX_CHARS)
@@ -1875,6 +1895,9 @@ class RentalService:
             status = 'pending'   # người thuê đăng ký/sửa lại thì luôn chờ duyệt
         if status == 'approved' and not card_number:
             return None, 'Cần nhập số thẻ gửi xe trước khi duyệt!'
+        if status == 'rejected':
+            # Same as review_vehicle(): rejecting takes the card back.
+            card_number, card_date = '', ''
 
         for other in Storage.get_vehicles():
             if existing and other['id'] == existing['id']:
@@ -1883,8 +1906,8 @@ class RentalService:
                 continue
             if RentalService._plate_key(other['plate']) == plate_key:
                 return None, 'Biển số này đã được đăng ký!'
-            if card_number and other['cardNumber'] == card_number:
-                return None, 'Số thẻ gửi xe này đã được cấp cho xe khác!'
+        if RentalService._card_taken(card_number, existing['id'] if existing else None):
+            return None, 'Số thẻ gửi xe này đã được cấp cho xe khác!'
 
         v = {
             'id': existing['id'] if existing else f"VH_{uuid.uuid4().hex[:8]}",
@@ -1922,8 +1945,15 @@ class RentalService:
         if decision == 'approved':
             if not card_number:
                 return None, 'Cần nhập số thẻ gửi xe trước khi duyệt!'
-            if any(o['id'] != v['id'] and o['status'] != 'rejected' and o['cardNumber'] == card_number for o in Storage.get_vehicles()):
+            if RentalService._card_taken(card_number, v['id']):
                 return None, 'Số thẻ gửi xe này đã được cấp cho xe khác!'
+            # A rejected vehicle's plate is free for anyone to register —
+            # approving it back must not create a second live copy.
+            if v['status'] == 'rejected' and any(
+                    o['id'] != v['id'] and o['status'] != 'rejected'
+                    and RentalService._plate_key(o['plate']) == RentalService._plate_key(v['plate'])
+                    for o in Storage.get_vehicles()):
+                return None, 'Biển số này đã được đăng ký cho xe khác!'
         full = dict(v, plateKey=RentalService._plate_key(v['plate']))
         full.update({
             'status': decision,
