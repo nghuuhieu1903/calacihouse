@@ -5433,19 +5433,24 @@ function renderAdminInvoices() {
 
   monthInvoices.forEach(inv => {
     const tr = document.createElement('tr');
+    // inv-c-* classes only drive the phone card layout (styles.css ≤820px);
+    // the desktop table ignores them. The house name is phone-only too —
+    // there the table's own house filter is off-screen above, and two
+    // houses can each have a "101".
+    const houseName = (state.houses.find(h => h.id === inv.houseId) || {}).name || '';
     tr.innerHTML = `
-      <td data-label="${t('col_inv_id')}"><strong>${inv.id}</strong></td>
-      <td data-label="${t('col_room')}">${inv.roomName}</td>
-      <td data-label="${t('col_tenant')}">${inv.tenant}</td>
-      <td data-label="${t('col_period')}">${formatMonthLabel(inv.month)}</td>
-      <td data-label="${t('col_total')}" style="font-weight: 800; color: var(--cala-orange);">${formatMoney(inv.totalAmount)} đ</td>
-      <td data-label="${t('col_send_status')}"><span class="badge badge-resolved">${statusLabel(inv.sendStatus)}</span></td>
-      <td data-label="${t('col_pay_status')}">
+      <td class="inv-c-id" data-label="${t('col_inv_id')}"><strong>${inv.id}</strong></td>
+      <td class="inv-c-room" data-label="${t('col_room')}">${inv.roomName}${houseName ? `<small class="inv-c-house">${escapeHtml(houseName)}</small>` : ''}</td>
+      <td class="inv-c-tenant" data-label="${t('col_tenant')}">${inv.tenant}</td>
+      <td class="inv-c-period" data-label="${t('col_period')}">${formatMonthLabel(inv.month)}</td>
+      <td class="inv-c-total" data-label="${t('col_total')}" style="font-weight: 800; color: var(--cala-orange);">${formatMoney(inv.totalAmount)} đ</td>
+      <td class="inv-c-send" data-label="${t('col_send_status')}"><span class="badge badge-resolved">${statusLabel(inv.sendStatus)}</span></td>
+      <td class="inv-c-pay" data-label="${t('col_pay_status')}">
         <span class="badge ${inv.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(inv.status)}</span>
         ${(inv.paymentProofPhotos || []).length ? `<i data-lucide="camera" title="${t('title_quick_view_proof')}" onclick="quickViewInvoiceProof('${inv.id}')" style="width:14px; height:14px; margin-left:0.3rem; vertical-align:middle; color:var(--cala-blue); cursor:pointer;"></i>` : ''}
       </td>
-      <td data-label="${t('col_sent_time')}"><small style="color: var(--text-muted);">${inv.sentAt ? statusLabel(inv.sentAt) : t('just_now_label')}</small></td>
-      <td data-label="${t('col_actions')}">
+      <td class="inv-c-sent" data-label="${t('col_sent_time')}"><small style="color: var(--text-muted);">${inv.sentAt ? statusLabel(inv.sentAt) : t('just_now_label')}</small></td>
+      <td class="inv-c-actions" data-label="${t('col_actions')}">
         <div style="display:flex; gap:0.5rem;">
           <button class="btn btn-secondary btn-sm" onclick="viewInvoiceDetail('${inv.id}')"><i data-lucide="eye"></i></button>
           ${inv.status !== 'Đã thanh toán'
@@ -5463,10 +5468,10 @@ function renderAdminInvoices() {
   if (tfoot) {
     const totalSum = monthInvoices.reduce((s, inv) => s + (inv.totalAmount || 0), 0);
     tfoot.innerHTML = `
-      <tr style="font-weight: 800; background: var(--bg-base);">
+      <tr class="inv-total-row" style="font-weight: 800; background: var(--bg-base);">
         <td colspan="4" style="text-align:right;">${t('lbl_invoices_total_row')} (${monthInvoices.length})</td>
         <td style="color: var(--cala-orange);">${formatMoney(totalSum)} đ</td>
-        <td colspan="4"></td>
+        <td class="inv-total-pad" colspan="4"></td>
       </tr>
     `;
   }
@@ -6980,7 +6985,7 @@ function renderTenantInvoiceView() {
       <div class="invoice-header-row" style="display:flex; justify-content:space-between; border-bottom:2px solid #e5e9f0; padding-bottom:1.25rem; margin-bottom:1.25rem;">
         <div>
           <h2 class="invoice-header-title" style="font-size: 1.75rem; color: #03121a; font-weight:800;">${t('invoice_paper_title')}</h2>
-          <div style="color: #687176;">${t('invoice_id_label')} <strong>${invoice.id}</strong> | ${t('invoice_period_label')} ${formatMonthLabel(invoice.month)}</div>
+          <div class="invoice-header-sub" style="color: #687176;"><span>${t('invoice_id_label')} <strong>${invoice.id}</strong></span><span class="invoice-header-sep"> | </span><span>${t('invoice_period_label')} <strong>${formatMonthLabel(invoice.month)}</strong></span></div>
         </div>
         <div class="invoice-header-meta" style="text-align: right;">
           <div style="font-weight: 800; font-size: 1.1rem; color: #0194f3;">${houseName}</div>
@@ -7000,7 +7005,7 @@ function renderTenantInvoiceView() {
           <div style="font-weight: 800; font-size: 1.15rem; margin-top: 0.25rem; color: #03121a;">${(isDorm && user.fullName) ? user.fullName : invoice.tenant}</div>
           <div>${t('room_label')} <strong>${invoice.roomName}</strong></div>
         </div>
-        <div style="text-align: right;">
+        <div class="invoice-status-block" style="text-align: right;">
           <div style="color: #687176; font-size: 0.8rem; text-transform: uppercase; font-weight: 700;">${t('payment_status_label')}</div>
           <div style="margin-top: 0.25rem;">
             <span class="badge ${invoice.status === 'Đã thanh toán' ? 'badge-paid' : 'badge-pending'}">${statusLabel(invoice.status)}</span>
@@ -7129,7 +7134,7 @@ function renderPaymentProofSection(containerId) {
   const photosHtml = sec.photos.map(p => `
     <div style="position:relative; display:inline-block;">
       <img src="${p.thumb || p.dataUrl}" onclick="viewDocumentFullSize('${p.dataUrl}')" style="width:80px; height:80px; object-fit:cover; border-radius:var(--radius-sm); cursor:pointer; border:1px solid var(--border-color);">
-      ${sec.canEdit ? `<button type="button" onclick="removePaymentProofPhoto('${containerId}','${p.id}')" style="position:absolute; top:-6px; right:-6px; background:var(--color-danger); color:white; border:none; border-radius:50%; width:18px; height:18px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;">×</button>` : ''}
+      ${sec.canEdit ? `<button type="button" onclick="removePaymentProofPhoto('${containerId}','${p.id}')" style="position:absolute; top:4px; right:4px; background:var(--color-danger); color:white; border:2px solid #fff; border-radius:50%; width:24px; height:24px; font-size:14px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.3);">×</button>` : ''}
     </div>
   `).join('');
   const uploadHtml = (sec.canEdit && sec.photos.length < 5) ? `
@@ -7293,7 +7298,7 @@ function viewInvoiceDetail(invoiceId) {
 
   let serviceRowsHtml = '';
   itemsList.forEach(item => {
-    serviceRowsHtml += `<tr><td>${lineNo++}. ${item.symbol || '📦'} ${item.name} (${item.unit})</td><td style="text-align:right;">${formatMoney(item.total)} đ</td></tr>`;
+    serviceRowsHtml += `<tr><td>${lineNo++}. ${item.symbol || '📦'} ${item.name}${item.unit ? ` <small class="inv-line-unit">(${item.unit})</small>` : ''}</td><td style="text-align:right;">${formatMoney(item.total)} đ</td></tr>`;
   });
 
   const ppSections = paymentProofSections(inv, room);
@@ -7314,25 +7319,23 @@ function viewInvoiceDetail(invoiceId) {
   const elecHistoryHtml = inv.elecFormula ? elecUsageHistoryHtml(roomElecUsageHistory(inv.roomId, inv.month)) : '';
 
   content.innerHTML = `
-    <div class="invoice-paper" style="box-shadow:none; border:1px solid var(--border-color);">
+    <div class="invoice-paper invoice-paper-modal" style="box-shadow:none; border:1px solid var(--border-color);">
       <h3 style="color:#03121a;">${t('invoice_detail_title_prefix')}${inv.roomName}</h3>
-      <div style="margin:1rem 0;">${t('tenant_colon_label')} <strong>${inv.tenant}</strong> (${inv.phone})</div>
-      <table class="excel-table" style="color:#03121a;">
+      <div style="margin:1rem 0;">${t('tenant_colon_label')} <strong>${inv.tenant}</strong>${inv.phone ? ` (${inv.phone})` : ''}</div>
+      <table class="excel-table invoice-lines" style="color:#03121a;">
         <tr><td>${rentLineNo}. ${t('line_room_rent_short')}${room && room.roomType === 'dorm' ? `<br><small style="color:#687176;">${roomRentFormulaDescription(room, true)}</small>` : ''}${rentProrationNoteHtml(inv)}</td><td style="text-align:right;">${formatMoney(inv.baseRent)} đ</td></tr>
         ${elecLineNo ? `
-        <tr><td>${elecLineNo}. ⚡ ${t('line_electricity_short')} (${inv.elecUsage} kWh)
-          <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${inv.id}')">
+        <tr><td>${elecLineNo}. ⚡ ${t('line_electricity_short')} <span class="inv-line-tail"><small class="inv-line-unit">(${inv.elecUsage} kWh)</small><button type="button" class="btn btn-sm inv-line-photo" title="${t('btn_meter_photo_view')}" onclick="openInvoiceMeterPhotos('${inv.id}')">
             <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
-          </button>
+          </button></span>
         </td><td style="text-align:right;">${formatMoney(inv.elecCost)} đ</td></tr>` : ''}
         ${waterLineNo ? `
-        <tr><td>${waterLineNo}. 💧 ${t('line_water_short')} (${inv.waterUsage} m³)
-          <button type="button" class="btn btn-sm" title="${t('btn_meter_photo_view')}" style="padding:2px 5px; margin-left:0.35rem;" onclick="openInvoiceMeterPhotos('${inv.id}')">
+        <tr><td>${waterLineNo}. 💧 ${t('line_water_short')} <span class="inv-line-tail"><small class="inv-line-unit">(${inv.waterUsage} m³)</small><button type="button" class="btn btn-sm inv-line-photo" title="${t('btn_meter_photo_view')}" onclick="openInvoiceMeterPhotos('${inv.id}')">
             <i data-lucide="camera" style="width:13px; height:13px; pointer-events:none;"></i>
-          </button>
+          </button></span>
         </td><td style="text-align:right;">${formatMoney(inv.waterCost)} đ</td></tr>` : ''}
         ${serviceRowsHtml}
-        <tr style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
+        <tr class="inv-lines-total" style="font-weight:bold; font-size:1.2rem;"><td>${t('total_label_short')}</td><td style="text-align:right; color:#ff5e1f;">${formatMoney(inv.totalAmount)} đ</td></tr>
       </table>
       ${elecHistoryHtml}
       ${perPersonBreakdownHtml(perPersonBreakdown, inv.id)}

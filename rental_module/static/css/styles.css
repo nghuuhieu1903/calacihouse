@@ -247,6 +247,17 @@ select.form-control { padding-right: 2.25rem; }
    cards instead (position: sticky on a display:block row doesn't mean
    the same thing there, and a phone's own page-scroll is the more
    natural gesture at that size anyway). */
+/* House name under the room in the phone card layout only (see the ≤820px
+   invoices-table rules) — the desktop table has room for a real filter. */
+.inv-c-house { display: none; }
+.inv-c-house::before { content: '· '; }
+
+/* Invoice line items: unit/usage reads as secondary, and stays on one line
+   with its meter-photo button instead of breaking "(238 / kWh)". */
+.inv-line-unit { color: #687176; font-weight: 500; }
+.inv-line-tail { white-space: nowrap; }
+.inv-line-photo { padding: 2px 5px; margin-left: 0.35rem; vertical-align: middle; }
+
 @media (min-width: 821px) {
   .invoices-table-wrapper {
     max-height: 65vh;
@@ -520,6 +531,51 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
     font-size: 0.78rem; text-align: left; flex-shrink: 0;
   }
 
+  /* One label/value line per column made every invoice a 9-row card, with
+     the pay badge floating mid-row. Lay each card out like a receipt
+     instead: room + pay status on top, tenant under it, the total as the
+     bottom line, invoice id + sent time as fine print, then full-width
+     actions. Period (the month filter above already picks it) and send
+     status (always "Đã gửi tự động") are dropped. */
+  .invoices-table tbody tr {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "room pay" "tenant tenant" "total total" "id sent" "actions actions";
+    column-gap: 0.75rem; padding: 0.9rem 1rem;
+  }
+  .invoices-table tbody td { border-bottom: none; padding: 0; text-align: left; width: auto; }
+  .invoices-table tbody td::before { display: none; }
+  .invoices-table td.inv-c-period, .invoices-table td.inv-c-send { display: none; }
+  .invoices-table td.inv-c-room {
+    grid-area: room; justify-content: flex-start; align-items: baseline; flex-wrap: wrap;
+    gap: 0 0.4rem; font-size: 1.1rem; font-weight: 800; color: var(--text-primary);
+  }
+  .invoices-table td.inv-c-room::before { display: inline; content: attr(data-label); font-size: inherit; font-weight: inherit; color: inherit; }
+  .invoices-table .inv-c-house { display: inline; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); }
+  .invoices-table td.inv-c-pay { grid-area: pay; justify-content: flex-end; gap: 0.35rem; }
+  .invoices-table td.inv-c-tenant { grid-area: tenant; justify-content: flex-start; color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.15rem; }
+  .invoices-table td.inv-c-total {
+    grid-area: total; align-items: baseline; font-size: 1.25rem;
+    margin-top: 0.75rem; padding-top: 0.7rem; border-top: 1px dashed var(--border-color);
+  }
+  .invoices-table td.inv-c-total::before { display: inline; }
+  .invoices-table td.inv-c-id { grid-area: id; justify-content: flex-start; margin-top: 0.4rem; font-size: 0.72rem; color: var(--text-muted); }
+  .invoices-table td.inv-c-id strong { font-weight: 600; }
+  .invoices-table td.inv-c-sent { grid-area: sent; justify-content: flex-end; margin-top: 0.4rem; white-space: nowrap; }
+  .invoices-table td.inv-c-sent small { font-size: 0.72rem; }
+  .invoices-table td.inv-c-actions { grid-area: actions; margin-top: 0.8rem; }
+  .invoices-table td.inv-c-actions > div { width: 100%; }
+  .invoices-table td.inv-c-actions .btn { flex: 1; justify-content: center; }
+  .invoices-table td.inv-c-actions .btn:first-child:not(:only-child) { flex: 0 0 3rem; }
+
+  /* Tổng Cộng: was left as a table-footer-group, so it rendered as a
+     half-width box. One full-width "label … amount" line instead. */
+  .invoices-table tfoot { display: block; }
+  .invoices-table tfoot tr.inv-total-row { display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1rem; }
+  .invoices-table tfoot td { width: auto; border-bottom: none; padding: 0; font-size: 1rem; }
+  .invoices-table tfoot td::before { display: none; }
+  .invoices-table tfoot td.inv-total-pad { display: none; }
+  .invoices-table tfoot td:nth-child(2) { font-size: 1.2rem; }
+
   /* TICKETS — 10 columns is too dense to browse on a phone even with the
      scroll-shadow hint, and most of it (description, image count, actions)
      only matters once you've picked a specific ticket. Swap the table for a
@@ -616,6 +672,36 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
   .invoice-header-row { flex-wrap: wrap; gap: 0.5rem; }
   .invoice-header-title { font-size: 1.3rem !important; }
   .invoice-header-meta { text-align: left !important; }
+  /* "Mã HĐ: … | Kỳ: …" broke mid-phrase — one fact per line instead. */
+  .invoice-header-sub > span { display: block; }
+  .invoice-header-sub > .invoice-header-sep { display: none; }
+  /* Its 2-column grid collapses to one on a phone, which left the status
+     block right-aligned under a left-aligned tenant block. A full-width
+     "label … badge" strip reads as one piece with what's above it. */
+  .invoice-status-block {
+    text-align: left !important; display: flex; align-items: center; justify-content: space-between;
+    gap: 0.5rem; background: #f7f9fa; border: 1px solid #e5e9f0; border-radius: 10px; padding: 0.6rem 0.8rem;
+  }
+  .invoice-status-block > div { margin-top: 0 !important; }
+  .invoice-status-block > div:first-child { white-space: nowrap; font-size: 0.72rem !important; }
+  /* Two right-aligned buttons of different widths → two full-width ones. */
+  .invoice-print-toolbar { flex-direction: column; }
+  .invoice-print-toolbar .btn { width: 100%; justify-content: center; }
+
+  /* Admin's invoice detail sits inside .modal-card, which already has its
+     own padding — the paper's border + padding on top of that squeezed the
+     line items into ~2/3 of the screen. */
+  .invoice-paper.invoice-paper-modal { padding: 0.25rem 0 0; border: none !important; }
+  .invoice-lines td { vertical-align: middle; }
+  .invoice-lines .inv-lines-total td { font-size: 1.1rem; padding-top: 0.85rem; }
+
+  /* Invoice filters: label + select pairs wrapped at uneven widths, and a
+     label beside its select left too little room ("Tất Cả Tòa N…"). Label
+     on top, select full width. */
+  .invoice-filters { gap: 0.75rem !important; }
+  .invoice-filters > div { width: 100%; flex-direction: column; align-items: stretch !important; gap: 0.3rem !important; }
+  .invoice-filters label { font-size: 0.78rem !important; color: var(--text-secondary); }
+  .invoice-filters select { width: 100% !important; min-width: 0 !important; }
 
   .excel-table th, .excel-table td { padding: 0.6rem 0.7rem; }
 
