@@ -479,6 +479,43 @@ class RentalService:
             result.append(r)
         return result
 
+    # (this month's "Old" field, last month's "New" field it mirrors, flag
+    # set once someone types/uploads that "Old" field by hand — e.g. a
+    # replaced meter starting from a different number — so it stops
+    # following last month from then on)
+    _CARRY_FORWARD_FIELDS = (
+        ('elecOld', 'elecNew', 'elecOldManual'),
+        ('waterOld', 'waterNew', 'waterOldManual'),
+        ('elecOldPhoto', 'elecNewPhoto', 'elecOldPhotoManual'),
+        ('waterOldPhoto', 'waterNewPhoto', 'waterOldPhotoManual'),
+    )
+
+    @staticmethod
+    def _carry_forward_old_readings(entry, prev_rd):
+        # Last month's "New" reading IS this month's starting number (same
+        # physical meter), and its photo IS a photo of that number — so
+        # both carry forward as this month's "Old" ones, and whoever fills
+        # this in only ever has to type the new number. A blank/0 "New"
+        # last month means not entered yet: leave this month's alone.
+        for old_f, new_f, manual_f in RentalService._CARRY_FORWARD_FIELDS:
+            if entry.get(manual_f):
+                continue
+            val = prev_rd.get(new_f)
+            if val:
+                entry[old_f] = val
+
+    @staticmethod
+    def _new_reading_entry(r, services, prev_rd):
+        srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
+        entry = {
+            'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
+            'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
+            'waterFormula': r.get('waterFormula', 'water_flat_18000'),
+            'serviceFee': srv_tot, 'parkingFee': prk_tot
+        }
+        RentalService._carry_forward_old_readings(entry, prev_rd)
+        return entry
+
     @staticmethod
     def sync_readings_with_services(month=None):
         # month=None (rather than a hardcoded fallback string) because a
@@ -506,30 +543,16 @@ class RentalService:
 
             for r in rooms:
                 srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
+                prev_rd = prev_readings.get(r['id'], {})
                 if r['id'] not in readings[month]:
-                    # First time this room shows up in this month's
-                    # readings — carry last month's "New" reading forward
-                    # as this month's "Old" one (same physical meter, same
-                    # number, just now the starting point instead of last
-                    # month's ending point) so whoever fills this in only
-                    # ever has to type the new number, not re-type last
-                    # month's closing number too.
-                    prev_rd = prev_readings.get(r['id'], {})
-                    readings[month][r['id']] = {
-                        'elecOld': prev_rd.get('elecNew', 0), 'elecNew': 0,
-                        'waterOld': prev_rd.get('waterNew', 0), 'waterNew': 0,
-                        'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
-                        'waterFormula': r.get('waterFormula', 'water_flat_18000'),
-                        'serviceFee': srv_tot, 'parkingFee': prk_tot
-                    }
-                    # Same idea for the meter photos — last month's "New"
-                    # photo IS a photo of this month's starting number, so
-                    # it carries forward as this month's "Old" photo too.
-                    if prev_rd.get('elecNewPhoto'):
-                        readings[month][r['id']]['elecOldPhoto'] = prev_rd['elecNewPhoto']
-                    if prev_rd.get('waterNewPhoto'):
-                        readings[month][r['id']]['waterOldPhoto'] = prev_rd['waterNewPhoto']
+                    readings[month][r['id']] = RentalService._new_reading_entry(r, services, prev_rd)
                 else:
+                    # Not only on first creation: this month's entry is
+                    # usually created on day 1 by whoever opens the app,
+                    # BEFORE last month's closing numbers are typed in (or
+                    # while they still get corrected) — carrying forward
+                    # just once froze "Số cũ" at that early, stale value.
+                    RentalService._carry_forward_old_readings(readings[month][r['id']], prev_rd)
                     readings[month][r['id']]['serviceFee'] = srv_tot
                     readings[month][r['id']]['parkingFee'] = prk_tot
 
@@ -1348,6 +1371,18 @@ class RentalService:
         return True
 
     @staticmethod
+    def _ensure_reading_entry(readings, month, room_id):
+        # Was a separate all-zeros entry here, so a room whose first touch
+        # this month came through a reading edit (not a page load) started
+        # with "Số cũ" = 0 instead of last month's number.
+        if month not in readings:
+            readings[month] = {}
+        if room_id not in readings[month]:
+            r = next((x for x in Storage.get_rooms() if x['id'] == room_id), {})
+            prev_rd = readings.get(RentalService._shift_month(month, -1), {}).get(room_id, {})
+            readings[month][room_id] = RentalService._new_reading_entry(r, Storage.get_services(), prev_rd)
+
+    @staticmethod
     def update_room_reading(month, room_id, field, value):
         # Reading edits (a meter number, then its confirmation photo) tend to
         # fire back-to-back for the same room/month — the photo upload in
@@ -1359,20 +1394,7 @@ class RentalService:
         # "jumping back to 0" right after uploading its photo. Storage's
         # locked read-modify-write forces these to serialize instead.
         def mutate(readings):
-            if month not in readings:
-                readings[month] = {}
-            if room_id not in readings[month]:
-                rooms = Storage.get_rooms()
-                services = Storage.get_services()
-                r = next((x for x in rooms if x['id'] == room_id), {})
-                srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
-                readings[month][room_id] = {
-                    'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
-                    'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
-                    'waterFormula': r.get('waterFormula', 'water_flat_18000'),
-                    'serviceFee': srv_tot,
-                    'parkingFee': prk_tot
-                }
+            RentalService._ensure_reading_entry(readings, month, room_id)
 
             text_fields = [
                 'elecFormula', 'waterFormula',
@@ -1385,6 +1407,17 @@ class RentalService:
                     readings[month][room_id][field] = float(value)
                 except (ValueError, TypeError):
                     readings[month][room_id][field] = 0
+
+            for old_f, new_f, manual_f in RentalService._CARRY_FORWARD_FIELDS:
+                if field == old_f:
+                    readings[month][room_id][manual_f] = True
+                elif field == new_f:
+                    # Correcting last month's closing number after next
+                    # month already exists must update next month's "Old"
+                    # too, not leave it on the number it was created with.
+                    next_rd = readings.get(RentalService._shift_month(month, 1), {}).get(room_id)
+                    if next_rd is not None:
+                        RentalService._carry_forward_old_readings(next_rd, readings[month][room_id])
 
             return readings
 
@@ -1400,20 +1433,7 @@ class RentalService:
         # that photo except by superadmin (enforced in the route, not
         # here), until a superadmin flips it back with locked=False.
         def mutate(readings):
-            if month not in readings:
-                readings[month] = {}
-            if room_id not in readings[month]:
-                rooms = Storage.get_rooms()
-                services = Storage.get_services()
-                r = next((x for x in rooms if x['id'] == room_id), {})
-                srv_tot, prk_tot, _ = RentalService.calculate_room_services_total(r, services)
-                readings[month][room_id] = {
-                    'elecOld': 0, 'elecNew': 0, 'waterOld': 0, 'waterNew': 0,
-                    'elecFormula': r.get('elecFormula', 'elec_flat_3500'),
-                    'waterFormula': r.get('waterFormula', 'water_flat_18000'),
-                    'serviceFee': srv_tot,
-                    'parkingFee': prk_tot
-                }
+            RentalService._ensure_reading_entry(readings, month, room_id)
             readings[month][room_id]['elecPhotoLocked'] = bool(locked)
             return readings
 
