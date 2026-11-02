@@ -617,8 +617,8 @@ def save_room_contract():
 def delete_room():
     data = request.json or {}
     room_id = data.get('id') or data.get('roomId')
-    unlinked_username = RentalService.delete_room(room_id)
-    return jsonify({'success': True, 'unlinkedUsername': unlinked_username})
+    unlinked_usernames = RentalService.delete_room(room_id)
+    return jsonify({'success': True, 'unlinkedUsernames': unlinked_usernames})
 
 @rental_bp.route('/api/rooms/reorder', methods=['POST'])
 @permission_required('rooms', 'edit')
@@ -761,6 +761,13 @@ def save_elec_reading():
     room_id = data.get('roomId')
     field = data.get('field')
     value = data.get('value')
+
+    # Without this whitelist the "only elecNew/elecNewPhoto" scope above was
+    # just a convention — any field went through update_room_reading(),
+    # including elecPhotoLocked itself (a manager could unlock their own
+    # completed photo) and every other meter number.
+    if field not in ('elecNew', 'elecNewPhoto'):
+        return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
 
     if field == 'elecNewPhoto':
         user = session.get('user') or {}
@@ -1044,8 +1051,20 @@ def delete_vehicle():
 @login_required
 def create_ticket():
     data = request.json or {}
+    user = session.get('user') or {}
+    role = user.get('role')
+    # A tenant's ticket is always for their OWN room — the client-sent
+    # roomId used to be trusted, letting a tenant file one under any room.
+    if role == 'tenant':
+        room_id = user.get('roomId')
+        if not room_id:
+            return jsonify({'success': False, 'error': 'Tài khoản chưa được gán phòng!'}), 400
+    elif role in ('superadmin', 'admin', 'manager'):
+        room_id = data.get('roomId')
+    else:
+        return jsonify({'success': False, 'error': 'Bạn không có quyền thực hiện thao tác này!'}), 403
     t_obj = RentalService.create_ticket(
-        data.get('roomId'),
+        room_id,
         data.get('category'),
         data.get('priority'),
         data.get('description'),
@@ -1059,7 +1078,26 @@ def get_ticket_detail(ticket_id):
     ticket = RentalService.get_ticket_detail(ticket_id)
     if not ticket:
         return jsonify({'success': False, 'error': 'Không tìm thấy báo lỗi'}), 404
+    if not _user_can_view_ticket(session.get('user'), ticket):
+        return jsonify({'success': False, 'error': 'Bạn không có quyền xem báo lỗi này!'}), 403
     return jsonify({'success': True, 'ticket': ticket})
+
+def _user_can_view_ticket(user, ticket):
+    """Same scoping get_full_state() applies to the ticket list — ids are
+    sequential (TK-0001, TK-0002, ...), so without this any logged-in
+    tenant could read every other room's tickets just by counting."""
+    if not user:
+        return False
+    role = user.get('role')
+    if role in ('superadmin', 'admin', 'manager'):
+        return True
+    if role == 'tenant':
+        return ticket.get('roomId') == user.get('roomId') or ticket.get('tenant') == user.get('fullName')
+    if role == 'investor':
+        room = next((r for r in Storage.get_rooms() if r['id'] == ticket.get('roomId')), None)
+        investor_house_ids = user.get('houseIds') or ([user.get('houseId')] if user.get('houseId') else [])
+        return bool(room) and ('all' in investor_house_ids or room.get('houseId') in investor_house_ids)
+    return False
 
 @rental_bp.route('/api/tickets/reply', methods=['POST'])
 @permission_required('tickets', 'edit')

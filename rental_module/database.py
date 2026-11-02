@@ -466,6 +466,36 @@ def _backfill_reading_carryover(cur):
     )
 
 
+def _dedupe_invoice_ids(cur):
+    """Invoices used to be id'd INV_<room name>_<MMYY> only, so same-named
+    rooms in two houses shared one id — and every invoice action (Đã thu,
+    ảnh CK, chia tiền điện) hit both. invoice_id_for() (services.py) now
+    appends the room id for a shared name; this renames the invoices
+    already saved under a shared id the same way. Every member of a
+    colliding group is renamed (none keeps the old id), so a stale page
+    still holding it gets "không tìm thấy" instead of acting on the wrong
+    room. Cheap and idempotent — runs on every start."""
+    cur.execute("SELECT `value` FROM kv_store WHERE `key`='invoices'")
+    row = cur.fetchone()
+    if not row:
+        return
+    invoices = json.loads(row['value'])
+    counts = {}
+    for inv in invoices:
+        counts[inv.get('id')] = counts.get(inv.get('id'), 0) + 1
+    renamed = 0
+    for inv in invoices:
+        if counts.get(inv.get('id'), 0) > 1 and inv.get('roomId'):
+            inv['id'] = f"{inv['id']}_{inv['roomId']}"
+            renamed += 1
+    if renamed:
+        cur.execute(
+            "REPLACE INTO kv_store (`key`, `value`) VALUES (%s, %s)",
+            ('invoices', json.dumps(invoices, ensure_ascii=False))
+        )
+        print(f"[DB] renamed {renamed} invoice(s) that shared an id")
+
+
 def _promote_admins_to_superadmin(cur):
     """One-time role split: 'admin' used to mean full power including
     delete; now 'superadmin' does, and 'admin' means everything except
@@ -686,6 +716,7 @@ def init_db():
             _backfill_room_sort_order(cur)
             _backfill_service_sort_order(cur)
             _backfill_reading_carryover(cur)
+            _dedupe_invoice_ids(cur)
             _migrate_investor_share_to_map(cur)
             _migrate_house_bank_to_qr_profiles(cur)
         conn.commit()

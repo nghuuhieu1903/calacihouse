@@ -5338,7 +5338,7 @@ async function generateAndSendAllInvoices() {
     const elecUsage = Math.max(0, (rd.elecNew || 0) - (rd.elecOld || 0));
     const waterUsage = Math.max(0, (rd.waterNew || 0) - (rd.waterOld || 0));
 
-    const invoiceId = formatInvoiceId(r.name, state.currentMonth);
+    const invoiceId = formatInvoiceId(r, state.currentMonth);
     // Matched by roomId + month, not the id string above — two rooms in
     // different houses can share the same name (nothing enforces
     // uniqueness across houses), which would otherwise collide on the
@@ -7560,7 +7560,7 @@ function viewInvestorInvoiceDetail(invoiceId) {
 function previewRoomInvoice(roomId) {
   generateAndSendAllInvoices();
   const room = state.rooms.find(r => r.id === roomId);
-  const invoiceId = formatInvoiceId(room ? room.name : roomId, state.currentMonth);
+  const invoiceId = formatInvoiceId(room || { id: roomId, name: roomId }, state.currentMonth);
   viewInvoiceDetail(invoiceId);
 }
 
@@ -9569,10 +9569,10 @@ async function deleteRoom(roomId) {
     // The room's tenant account (if any) had its room link cleared server-
     // side rather than left pointing at a now-deleted room — let the admin
     // know that account needs a new room assignment.
-    if (data.unlinkedUsername) {
-      const tenantUser = state.users.find(u => u.username === data.unlinkedUsername);
-      if (tenantUser) tenantUser.roomId = '';
-      showToast(`${t('toast_room_deleted_tenant_unlinked_prefix')}@${data.unlinkedUsername}`, 'info');
+    const unlinked = data.unlinkedUsernames || [];
+    if (unlinked.length) {
+      state.users.forEach(u => { if (unlinked.includes(u.username)) u.roomId = ''; });
+      showToast(`${t('toast_room_deleted_tenant_unlinked_prefix')}${unlinked.map(n => '@' + n).join(', ')}`, 'info');
     }
   } catch (e) {
     console.warn('Delete room locally', e);
@@ -9956,13 +9956,15 @@ function formatMonthLabel(monthStr) {
 }
 
 // INV_<tên phòng>_<tháng><2 số cuối năm> — e.g. "INV_Phòng 101_0826" for
-// August 2026. Mirrored exactly in _rebuild_invoices (services.py), which
+// August 2026, plus "_<room id>" when another room (in another house)
+// shares the name. Mirrored exactly in invoice_id_for (services.py), which
 // is the actual source of truth once a save round-trips to the server;
 // this client-side copy only needs to match closely enough to look up
 // the right invoice locally right after generating it.
-function formatInvoiceId(roomName, monthStr) {
+function formatInvoiceId(room, monthStr) {
   const [year, month] = monthStr.split('-');
-  return `INV_${roomName}_${month}${year.slice(-2)}`;
+  const base = `INV_${room.name}_${month}${year.slice(-2)}`;
+  return state.rooms.some(o => o.id !== room.id && o.name === room.name) ? `${base}_${room.id}` : base;
 }
 
 // t('some_key_with_{placeholder}') then swap in each named value — reads

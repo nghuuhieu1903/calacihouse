@@ -1149,16 +1149,18 @@ class RentalService:
         # tenant (their invoice/contract pages just go blank) and whoever's
         # managing accounts later. Clear the link so it reads as
         # unassigned, same as an account that was never assigned a room.
-        unlinked_username = None
-        tenant = next((u for u in Storage.get_users() if u.get('roomId') == room_id), None)
-        if tenant:
-            tenant['roomId'] = ''
-            Storage.save_user(tenant)
-            unlinked_username = tenant.get('username')
+        # Every account on it, not just the first — a KTX room has several.
+        # Returns the usernames unlinked.
+        unlinked = []
+        for tenant in Storage.get_users():
+            if room_id and tenant.get('roomId') == room_id:
+                tenant['roomId'] = ''
+                Storage.save_user(tenant)
+                unlinked.append(tenant.get('username'))
 
         Storage.delete_room(room_id)
         RentalService.sync_readings_with_services()
-        return unlinked_username
+        return unlinked
 
     @staticmethod
     def reorder_rooms(room_ids):
@@ -1464,6 +1466,19 @@ class RentalService:
         return len(rooms)
 
     @staticmethod
+    def invoice_id_for(room, month, rooms):
+        """INV_<tên phòng>_<MMYY>. Two rooms in different houses can share
+        a name, and every invoice action (Đã thu, ảnh CK, chia tiền điện)
+        looks the invoice up by this id — so a shared name gets the room id
+        appended, or marking one paid marked both. Mirrored by
+        formatInvoiceId() in app.js."""
+        year, mm = month.split('-')
+        base = f"INV_{room['name']}_{mm}{year[-2:]}"
+        if any(o['id'] != room['id'] and o.get('name') == room['name'] for o in rooms):
+            return f"{base}_{room['id']}"
+        return base
+
+    @staticmethod
     def _rebuild_invoices(invoices, month, rooms, services, readings, users):
         for r in rooms:
             is_occupied = RentalService.room_occupied_this_month(r, month)
@@ -1508,8 +1523,7 @@ class RentalService:
 
             total_amount = room_rent + elec_cost + water_cost + service_fee + parking_fee
 
-            year, mm = month.split('-')
-            invoice_id = f"INV_{r['name']}_{mm}{year[-2:]}"
+            invoice_id = RentalService.invoice_id_for(r, month, rooms)
 
             # Matched by roomId + month, NOT by the id string above — two
             # rooms in different houses can share the same name (nothing
@@ -1848,8 +1862,11 @@ class RentalService:
         if photo is None and not existing and actor == 'tenant':
             return None, 'Vui lòng tải lên ảnh biển số xe!'
 
-        card_number = (data.get('cardNumber') or '').strip()[:64] if actor == 'staff' else (existing or {}).get('cardNumber', '')
-        card_date = (data.get('cardIssuedDate') or '').strip()[:16] if actor == 'staff' else (existing or {}).get('cardIssuedDate', '')
+        # A rejected vehicle's card was taken back (and may already be on
+        # another vehicle) — re-submitting it must not drag that card along.
+        kept_card = existing if existing and existing['status'] != 'rejected' else {}
+        card_number = (data.get('cardNumber') or '').strip()[:64] if actor == 'staff' else kept_card.get('cardNumber', '')
+        card_date = (data.get('cardIssuedDate') or '').strip()[:16] if actor == 'staff' else kept_card.get('cardIssuedDate', '')
         if actor == 'staff':
             status = data.get('status') or (existing['status'] if existing else 'approved')
             if status not in ('pending', 'approved', 'rejected'):
@@ -1862,7 +1879,9 @@ class RentalService:
         for other in Storage.get_vehicles():
             if existing and other['id'] == existing['id']:
                 continue
-            if other['status'] != 'rejected' and RentalService._plate_key(other['plate']) == plate_key:
+            if other['status'] == 'rejected':
+                continue
+            if RentalService._plate_key(other['plate']) == plate_key:
                 return None, 'Biển số này đã được đăng ký!'
             if card_number and other['cardNumber'] == card_number:
                 return None, 'Số thẻ gửi xe này đã được cấp cho xe khác!'
@@ -1903,13 +1922,15 @@ class RentalService:
         if decision == 'approved':
             if not card_number:
                 return None, 'Cần nhập số thẻ gửi xe trước khi duyệt!'
-            if any(o['id'] != v['id'] and o['cardNumber'] == card_number for o in Storage.get_vehicles()):
+            if any(o['id'] != v['id'] and o['status'] != 'rejected' and o['cardNumber'] == card_number for o in Storage.get_vehicles()):
                 return None, 'Số thẻ gửi xe này đã được cấp cho xe khác!'
         full = dict(v, plateKey=RentalService._plate_key(v['plate']))
         full.update({
             'status': decision,
-            'cardNumber': card_number if decision == 'approved' else v['cardNumber'],
-            'cardIssuedDate': (card_issued_date or datetime.now().strftime('%Y-%m-%d')) if decision == 'approved' else v['cardIssuedDate'],
+            # Rejecting takes the card back so it can be issued again —
+            # keeping it here blocked that card number forever.
+            'cardNumber': card_number if decision == 'approved' else '',
+            'cardIssuedDate': (card_issued_date or datetime.now().strftime('%Y-%m-%d')) if decision == 'approved' else '',
             'rejectReason': (reject_reason or '').strip() if decision == 'rejected' else '',
         })
         Storage.save_vehicle(full)
