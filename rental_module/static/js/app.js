@@ -7304,7 +7304,7 @@ function viewInvoiceDetail(invoiceId) {
   const ppSections = paymentProofSections(inv, room);
   const ppVisible = ppSections.filter(s => canEditInvoiceProof || s.count > 0);
   const paymentProofBlockHtml = ppVisible.length ? `
-    <div style="margin-top:1.25rem;">
+    <div class="invoice-proof-block" style="margin-top:1.25rem;">
       ${canEditInvoiceProof ? `<p style="font-size:0.8rem; color:var(--text-secondary); margin:0 0 0.25rem;">${t(ppSections.length > 1 ? 'hint_payment_proof_per_occupant' : 'hint_payment_proof_admin')}</p>` : ''}
       ${ppVisible.map(s => paymentProofCardHtml(s, canEditInvoiceProof)).join('')}
     </div>

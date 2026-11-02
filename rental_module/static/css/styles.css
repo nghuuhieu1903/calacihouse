@@ -941,11 +941,24 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
   }
 }
 
+/* Every wrapper's padding is zeroed for print (see .main-content below), so
+   without a page margin of our own the invoice ran edge to edge — whatever
+   margin the browser/printer happened to default to (none, on "Margins:
+   None" or several phone browsers) is all that kept the house name and
+   payment status at the right edge from being cut off. */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
 @media print {
   .sidebar, .sidebar-overlay, .cala-navbar, .toast-container,
-  #page-title, #page-subtitle, #tenant-invoice-header, .invoice-print-toolbar {
+  .page-header, #tenant-invoice-header, .invoice-print-toolbar {
     display: none !important;
   }
+  /* The app's grey page background has no place on paper (and printed
+     as a grey frame whenever "background graphics" was on). */
+  body, .app-container, .main-content { background: #fff !important; }
   /* body, .app-container and .main-content all force something close to
      a full VIEWPORT height (body/.app-container's own min-height, plus
      .main-content's 2rem padding on every side) regardless of how little
@@ -968,6 +981,10 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
   }
   .invoice-paper {
     box-shadow: none !important; border: none !important; margin: 0;
+    /* A hair of side padding on top of @page's margin below: right-aligned
+       text (house name, status) ends exactly at the content edge, and its
+       last glyph's overhang got shaved off. */
+    padding: 0 2mm !important;
   }
   /* Upload/delete controls have no place on a printed page — the paper's
      own content (amounts, formulas, payment-proof photos already
@@ -983,30 +1000,44 @@ tr.drag-reorder-row.drag-reorder-over { box-shadow: inset 0 2px 0 var(--cala-blu
      print the dimmed backdrop. Any OTHER modal that happens to be open at
      print time (one with no .invoice-paper inside it) is hidden outright
      instead — nothing in it would make sense on a printed invoice page. */
-  .modal-backdrop:has(.invoice-paper) {
+  /* .active matters: the detail modal keeps its last invoice in the DOM
+     after being closed, so matching on :has(.invoice-paper) alone printed
+     that stale invoice under whatever page was being printed later. And
+     while it IS open, the page behind it (the invoice list) is hidden —
+     it used to print first, pushing the invoice itself onto page 2. */
+  body:has(.modal-backdrop.active .invoice-paper) .app-container {
+    display: none !important;
+  }
+  .modal-backdrop.active:has(.invoice-paper) {
     position: static; background: none; padding: 0; display: block;
   }
-  .modal-backdrop:has(.invoice-paper) .modal-card {
+  .modal-backdrop.active:has(.invoice-paper) .modal-card {
     box-shadow: none; max-width: 100%; max-height: none; padding: 0; overflow: visible;
   }
-  .modal-backdrop:has(.invoice-paper) .modal-card > div:first-child {
-    display: none;
+  /* !important: that title bar sets display:flex inline. */
+  .modal-backdrop.active:has(.invoice-paper) .modal-card > div:first-child {
+    display: none !important;
   }
-  .modal-backdrop:not(:has(.invoice-paper)) {
+  .modal-backdrop:not(.active), .modal-backdrop:not(:has(.invoice-paper)) {
     display: none !important;
   }
 
   /* The proof-of-payment card is for the tenant/admin's own record-
      keeping inside the app, not something that needs to be on the printed
      invoice itself. */
-  .invoice-proof-card {
+  .invoice-proof-card, .invoice-proof-block {
     display: none !important;
   }
   /* The transfer QR DOES print — a paper invoice handed to a tenant is
      exactly where they'd scan it from — just never split across pages. */
   .transfer-qr-card {
     break-inside: avoid;
+    margin-top: 1rem !important;
+    box-shadow: none !important;
   }
+  /* Still easily scannable at ~4cm, and keeps a normal invoice + its QR
+     on one A4 page instead of break-inside pushing the QR to page 2. */
+  .transfer-qr-card img { width: 155px !important; }
 
   /* Tenant's own invoice view keeps the grand total in its own separate
      boxed card below the items table (renderTenantInvoiceView) rather
