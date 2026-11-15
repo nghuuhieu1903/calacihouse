@@ -711,12 +711,6 @@ def init_db():
             # a full month until an admin explicitly turns this on for it.
             _ensure_column(cur, 'rooms', 'use_contract_proration', "TINYINT(1) DEFAULT 0")
             _ensure_column(cur, 'users', 'use_contract_proration', "TINYINT(1) DEFAULT 0")
-            # Which "Theo xe / tháng" parking service an issued card is
-            # billed under (picked when the card is issued). The parking
-            # fee on an invoice is counted from issued cards now, not from
-            # a number typed on the room/account. '' = not picked yet —
-            # billing then matches one by vehicle type.
-            _ensure_column(cur, 'vehicles', 'service_id', "VARCHAR(191) DEFAULT ''")
             _promote_admins_to_superadmin(cur)
             _backfill_house_sort_order(cur)
             _backfill_room_sort_order(cur)

@@ -409,9 +409,12 @@ class RentalService:
 
             if 'xe' in name_lower or unit == 'Theo xe / tháng':
                 if unit == 'Theo xe / tháng':
-                    # Issued cards billed under THIS service (see
-                    # _apply_vehicle_counts); a room object that never went
-                    # through it falls back to its one flat vehicleCount.
+                    # A KTX room's occupants can be split across more than
+                    # one parking service (see _apply_dorm_vehicle_counts)
+                    # — use THIS service's own count when that breakdown
+                    # exists; a single room (no per-service breakdown at
+                    # all) falls back to its one flat vehicleCount exactly
+                    # as before.
                     by_service = room.get('vehicleCountByService')
                     vehicle_count = by_service.get(s.get('id'), 0) if by_service is not None else room.get('vehicleCount', 0)
                     item_price = price * vehicle_count
@@ -443,90 +446,38 @@ class RentalService:
 
         return service_total, parking_total, item_list
 
-    # Vehicle type → words a parking service's name would use for it. Order
-    # matters: "xe đạp điện" must be tried before plain "xe đạp".
-    _PARKING_TYPE_WORDS = (
-        ('Xe đạp điện', ('xe đạp điện', 'đạp điện', 'xe dap dien')),
-        ('Xe đạp', ('xe đạp', 'xe dap')),
-        ('Ô tô', ('ô tô', 'oto', 'o to', 'xe hơi')),
-        ('Xe máy', ('xe máy', 'xe may', 'motor')),
-    )
-
     @staticmethod
-    def parking_services_for_room(room, services):
-        """The per-vehicle ("Theo xe / tháng") services that apply to this
-        room — the ones an issued parking card can be billed under."""
-        return [s for s in services
-                if s.get('calcType') != 'formula' and s.get('unit') == 'Theo xe / tháng'
-                and RentalService.service_matches_house(s, room.get('houseId'))
-                and RentalService.service_matches_room(s, room.get('id'))]
+    def _apply_dorm_vehicle_counts(rooms, users):
+        """A dorm room's vehicle count isn't typed in directly (see
+        save_room) — it's derived from that room's currently-approved
+        tenant accounts, each individually assigned (in Quản Lý Tài
+        Khoản) to whichever configured parking-fee service their vehicle
+        actually belongs to (vehicleServiceId — a KTX room can have
+        occupants split across more than one parking service, e.g. "Phí
+        Gửi Xe Máy Chung Cư" vs "...Căn Hộ"). Recomputed live every time
+        rooms are read rather than synced on write, so it can never drift
+        out of date (a tenant moves out, or their vehicle assignment
+        changes, on a different page). vehicleCountByService: {serviceId:
+        count} feeds calculate_room_services_total's per-service pricing;
+        vehicleCount (the old flat total, summed across every service) is
+        kept alongside for anything still displaying a single number. A
+        single room's vehicleCount is untouched either way — there it's
+        just the direct value the admin typed on the room itself, same
+        as before this existed."""
+        counts_by_room_and_service = {}
+        for u in users:
+            if u.get('role') == 'tenant' and u.get('status') == 'approved' and u.get('vehicleServiceId') and u.get('roomId'):
+                room_counts = counts_by_room_and_service.setdefault(u['roomId'], {})
+                svc_id = u['vehicleServiceId']
+                room_counts[svc_id] = room_counts.get(svc_id, 0) + 1
 
-    @staticmethod
-    def parking_service_for_vehicle(vehicle, room, services):
-        """The parking service an issued card is billed under: the one picked
-        when the card was issued, if it still applies to the room; otherwise
-        the one whose name matches the vehicle type (a "Phí Gửi Ô Tô" for an
-        Ô tô), else the room's first parking service. None = the room has no
-        per-vehicle parking service at all, so the card costs nothing.
-        Mirrored by suggestParkingServiceId() in app.js."""
-        candidates = RentalService.parking_services_for_room(room, services)
-        if not candidates:
-            return None
-        picked = next((s for s in candidates if s['id'] == vehicle.get('serviceId')), None)
-        if picked:
-            return picked
-        vtype = vehicle.get('vehicleType')
-        for type_name, words in RentalService._PARKING_TYPE_WORDS:
-            if type_name != vtype:
-                continue
-            for s in candidates:
-                name = (s.get('name') or '').lower()
-                if any(w in name for w in words) and not (type_name == 'Xe đạp' and 'điện' in name):
-                    return s
-        return candidates[0]
-
-    @staticmethod
-    def _issued_vehicle_services(rooms, services):
-        """[(vehicle, service)] for every issued card on one of `rooms` that
-        is billed under some parking service."""
-        rooms_by_id = {r['id']: r for r in rooms}
-        out = []
-        for v in Storage.get_issued_vehicles_billing():
-            room = rooms_by_id.get(v.get('roomId'))
-            if not room:
-                continue
-            svc = RentalService.parking_service_for_vehicle(v, room, services)
-            if svc:
-                out.append((v, svc))
-        return out
-
-    @staticmethod
-    def _apply_vehicle_counts(rooms, services):
-        """Every room's parking count comes from its issued parking cards
-        (Xe & Thẻ Gửi Xe) — vehicleCountByService {serviceId: count} feeds
-        calculate_room_services_total's per-service pricing, vehicleCount is
-        the total for anything showing one number. Replaces the old sources
-        (a number typed on a single room, a parking service picked on each
-        KTX account), which could drift from the cards actually issued.
-        Recomputed on every read, so a card issued/revoked shows up on the
-        very next invoice."""
-        counts = {}
-        for v, svc in RentalService._issued_vehicle_services(rooms, services):
-            by_service = counts.setdefault(v['roomId'], {})
-            by_service[svc['id']] = by_service.get(svc['id'], 0) + 1
-        return [{**r, 'vehicleCountByService': counts.get(r['id'], {}),
-                 'vehicleCount': sum(counts.get(r['id'], {}).values())} for r in rooms]
-
-    @staticmethod
-    def _vehicle_service_ids_by_user(rooms, services):
-        """{userId: [serviceId per issued card in their name]} — a KTX
-        occupant's own share of the parking fee (computeKtxPerPersonBreakdown
-        in app.js); a card with no account on it stays the room's."""
-        out = {}
-        for v, svc in RentalService._issued_vehicle_services(rooms, services):
-            if v.get('userId'):
-                out.setdefault(v['userId'], []).append(svc['id'])
-        return out
+        result = []
+        for r in rooms:
+            if r.get('roomType') == 'dorm':
+                by_service = counts_by_room_and_service.get(r['id'], {})
+                r = {**r, 'vehicleCountByService': by_service, 'vehicleCount': sum(by_service.values())}
+            result.append(r)
+        return result
 
     # (this month's "Old" field, last month's "New" field it mirrors, flag
     # set once someone types/uploads that "Old" field by hand — e.g. a
@@ -580,8 +531,8 @@ class RentalService:
         # one tab while another tab had just saved a meter number could read
         # a copy taken before that save committed, then write it straight
         # back over it. Locked read-modify-write serializes the two instead.
+        rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), Storage.get_users())
         services = Storage.get_services()
-        rooms = RentalService._apply_vehicle_counts(Storage.get_rooms(), services)
 
         prev_month = RentalService._shift_month(month, -1)
 
@@ -615,12 +566,9 @@ class RentalService:
         if not month:
             month = datetime.now().strftime('%Y-%m')
         houses = Storage.get_houses()
+        users = Storage.get_users()
+        rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), users)
         services = Storage.get_services()
-        rooms = RentalService._apply_vehicle_counts(Storage.get_rooms(), services)
-        # Each account's issued cards' parking services — a KTX occupant's
-        # own share of the room's parking fee (computeKtxPerPersonBreakdown).
-        vehicle_services_by_user = RentalService._vehicle_service_ids_by_user(rooms, services)
-        users = [{**u, 'vehicleServiceIds': vehicle_services_by_user.get(u['id'], [])} for u in Storage.get_users()]
         formulas = Storage.get_formulas()
         readings = Storage.get_readings_light()
         invoices = Storage.get_invoices_light()
@@ -756,7 +704,7 @@ class RentalService:
                     {
                         'id': u['id'], 'fullName': u.get('fullName', ''), 'role': u['role'],
                         'roomId': u.get('roomId', ''), 'status': u.get('status', ''),
-                        'vehicleServiceIds': u.get('vehicleServiceIds', []),
+                        'vehicleServiceId': u.get('vehicleServiceId', ''),
                         'contractStart': u.get('contractStart', ''), 'contractEnd': u.get('contractEnd', ''),
                         'useContractProration': u.get('useContractProration', False)
                     }
@@ -1058,12 +1006,7 @@ class RentalService:
                 if RentalService._service_is_elec(candidate) == RentalService._service_is_elec(s):
                     label = 'điện' if RentalService._service_is_elec(candidate) else 'nước'
                     return f"Đã có dịch vụ \"{s.get('name')}\" tính tiền {label} theo công thức cho phòng/tòa nhà này rồi — chỉ được 1 dịch vụ tính {label} cho mỗi phòng, nếu không số liệu điện/nước sẽ bị tính sai."
-            # Two per-vehicle ("Theo xe / tháng") services can share a room —
-            # each issued card is billed under exactly one of them (e.g. Xe
-            # máy vs Ô tô, see parking_service_for_vehicle). Any other pair
-            # of parking-like fees would both be charged on top of each other.
-            both_per_vehicle = candidate.get('unit') == 'Theo xe / tháng' and s.get('unit') == 'Theo xe / tháng'
-            if RentalService._service_is_parking_like(candidate) and RentalService._service_is_parking_like(s) and not both_per_vehicle:
+            if RentalService._service_is_parking_like(candidate) and RentalService._service_is_parking_like(s):
                 return f"Đã có dịch vụ phí xe \"{s.get('name')}\" cho phòng/tòa nhà này rồi — thêm dịch vụ mới có tên chứa \"xe\" sẽ khiến phí gửi xe bị tính trùng."
         return None
 
@@ -1186,9 +1129,11 @@ class RentalService:
             # Basis for the saler commission figure (commission = deposit x
             # the global saler_commission_percent setting).
             'deposit': float(deposit) if deposit not in (None, '') else existing.get('deposit', 0),
-            # No longer read for billing — every room's count now comes
-            # from its issued parking cards (_apply_vehicle_counts); kept
-            # only so the stored value isn't silently wiped.
+            # Only meaningful as a direct edit for a single room — a dorm
+            # room's effective value gets overridden live by
+            # _apply_dorm_vehicle_counts() from its residents' hasVehicle
+            # flags, so writing a raw number here for a dorm room is
+            # harmless (it's never read back for billing).
             'vehicleCount': int(vehicle_count) if vehicle_count not in (None, '') else existing.get('vehicleCount', 0)
         }
         Storage.save_room(r_obj)
@@ -1347,10 +1292,10 @@ class RentalService:
             # vehicleServiceId below) — kept in the row purely so an old
             # value already on an existing account isn't silently wiped.
             'hasVehicle': bool(has_vehicle),
-            # vehicleServiceId is no longer read for billing (issued
-            # parking cards are — see _apply_vehicle_counts); contract
-            # dates only matter for a tenant in a dorm room (the KTX
-            # occupant list). Harmless to store for anyone else.
+            # Both only meaningful for a tenant in a dorm room — see
+            # _apply_dorm_vehicle_counts() for vehicleServiceId, and the
+            # KTX occupant list for contract_start/end. Harmless to store
+            # for anyone else, just never read back.
             'vehicleServiceId': vehicle_service_id or '',
             'contractStart': contract_start or '',
             'contractEnd': contract_end or '',
@@ -1500,8 +1445,8 @@ class RentalService:
     @staticmethod
     def generate_all_invoices(month):
         users = Storage.get_users()
+        rooms = RentalService._apply_dorm_vehicle_counts(Storage.get_rooms(), users)
         services = Storage.get_services()
-        rooms = RentalService._apply_vehicle_counts(Storage.get_rooms(), services)
         # Token-level read: a meter photo is copied onto the invoice as its
         # token (same image, stored once), never loaded.
         readings = Storage.get_readings(resolve=False).get(month, {})
@@ -1964,36 +1909,15 @@ class RentalService:
         if RentalService._card_taken(card_number, existing['id'] if existing else None):
             return None, 'Số thẻ gửi xe này đã được cấp cho xe khác!'
 
-        # Parking service the card is billed under. A form that doesn't send
-        # one keeps what was stored (re-matched if it no longer applies).
-        requested = data.get('serviceId') if 'serviceId' in data else (existing or {}).get('serviceId')
-        service_id, err = RentalService._resolve_vehicle_service({'vehicleType': vehicle_type}, room['id'], status, requested)
-        if err and 'serviceId' not in data:
-            service_id, err = RentalService._resolve_vehicle_service({'vehicleType': vehicle_type}, room['id'], status, '')
-        if err:
-            return None, err
-
-        # Whose account the card is on — on a KTX room, that occupant (not
-        # the roommates) carries its parking fee. Staff can set it; a
-        # tenant's own registration is always in their own name.
-        user_id = existing['userId'] if existing else (user.get('id') if actor == 'tenant' else '')
-        if actor == 'staff' and 'userId' in data:
-            user_id = data.get('userId') or ''
-            if user_id and not any(u['id'] == user_id and u.get('role') == 'tenant' and u.get('roomId') == room['id']
-                                   for u in Storage.get_users()):
-                return None, 'Tài khoản chủ xe không ở phòng này!'
-
         v = {
             'id': existing['id'] if existing else f"VH_{uuid.uuid4().hex[:8]}",
             'houseId': room.get('houseId', ''),
             'roomId': room['id'],
-            'userId': user_id,
-            'serviceId': service_id,
-            # Blank → the card's account, else the room's tenant; only a
-            # tenant's own registration falls back to the caller's name (a
-            # staff member used to end up as the "owner" of cards they added).
+            'userId': existing['userId'] if existing else (user.get('id') if actor == 'tenant' else ''),
+            # Blank → the room's tenant; only a tenant's own registration
+            # falls back to the caller's name (a staff member used to end
+            # up as the "owner" of cards they added).
             'ownerName': (data.get('ownerName') or '').strip()[:120] or (existing or {}).get('ownerName')
-                         or next((u.get('fullName') for u in Storage.get_users() if user_id and u['id'] == user_id), '')
                          or room.get('tenant') or (user.get('fullName') if actor == 'tenant' else '') or '',
             'plate': plate,
             'plateKey': plate_key,
@@ -2012,28 +1936,8 @@ class RentalService:
         return Storage.get_vehicle(v['id']), None
 
     @staticmethod
-    def _resolve_vehicle_service(vehicle, room_id, status, service_id):
-        """(serviceId to store, error). Only an issued card is billed; one
-        that names a service must name a parking service of its room, and
-        one that doesn't gets the type-matched one stored, so the choice is
-        visible and editable afterwards."""
-        if status != 'approved':
-            return '', None
-        room = next((r for r in Storage.get_rooms() if r['id'] == room_id), None)
-        services = Storage.get_services()
-        candidates = RentalService.parking_services_for_room(room, services) if room else []
-        if service_id:
-            if not any(s['id'] == service_id for s in candidates):
-                return None, 'Dịch vụ gửi xe không áp dụng cho phòng này!'
-            return service_id, None
-        svc = RentalService.parking_service_for_vehicle(dict(vehicle, serviceId=''), room, services) if room else None
-        return (svc['id'] if svc else ''), None
-
-    @staticmethod
-    def review_vehicle(user, vehicle_id, decision, card_number, card_issued_date, reject_reason, service_id=None):
-        """Staff approve (needs a card number) / reject one pending vehicle.
-        service_id: the parking service the card is billed under ('' or
-        None = match one by vehicle type)."""
+    def review_vehicle(user, vehicle_id, decision, card_number, card_issued_date, reject_reason):
+        """Staff approve (needs a card number) / reject one pending vehicle."""
         if not RentalService.vehicle_actor(user, 'edit') or user.get('role') == 'tenant':
             return None, 'Bạn không có quyền thực hiện thao tác này!'
         v = Storage.get_vehicle(vehicle_id)
@@ -2054,13 +1958,9 @@ class RentalService:
                     and RentalService._plate_key(o['plate']) == RentalService._plate_key(v['plate'])
                     for o in Storage.get_vehicles()):
                 return None, 'Biển số này đã được đăng ký cho xe khác!'
-        service_id, err = RentalService._resolve_vehicle_service(v, v['roomId'], decision, service_id)
-        if err:
-            return None, err
         full = dict(v, plateKey=RentalService._plate_key(v['plate']))
         full.update({
             'status': decision,
-            'serviceId': service_id,
             # Rejecting takes the card back so it can be issued again —
             # keeping it here blocked that card number forever.
             'cardNumber': card_number if decision == 'approved' else '',

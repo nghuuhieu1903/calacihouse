@@ -1033,8 +1033,7 @@ def review_vehicle():
     data = request.json or {}
     vehicle, error = RentalService.review_vehicle(
         session['user'], data.get('id'), data.get('decision'),
-        data.get('cardNumber'), data.get('cardIssuedDate'), data.get('rejectReason'),
-        data.get('serviceId')
+        data.get('cardNumber'), data.get('cardIssuedDate'), data.get('rejectReason')
     )
     if error:
         return jsonify({'success': False, 'error': error}), 400
