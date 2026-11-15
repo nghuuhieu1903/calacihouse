@@ -125,6 +125,11 @@ const I18N = {
     lbl_vehicle_note: 'Ghi chú',
     lbl_vehicle_status: 'Trạng thái',
     lbl_card_number: 'Số thẻ gửi xe',
+    lbl_parking_service: 'Tính phí gửi xe theo dịch vụ',
+    opt_no_parking_service: 'Tòa nhà chưa có dịch vụ gửi xe "Theo xe / tháng" — không tính phí',
+    lbl_vehicle_account: 'Tài khoản chủ xe (phòng KTX)',
+    opt_vehicle_account_none: '— Không gán (tính chung cho phòng) —',
+    lbl_issued_vehicle_cards: 'Xe đã cấp thẻ',
     lbl_card_date: 'Ngày cấp thẻ',
     lbl_reject_reason: 'Lý do từ chối',
     btn_save_vehicle: 'Lưu Xe',
@@ -973,6 +978,11 @@ const I18N = {
     lbl_vehicle_note: 'Note',
     lbl_vehicle_status: 'Status',
     lbl_card_number: 'Parking card no.',
+    lbl_parking_service: 'Bill parking under',
+    opt_no_parking_service: 'No per-vehicle parking service in this building — not billed',
+    lbl_vehicle_account: 'Owner account (dorm room)',
+    opt_vehicle_account_none: '— Not assigned (shared by the room) —',
+    lbl_issued_vehicle_cards: 'Issued parking cards',
     lbl_card_date: 'Card issue date',
     lbl_reject_reason: 'Reason for rejection',
     btn_save_vehicle: 'Save Vehicle',
@@ -2868,10 +2878,9 @@ function calculateServiceCostForRoom(service, room) {
     return price * headcount;
   }
   if (unit === 'Theo xe / tháng') {
-    // A KTX room's occupants can be split across more than one parking
-    // service (see _apply_dorm_vehicle_counts in services.py) — use THIS
-    // service's own count when that breakdown exists; a single room (no
-    // per-service breakdown) falls back to its one flat vehicleCount.
+    // Issued parking cards billed under THIS service (counted server-side
+    // by _apply_vehicle_counts in services.py); a room without that
+    // breakdown falls back to its one flat vehicleCount.
     const vehicleCount = room.vehicleCountByService ? (room.vehicleCountByService[service.id] || 0) : (room.vehicleCount || 0);
     return price * vehicleCount;
   }
@@ -6930,7 +6939,7 @@ function renderTenantInvoiceView() {
     personalElec = myKtxRow.elecAmount;
     itemsList = myKtxRow.perPersonItems.map(it => ({ name: it.name, symbol: it.symbol, unit: t('formula_per_person_label'), total: it.amount }));
     if (myKtxRow.vehicleFee) {
-      itemsList.push({ name: myKtxRow.vehicleName, symbol: '🛵', unit: t('formula_per_person_label'), total: myKtxRow.vehicleFee });
+      itemsList.push({ name: myKtxRow.vehicleName, symbol: '🛵', unit: `${myKtxRow.vehicleCount} xe`, total: myKtxRow.vehicleFee });
     }
     personalTotal = myKtxRow.total;
   } else {
@@ -7393,11 +7402,14 @@ function computeKtxPerPersonBreakdown(inv, room) {
     }).map(item => ({ name: item.name, symbol: item.symbol, amount: item.price }));
     const servicesTotal = perPersonItems.reduce((s, x) => s + x.amount, 0);
 
-    // A vehicle fee only belongs to whoever's account actually has that
-    // parking service assigned — not split with roommates who don't
-    // have a vehicle at all.
-    const vehicleItem = u.vehicleServiceId ? (inv.serviceItems || []).find(item => item.id === u.vehicleServiceId) : null;
-    const vehicleFee = vehicleItem ? vehicleItem.price : 0;
+    // A vehicle fee only belongs to whoever has an issued parking card in
+    // their own name (u.vehicleServiceIds, one entry per card — see
+    // _vehicle_service_ids_by_user in services.py) — not split with
+    // roommates who don't have a vehicle at all.
+    const vehicleItems = (u.vehicleServiceIds || [])
+      .map(id => (inv.serviceItems || []).find(item => item.id === id))
+      .filter(Boolean);
+    const vehicleFee = vehicleItems.reduce((sum, item) => sum + (item.price || 0), 0);
 
     const sharesElec = sharedIds.includes(u.id);
     const elecAmount = sharesElec ? elecShare : 0;
@@ -7406,7 +7418,8 @@ function computeKtxPerPersonBreakdown(inv, room) {
       id: u.id,
       name: u.fullName || u.username,
       rent, elecAmount, sharesElec, perPersonItems, vehicleFee,
-      vehicleName: vehicleItem ? vehicleItem.name : '',
+      vehicleCount: vehicleItems.length,
+      vehicleName: [...new Set(vehicleItems.map(item => item.name))].join(', '),
       total
     };
   });
@@ -8210,8 +8223,7 @@ function renderRoomOccupantsConfig(roomId) {
         <div style="font-weight:700; font-size:0.9rem;">${u.fullName || u.username}</div>
         ${leaderBadgeHtml}
       </div>
-      <label style="font-size:0.75rem; color:var(--text-secondary); display:block; margin-bottom:0.25rem;">${t('lbl_vehicle_service')}</label>
-      <select id="occ-vehicle-${u.id}" class="form-control" style="margin-bottom:0.5rem;" ${canEditAccounts ? '' : 'disabled'}></select>
+      <div style="font-size:0.78rem; color:var(--text-secondary); margin-bottom:0.5rem;">🛵 ${t('lbl_issued_vehicle_cards')}: <strong>${(u.vehicleServiceIds || []).length}</strong></div>
       <div style="display:flex; gap:0.5rem;">
         <div style="flex:1;">
           <label style="font-size:0.72rem; color:var(--text-secondary); display:block; margin-bottom:0.25rem;">${t('lbl_contract_start')}</label>
@@ -8235,14 +8247,15 @@ function renderRoomOccupantsConfig(roomId) {
   `;
   }).join('');
 
-  occupants.forEach(u => populateVehicleServiceOptions(`occ-vehicle-${u.id}`, room, u.vehicleServiceId));
   renderIcons(container);
 }
 
 async function saveOccupantSettings(userId) {
   const u = state.users.find(x => x.id === userId);
   if (!u) return;
-  const vehicleServiceId = document.getElementById(`occ-vehicle-${userId}`).value;
+  // Parking is billed from issued cards now (Xe & Thẻ Gửi Xe) — the old
+  // per-account parking service is sent back unchanged, not edited here.
+  const vehicleServiceId = u.vehicleServiceId || '';
   const contractStart = document.getElementById(`occ-start-${userId}`).value;
   const contractEnd = document.getElementById(`occ-end-${userId}`).value;
   const useContractProration = document.getElementById(`occ-proration-${userId}`).checked;
@@ -9148,6 +9161,74 @@ function vehicleStatusBadge(status) {
   return `<span class="badge ${cls}">${t('vehicle_status_' + status)}</span>`;
 }
 
+// The per-vehicle ("Theo xe / tháng") parking services an issued card in
+// this room can be billed under. Mirrors parking_services_for_room() in
+// services.py.
+function parkingServicesForRoom(room) {
+  if (!room) return [];
+  return state.services.filter(s => s.calcType !== 'formula' && s.unit === 'Theo xe / tháng'
+    && serviceMatchesHouse(s, room.houseId) && serviceMatchesRoom(s, room.id));
+}
+
+const PARKING_TYPE_WORDS = [
+  ['Xe đạp điện', ['xe đạp điện', 'đạp điện', 'xe dap dien']],
+  ['Xe đạp', ['xe đạp', 'xe dap']],
+  ['Ô tô', ['ô tô', 'oto', 'o to', 'xe hơi']],
+  ['Xe máy', ['xe máy', 'xe may', 'motor']]
+];
+
+// Which parking service a card is billed under: the stored pick if it
+// still applies, else the one named after the vehicle type, else the
+// room's first. '' = no parking service, not billed. Mirrors
+// parking_service_for_vehicle() in services.py.
+function suggestParkingServiceId(vehicleType, room, storedId) {
+  const candidates = parkingServicesForRoom(room);
+  if (!candidates.length) return '';
+  if (storedId && candidates.some(s => s.id === storedId)) return storedId;
+  const entry = PARKING_TYPE_WORDS.find(([type]) => type === vehicleType);
+  if (entry) {
+    const match = candidates.find(s => {
+      const name = (s.name || '').toLowerCase();
+      return entry[1].some(w => name.includes(w)) && !(entry[0] === 'Xe đạp' && name.includes('điện'));
+    });
+    if (match) return match.id;
+  }
+  return candidates[0].id;
+}
+
+function fillParkingServiceSelect(selectId, room, vehicleType, storedId) {
+  const select = document.getElementById(selectId);
+  const candidates = parkingServicesForRoom(room);
+  select.innerHTML = candidates.length
+    ? candidates.map(s => `<option value="${s.id}">${escapeHtml(`${s.symbol || '🛵'} ${s.name} — ${formatMoney(s.price)}đ/xe`)}</option>`).join('')
+    : `<option value="">${t('opt_no_parking_service')}</option>`;
+  select.value = suggestParkingServiceId(vehicleType, room, storedId);
+}
+
+// Staff vehicle form: parking service + (KTX room only) whose account the
+// card is on — that occupant alone carries its parking fee.
+function refreshVehicleBillingFields(vehicle) {
+  const room = state.rooms.find(r => r.id === document.getElementById('vehicle-room').value);
+  const type = document.getElementById('vehicle-type').value;
+  fillParkingServiceSelect('vehicle-service', room, type, vehicle ? vehicle.serviceId : '');
+  const userRow = document.getElementById('vehicle-user-row');
+  const isDorm = !!room && room.roomType === 'dorm';
+  userRow.style.display = isDorm ? 'block' : 'none';
+  const userSel = document.getElementById('vehicle-user');
+  const occupants = isDorm ? getRoomTenants(room.id).filter(u => u.status === 'approved') : [];
+  userSel.innerHTML = `<option value="">${t('opt_vehicle_account_none')}</option>` +
+    occupants.map(u => `<option value="${u.id}">${escapeHtml(u.fullName || u.username)}</option>`).join('');
+  userSel.value = vehicle && occupants.some(u => u.id === vehicle.userId) ? vehicle.userId : '';
+}
+
+// Picking the card's account fills "Chủ xe" with that person, unless it was
+// already typed in.
+function onVehicleUserChange() {
+  const owner = document.getElementById('vehicle-owner');
+  const u = state.users.find(x => x.id === document.getElementById('vehicle-user').value);
+  if (u && !owner.value.trim()) owner.value = u.fullName || u.username;
+}
+
 async function loadVehicles() {
   try {
     const res = await fetch(`${API_BASE}/vehicles`);
@@ -9277,6 +9358,10 @@ function vehicleCardHtml(v, isStaff, canManage) {
       ${row(t('col_room'), escapeHtml(room ? room.name : '—'))}
       ${row(t('lbl_card_number'), v.cardNumber ? escapeHtml(v.cardNumber) : `<em>${t('vehicle_no_card')}</em>`, 'vcard-card')}
       ${v.cardIssuedDate ? row(t('lbl_card_date'), escapeHtml(v.cardIssuedDate)) : ''}
+      ${isStaff && v.status === 'approved' ? (() => {
+        const svc = state.services.find(s => s.id === suggestParkingServiceId(v.vehicleType, room, v.serviceId));
+        return row(t('lbl_parking_service'), svc ? escapeHtml(`${svc.name} — ${formatMoney(svc.price)}đ`) : `<em>${t('opt_no_parking_service')}</em>`);
+      })() : ''}
       ${v.status === 'rejected' && v.rejectReason ? row(t('lbl_reject_reason'), escapeHtml(v.rejectReason), 'vcard-bad') : ''}
       ${v.note ? row(t('lbl_vehicle_note'), escapeHtml(v.note)) : ''}
     </dl>
@@ -9308,6 +9393,7 @@ function onVehicleRoomChange() {
   const room = state.rooms.find(r => r.id === document.getElementById('vehicle-room').value);
   const owner = document.getElementById('vehicle-owner');
   if (room && !document.getElementById('vehicle-id').value) owner.value = room.tenant || '';
+  if (vehicleIsStaff()) refreshVehicleBillingFields(null);
 }
 
 function openVehicleModal(id) {
@@ -9354,6 +9440,12 @@ function openVehicleModal(id) {
       document.getElementById('vehicle-owner').value = me ? me.fullName : '';
     }
   }
+  if (isStaff) {
+    refreshVehicleBillingFields(v);
+    // A new vehicle's type change re-suggests the matching parking service;
+    // an existing one keeps its stored pick unless changed by hand.
+    typeSel.onchange = () => { if (!v) refreshVehicleBillingFields(null); };
+  }
   document.getElementById('modal-vehicle').classList.add('active');
   renderIcons(document.getElementById('modal-vehicle'));
 }
@@ -9392,6 +9484,10 @@ async function saveVehicle(event) {
     body.cardNumber = document.getElementById('vehicle-card-number').value;
     body.cardIssuedDate = document.getElementById('vehicle-card-date').value;
     body.status = document.getElementById('vehicle-status').value;
+    body.serviceId = document.getElementById('vehicle-service').value;
+    if (document.getElementById('vehicle-user-row').style.display !== 'none') {
+      body.userId = document.getElementById('vehicle-user').value;
+    }
   }
   if (_vehiclePhoto) {
     body.photo = _vehiclePhoto.dataUrl;
@@ -9434,6 +9530,7 @@ function openVehicleReview(id, decision) {
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   document.getElementById('vehicle-review-date').value = v.cardIssuedDate || today;
   document.getElementById('vehicle-review-reason').value = '';
+  fillParkingServiceSelect('vehicle-review-service', state.rooms.find(r => r.id === v.roomId), v.vehicleType, v.serviceId);
   document.getElementById('modal-vehicle-review').classList.add('active');
   renderIcons(document.getElementById('modal-vehicle-review'));
 }
@@ -9446,7 +9543,8 @@ async function submitVehicleReview(event) {
     decision,
     cardNumber: document.getElementById('vehicle-review-card').value,
     cardIssuedDate: document.getElementById('vehicle-review-date').value,
-    rejectReason: document.getElementById('vehicle-review-reason').value
+    rejectReason: document.getElementById('vehicle-review-reason').value,
+    serviceId: document.getElementById('vehicle-review-service').value
   });
   if (!data) return;
   closeModal('modal-vehicle-review');
@@ -9613,14 +9711,6 @@ function toggleRoomTypeHint() {
   if (rentLabel) rentLabel.innerText = isDorm ? t('lbl_room_rent_price_dorm') : t('lbl_room_rent_price');
   if (capacityBox) capacityBox.style.display = isDorm ? 'block' : 'none';
 
-  // A dorm room's vehicle count is derived from its residents' individual
-  // "Có gửi xe" checkboxes (Quản Lý Tài Khoản) — editing it directly here
-  // would just get silently overwritten on the next read, so lock the
-  // field and point to where it's actually managed instead.
-  const vehicleInput = document.getElementById('room-vehicle-count');
-  const vehicleHint = document.getElementById('hint-room-vehicle-count');
-  if (vehicleInput) vehicleInput.disabled = isDorm;
-  if (vehicleHint) vehicleHint.style.display = isDorm ? 'block' : 'none';
 }
 
 async function saveSalerCommissionPercent() {
@@ -9722,10 +9812,17 @@ async function saveRoomConfig(event) {
   // making the contract term look wiped the moment ANY unrelated field
   // (rent, headcount, ...) was edited — even though the database itself
   // still had it right.
+  // The parking count is computed from issued cards on read (not part of
+  // the saved room), so carry it over rather than dropping it to 0 until
+  // the next reload.
   const savedRoom = data.room || rObj;
   const idx = state.rooms.findIndex(r => r.id === savedRoom.id);
-  if (idx >= 0) state.rooms[idx] = savedRoom;
-  else state.rooms.push(savedRoom);
+  if (idx >= 0) {
+    const prev = state.rooms[idx];
+    state.rooms[idx] = { ...savedRoom, vehicleCountByService: prev.vehicleCountByService || {}, vehicleCount: prev.vehicleCount || 0 };
+  } else {
+    state.rooms.push({ ...savedRoom, vehicleCountByService: {}, vehicleCount: 0 });
+  }
 
   showToast(`${t('toast_room_saved_prefix')}"${name}"${t('toast_room_saved_suffix')}`, 'success');
   closeModal('modal-room-config');

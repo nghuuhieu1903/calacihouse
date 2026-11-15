@@ -559,6 +559,7 @@ def _vehicle(row):
         'note': row['note'] or '',
         'createdBy': row['created_by'] or '',
         'createdAt': row['created_at'] or '',
+        'serviceId': row.get('service_id') or '',
         'thumb': row.get('thumb') or '',
         'hasPhoto': bool(row.get('has_photo'))
     }
@@ -1592,7 +1593,7 @@ class Storage:
     # thumb), ảnh gốc lấy từng xe một qua get_vehicle_photo().
     _VEHICLE_LIST_COLS = (
         "id, house_id, room_id, user_id, owner_name, plate, vehicle_type, brand, color, "
-        "card_number, card_issued_date, status, reject_reason, note, created_by, created_at, "
+        "card_number, card_issued_date, status, reject_reason, note, created_by, created_at, service_id, "
         "thumb, (photo IS NOT NULL AND photo <> '') AS has_photo"
     )
 
@@ -1630,6 +1631,22 @@ class Storage:
         return (row or {}).get('photo') or ''
 
     @staticmethod
+    def get_issued_vehicles_billing():
+        """Issued cards with just what parking billing needs — no thumbs.
+        Read on every /api/data and invoice run, where get_vehicles()'s
+        thumbnails would be dead weight."""
+        conn = get_db()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id, room_id, user_id, vehicle_type, service_id FROM vehicles WHERE status='approved'")
+                rows = cur.fetchall()
+        finally:
+            conn.close()
+        return [{'id': r['id'], 'roomId': r['room_id'] or '', 'userId': r['user_id'] or '',
+                 'vehicleType': r['vehicle_type'] or '', 'serviceId': r['service_id'] or '',
+                 'status': 'approved'} for r in rows]
+
+    @staticmethod
     def save_vehicle(v, photo=None, thumb=None):
         """Upserts this one row by primary key. photo/thumb=None leaves the
         stored image untouched (an edit that didn't pick a new picture);
@@ -1640,21 +1657,21 @@ class Storage:
                 cur.execute(
                     "INSERT INTO vehicles "
                     "(id, house_id, room_id, user_id, owner_name, plate, plate_key, vehicle_type, brand, color, "
-                    " card_number, card_issued_date, status, reject_reason, note, created_by, created_at) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    " card_number, card_issued_date, status, reject_reason, note, created_by, created_at, service_id) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                     "ON DUPLICATE KEY UPDATE house_id=VALUES(house_id), room_id=VALUES(room_id), "
                     "user_id=VALUES(user_id), owner_name=VALUES(owner_name), plate=VALUES(plate), "
                     "plate_key=VALUES(plate_key), vehicle_type=VALUES(vehicle_type), brand=VALUES(brand), "
                     "color=VALUES(color), card_number=VALUES(card_number), "
                     "card_issued_date=VALUES(card_issued_date), status=VALUES(status), "
-                    "reject_reason=VALUES(reject_reason), note=VALUES(note)",
+                    "reject_reason=VALUES(reject_reason), note=VALUES(note), service_id=VALUES(service_id)",
                     (
                         v['id'], v.get('houseId', ''), v.get('roomId', ''), v.get('userId', ''),
                         v.get('ownerName', ''), v.get('plate', ''), v.get('plateKey', ''),
                         v.get('vehicleType', ''), v.get('brand', ''), v.get('color', ''),
                         v.get('cardNumber', ''), v.get('cardIssuedDate', ''), v.get('status', 'pending'),
                         v.get('rejectReason', ''), v.get('note', ''), v.get('createdBy', ''),
-                        v.get('createdAt', '')
+                        v.get('createdAt', ''), v.get('serviceId', '')
                     )
                 )
                 if photo is not None:
